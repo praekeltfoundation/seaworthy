@@ -1,7 +1,7 @@
 from testtools.assertions import assert_that
 from testtools.matchers import Equals
 
-from seaworthy.utils import resource_name
+from ..utils import resource_name
 
 
 def test_resource_name():
