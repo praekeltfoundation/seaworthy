@@ -1,0 +1,28 @@
+sudo: false
+dist: trusty
+
+language: python
+cache:
+  - pip
+
+matrix:
+  include:
+    - python: '3.4'
+      env: TOXENV=py34
+    - python: '3.5'
+      env: TOXENV=py35
+    - python: '3.6'
+      env: TOXENV=py36
+    - python: '3.6'
+      env: TOXENV=pep8
+
+before_install:
+  - pip install --upgrade pip
+install:
+  - pip install tox coverage codecov
+
+script:
+  - tox
+
+after_success:
+  - if [[ $TOXENV == py* ]]; then codecov; fi
