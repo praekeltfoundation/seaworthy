@@ -19,7 +19,7 @@ matrix:
 before_install:
   - pip install --upgrade pip
 install:
-  - pip install tox coverage codecov
+  - pip install tox codecov
 
 script:
   - tox
