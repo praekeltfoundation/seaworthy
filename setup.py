@@ -1,16 +1,5 @@
 from setuptools import find_packages, setup
 
-requirements = [
-    'attrs',
-    'docker >= 2.4.0',
-    'stopit >= 1.0.0',
-]
-
-test_requirements = [
-    'pytest>=3.0.0',
-    'testtools',
-]
-
 setup(
     name='seaworthy',
     version='0.1.0.dev0',
@@ -20,10 +9,16 @@ setup(
     author='Praekelt.org SRE team',
     author_email='sre@praekelt.org',
     packages=find_packages(),
-    install_requires=requirements,
-    tests_require=test_requirements,
+    install_requires=[
+        'attrs',
+        'docker >= 2.4.0',
+        'stopit >= 1.0.0',
+    ],
     extras_require={
-        'test': test_requirements,
+        'test': [
+            'pytest>=3.0.0',
+            'testtools',
+        ],
         'pep8test': [
             'flake8',
             'flake8-import-order',
