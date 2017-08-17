@@ -1,4 +1,4 @@
-from seaworthy.ps import build_process_tree, PsRow, PsTree
+from seaworthy.ps import PsRow, PsTree, build_process_tree
 
 
 class TestPsTree(object):
