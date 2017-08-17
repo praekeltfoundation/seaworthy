@@ -53,7 +53,7 @@ def list_container_processes(container):
 @attr.s
 class PsTree(object):
     row = attr.ib()
-    children = attr.ib(default=[])
+    children = attr.ib(default=attr.Factory(list))
 
     def count(self):
         return 1 + sum(row.count() for row in self.children)
