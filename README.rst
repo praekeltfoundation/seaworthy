@@ -9,3 +9,12 @@ seaworthy
 
 
 Test harness for Docker container images
+
+Project status
+~~~~~~~~~~~~~~
+Seaworthy is in the early stages of development and will be undergoing lots of
+change. The project was split out of the tests we wrote for our
+`docker-django-bootstrap`_ project. There are examples of Seaworthy in use
+there.
+
+.. _ `docker-django-bootstrap`: https://github.com/praekeltfoundation/docker-django-bootstrap
