@@ -53,7 +53,7 @@ def list_container_processes(container):
 @attr.s
 class PsTree(object):
     row = attr.ib()
-    children = attr.ib()
+    children = attr.ib(default=[])
 
     def count(self):
         return 1 + sum(row.count() for row in self.children)
@@ -77,7 +77,7 @@ def build_process_tree(ps_rows):
     for row in ps_rows:
         if row.ppid == '0':
             assert ps_tree is None
-            ps_tree = PsTree(row=row, children=[])
+            ps_tree = PsTree(row)
     assert ps_tree is not None
     _build_process_subtree(ps_rows, ps_tree)
     assert ps_tree.count() == len(ps_rows)
