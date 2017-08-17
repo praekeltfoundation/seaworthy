@@ -1,4 +1,14 @@
+import os
+
 from setuptools import find_packages, setup
+
+HERE = os.path.abspath(os.path.dirname(__file__))
+
+
+def read(*parts):
+    with open(os.path.join(HERE, *parts)) as f:
+        return f.read()
+
 
 setup(
     name='seaworthy',
@@ -8,6 +18,7 @@ setup(
     description='Test Docker container images',
     author='Praekelt.org SRE team',
     author_email='sre@praekelt.org',
+    long_description=read('README.rst'),
     packages=find_packages(),
     install_requires=[
         'attrs',
