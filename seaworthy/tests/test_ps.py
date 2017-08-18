@@ -1,4 +1,6 @@
-from seaworthy.ps import PsRow, PsTree, build_process_tree
+import pytest
+
+from seaworthy.ps import PsException, PsRow, PsTree, build_process_tree
 
 
 def mkrow(pid, ppid, ruser='root', args=None):
@@ -88,3 +90,56 @@ class TestBuildProcessTreeFunc(object):
             ]),
             PsTree(ps_rows[9]),
         ])
+
+    def test_no_root_pid(self):
+        """
+        We can't build a process tree if we don't have a root process.
+        """
+        with pytest.raises(PsException) as e:
+            build_process_tree([])
+        assert "No init process" in str(e.value)
+
+        with pytest.raises(PsException) as e:
+            build_process_tree([
+                mkrow('2', '1'),
+                mkrow('3', '1'),
+                mkrow('4', '2'),
+            ])
+        assert "No init process" in str(e.value)
+
+    def test_multiple_root_pids(self):
+        """
+        We can't build a process tree if we have too many root processes.
+        """
+        with pytest.raises(PsException) as e:
+            build_process_tree([
+                mkrow('1', '0'),
+                mkrow('2', '0'),
+                mkrow('4', '2'),
+            ])
+        assert "Too many init processes" in str(e.value)
+
+    def test_malformed_process_tree(self):
+        """
+        We can't build a process tree with disconnected processes.
+        """
+        with pytest.raises(PsException) as e:
+            build_process_tree([
+                mkrow('1', '0'),
+                mkrow('2', '1'),
+                mkrow('4', '3'),
+            ])
+        assert "Unreachable processes" in str(e.value)
+
+    def test_duplicate_pids(self):
+        """
+        We can't build a process tree with duplicate pids.
+        """
+        with pytest.raises(PsException) as e:
+            build_process_tree([
+                mkrow('1', '0'),
+                mkrow('2', '1'),
+                mkrow('2', '1'),
+                mkrow('3', '2'),
+            ])
+        assert "Duplicate pid found: 2" in str(e.value)

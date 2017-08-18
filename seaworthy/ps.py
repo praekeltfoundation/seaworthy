@@ -5,6 +5,10 @@ import attr
 from .utils import output_lines
 
 
+class PsException(Exception):
+    pass
+
+
 @attr.s
 class PsRow(object):
     pid = attr.ib()
@@ -59,12 +63,15 @@ class PsTree(object):
         return 1 + sum(row.count() for row in self.children)
 
 
-def _build_process_subtree(ps_rows, ps_tree):
+def _build_process_subtree(ps_rows, ps_tree, pids_seen):
     for row in ps_rows:
         if row.ppid == ps_tree.row.pid:
+            if row.pid in pids_seen:
+                raise PsException("Duplicate pid found: {}".format(row.pid))
+            pids_seen.add(row.pid)
             tree = PsTree(row=row, children=[])
             ps_tree.children.append(tree)
-            _build_process_subtree(ps_rows, tree)
+            _build_process_subtree(ps_rows, tree, pids_seen)
 
 
 def build_process_tree(ps_rows):
@@ -76,10 +83,14 @@ def build_process_tree(ps_rows):
     ps_tree = None
     for row in ps_rows:
         if row.ppid == '0':
-            assert ps_tree is None
+            if ps_tree is not None:
+                raise PsException("Too many init processes (ppid=0) found")
             ps_tree = PsTree(row)
-    assert ps_tree is not None
-    _build_process_subtree(ps_rows, ps_tree)
+    if ps_tree is None:
+        raise PsException("No init process (ppid=0) found")
+    _build_process_subtree(ps_rows, ps_tree, set([ps_tree.row.pid]))
+    if ps_tree.count() < len(ps_rows):
+        raise PsException("Unreachable processes detected")
     assert ps_tree.count() == len(ps_rows)
     return ps_tree
 
