@@ -1,6 +1,14 @@
 sudo: false
 dist: trusty
 
+# Only build develop, master, and version tags (which are considered branches
+# by Travis). PRs still get built.
+branches:
+  only:
+    - develop
+    - master
+    - /\d+\.\d+(\.\d+)?/
+
 language: python
 cache:
   - pip
