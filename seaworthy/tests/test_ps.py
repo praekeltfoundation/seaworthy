@@ -48,10 +48,9 @@ class TestBuildProcessTreeFunc(object):
         We can build a PsTree for a list of grandparent/parent/child processes.
         """
         ps_rows = [
-            PsRow('1', '0', 'root', "tini -- nginx -g 'daemon off;'"),
-            PsRow('6', '1', 'root',
-                  'nginx: master process nginx -g daemon off;'),
-            PsRow('8', '6', 'nginx', 'nginx: worker process'),
+            mkrow(1, 0, 'root', "tini -- nginx -g 'daemon off;'"),
+            mkrow(6, 1, 'root', 'nginx: master process nginx -g daemon off;'),
+            mkrow(8, 6, 'nginx', 'nginx: worker process'),
         ]
         ps_tree = build_process_tree(ps_rows)
         assert ps_tree == PsTree(ps_rows[0], [
