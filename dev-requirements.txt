@@ -1,0 +1,3 @@
+coverage
+tox
+-e .[test,docstest,pep8test]
