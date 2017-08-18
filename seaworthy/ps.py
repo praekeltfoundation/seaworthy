@@ -11,8 +11,8 @@ class PsException(Exception):
 
 @attr.s
 class PsRow(object):
-    pid = attr.ib()
-    ppid = attr.ib()
+    pid = attr.ib(convert=int)
+    ppid = attr.ib(convert=int)
     ruser = attr.ib()
     args = attr.ib()
 
@@ -82,7 +82,7 @@ def build_process_tree(ps_rows):
     """
     ps_tree = None
     for row in ps_rows:
-        if row.ppid == '0':
+        if row.ppid == 0:
             if ps_tree is not None:
                 raise PsException("Too many init processes (ppid=0) found")
             ps_tree = PsTree(row)

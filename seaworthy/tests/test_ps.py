@@ -14,21 +14,21 @@ class TestPsTree(object):
         """
         A PsTree knows how many entries it contains.
         """
-        assert 1 == PsTree(mkrow('1', '0')).count()
+        assert 1 == PsTree(mkrow(1, 0)).count()
 
-        assert 3 == PsTree(mkrow('1', '0'), [
-            PsTree(mkrow('6', '1'), [
-                PsTree(mkrow('8', '6')),
+        assert 3 == PsTree(mkrow(1, 0), [
+            PsTree(mkrow(6, 1), [
+                PsTree(mkrow(8, 6)),
             ]),
         ]).count()
 
-        assert 6 == PsTree(mkrow('1', '0'), [
-            PsTree(mkrow('6', '1'), [
-                PsTree(mkrow('8', '6')),
+        assert 6 == PsTree(mkrow(1, 0), [
+            PsTree(mkrow(6, 1), [
+                PsTree(mkrow(8, 6)),
             ]),
-            PsTree(mkrow('9', '1'), [
-                PsTree(mkrow('11', '9')),
-                PsTree(mkrow('12', '9')),
+            PsTree(mkrow(9, 1), [
+                PsTree(mkrow(11, 9)),
+                PsTree(mkrow(12, 9)),
             ]),
         ]).count()
 
@@ -66,15 +66,15 @@ class TestBuildProcessTreeFunc(object):
         """
         ps_rows = [
             None,  # Dummy entry so list indices match pids.
-            mkrow('1', '0'),
-            mkrow('2', '1'),
-            mkrow('3', '1'),
-            mkrow('4', '2'),
-            mkrow('5', '3'),
-            mkrow('6', '3'),
-            mkrow('7', '4'),
-            mkrow('8', '2'),
-            mkrow('9', '1'),
+            mkrow(1, 0),
+            mkrow(2, 1),
+            mkrow(3, 1),
+            mkrow(4, 2),
+            mkrow(5, 3),
+            mkrow(6, 3),
+            mkrow(7, 4),
+            mkrow(8, 2),
+            mkrow(9, 1),
         ]
         ps_tree = build_process_tree(ps_rows[1:])
         assert ps_tree == PsTree(ps_rows[1], [
@@ -101,9 +101,9 @@ class TestBuildProcessTreeFunc(object):
 
         with pytest.raises(PsException) as e:
             build_process_tree([
-                mkrow('2', '1'),
-                mkrow('3', '1'),
-                mkrow('4', '2'),
+                mkrow(2, 1),
+                mkrow(3, 1),
+                mkrow(4, 2),
             ])
         assert "No init process" in str(e.value)
 
@@ -113,9 +113,9 @@ class TestBuildProcessTreeFunc(object):
         """
         with pytest.raises(PsException) as e:
             build_process_tree([
-                mkrow('1', '0'),
-                mkrow('2', '0'),
-                mkrow('4', '2'),
+                mkrow(1, 0),
+                mkrow(2, 0),
+                mkrow(4, 2),
             ])
         assert "Too many init processes" in str(e.value)
 
@@ -125,9 +125,9 @@ class TestBuildProcessTreeFunc(object):
         """
         with pytest.raises(PsException) as e:
             build_process_tree([
-                mkrow('1', '0'),
-                mkrow('2', '1'),
-                mkrow('4', '3'),
+                mkrow(1, 0),
+                mkrow(2, 1),
+                mkrow(4, 3),
             ])
         assert "Unreachable processes" in str(e.value)
 
@@ -137,9 +137,9 @@ class TestBuildProcessTreeFunc(object):
         """
         with pytest.raises(PsException) as e:
             build_process_tree([
-                mkrow('1', '0'),
-                mkrow('2', '1'),
-                mkrow('2', '1'),
-                mkrow('3', '2'),
+                mkrow(1, 0),
+                mkrow(2, 1),
+                mkrow(2, 1),
+                mkrow(3, 2),
             ])
         assert "Duplicate pid found: 2" in str(e.value)
