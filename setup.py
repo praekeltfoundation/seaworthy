@@ -30,6 +30,9 @@ setup(
             'pytest>=3.0.0',
             'testtools',
         ],
+        'docstest': [
+            'doc8',
+        ],
         'pep8test': [
             'flake8',
             'flake8-import-order',
