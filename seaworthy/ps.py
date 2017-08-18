@@ -84,10 +84,10 @@ def build_process_tree(ps_rows):
     for row in ps_rows:
         if row.ppid == 0:
             if ps_tree is not None:
-                raise PsException("Too many init processes (ppid=0) found")
+                raise PsException("Too many process tree roots (ppid=0) found")
             ps_tree = PsTree(row)
     if ps_tree is None:
-        raise PsException("No init process (ppid=0) found")
+        raise PsException("No process tree root (ppid=0) found")
     _build_process_subtree(ps_rows, ps_tree, set([ps_tree.row.pid]))
     if ps_tree.count() < len(ps_rows):
         raise PsException("Unreachable processes detected")

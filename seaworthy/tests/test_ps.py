@@ -97,7 +97,7 @@ class TestBuildProcessTreeFunc(object):
         """
         with pytest.raises(PsException) as e:
             build_process_tree([])
-        assert "No init process" in str(e.value)
+        assert "No process tree root" in str(e.value)
 
         with pytest.raises(PsException) as e:
             build_process_tree([
@@ -105,7 +105,7 @@ class TestBuildProcessTreeFunc(object):
                 mkrow(3, 1),
                 mkrow(4, 2),
             ])
-        assert "No init process" in str(e.value)
+        assert "No process tree root" in str(e.value)
 
     def test_multiple_root_pids(self):
         """
@@ -117,7 +117,7 @@ class TestBuildProcessTreeFunc(object):
                 mkrow(2, 0),
                 mkrow(4, 2),
             ])
-        assert "Too many init processes" in str(e.value)
+        assert "Too many process tree roots" in str(e.value)
 
     def test_malformed_process_tree(self):
         """
