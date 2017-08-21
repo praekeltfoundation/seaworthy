@@ -30,6 +30,7 @@ setup(
             'testtools',
         ],
         'test': [
+            'testtools',
             'pytest>=3.0.0',
         ],
         'docstest': [

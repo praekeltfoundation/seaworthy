@@ -1,4 +1,11 @@
-import pytest
+"""
+Tests for seaworthy.ps module.
+
+Please note that these are "core" tests and thus may not depend on anything
+that isn't already a non-optional dependency of seaworthy itself.
+"""
+
+import unittest
 
 from seaworthy.ps import PsException, PsRow, PsTree, build_process_tree
 
@@ -9,7 +16,7 @@ def mkrow(pid, ppid, ruser='root', args=None):
     return PsRow(pid, ppid, ruser, args)
 
 
-class TestPsTree(object):
+class TestPsTree(unittest.TestCase):
     def test_count(self):
         """
         A PsTree knows how many entries it contains.
@@ -33,7 +40,7 @@ class TestPsTree(object):
         ]).count()
 
 
-class TestBuildProcessTreeFunc(object):
+class TestBuildProcessTreeFunc(unittest.TestCase):
     def test_single_process(self):
         """
         We can build a PsTree for a single process.
@@ -94,51 +101,51 @@ class TestBuildProcessTreeFunc(object):
         """
         We can't build a process tree if we don't have a root process.
         """
-        with pytest.raises(PsException) as e:
+        with self.assertRaises(PsException) as cm:
             build_process_tree([])
-        assert "No process tree root" in str(e.value)
+        assert "No process tree root" in str(cm.exception)
 
-        with pytest.raises(PsException) as e:
+        with self.assertRaises(PsException) as cm:
             build_process_tree([
                 mkrow(2, 1),
                 mkrow(3, 1),
                 mkrow(4, 2),
             ])
-        assert "No process tree root" in str(e.value)
+        assert "No process tree root" in str(cm.exception)
 
     def test_multiple_root_pids(self):
         """
         We can't build a process tree if we have too many root processes.
         """
-        with pytest.raises(PsException) as e:
+        with self.assertRaises(PsException) as cm:
             build_process_tree([
                 mkrow(1, 0),
                 mkrow(2, 0),
                 mkrow(4, 2),
             ])
-        assert "Too many process tree roots" in str(e.value)
+        assert "Too many process tree roots" in str(cm.exception)
 
     def test_malformed_process_tree(self):
         """
         We can't build a process tree with disconnected processes.
         """
-        with pytest.raises(PsException) as e:
+        with self.assertRaises(PsException) as cm:
             build_process_tree([
                 mkrow(1, 0),
                 mkrow(2, 1),
                 mkrow(4, 3),
             ])
-        assert "Unreachable processes" in str(e.value)
+        assert "Unreachable processes" in str(cm.exception)
 
     def test_duplicate_pids(self):
         """
         We can't build a process tree with duplicate pids.
         """
-        with pytest.raises(PsException) as e:
+        with self.assertRaises(PsException) as cm:
             build_process_tree([
                 mkrow(1, 0),
                 mkrow(2, 1),
                 mkrow(2, 1),
                 mkrow(3, 2),
             ])
-        assert "Duplicate pid found: 2" in str(e.value)
+        assert "Duplicate pid found: 2" in str(cm.exception)
