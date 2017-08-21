@@ -1,3 +1,7 @@
+"""
+Tools for waiting on and matching log lines from a container.
+"""
+
 import re
 
 from stopit import SignalTimeout, TimeoutException
