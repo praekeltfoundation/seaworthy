@@ -12,8 +12,8 @@ def _last_few_log_lines(container, max_lines=100):
     return '\nLast few log lines:\n{}'.format(logs)
 
 
-def wait_for_log_line(container, matcher, timeout=10, encoding='utf-8',
-                      **logs_kwargs):
+def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
+                           **logs_kwargs):
     """
     Wait for matching log line(s) from the given container by streaming the
     container's stdout and/or stderr outputs.
@@ -132,4 +132,4 @@ class RegexMatcher(object):
 
 
 __all__ = ['EqualsMatcher', 'RegexMatcher', 'SequentialLinesMatcher',
-           'wait_for_log_line']
+           'wait_for_logs_matching']
