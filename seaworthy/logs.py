@@ -75,8 +75,8 @@ class SequentialLinesMatcher(object):
         return SequentialLinesMatcher(*map(EqualsMatcher, rhs))
 
     @classmethod
-    def by_patterns(cls, *patterns):
-        return SequentialLinesMatcher(*map(PatternMatcher, patterns))
+    def by_regex(cls, *patterns):
+        return SequentialLinesMatcher(*map(RegexMatcher, patterns))
 
     def __call__(self, line):
         if self._position == len(self._matchers):
@@ -113,9 +113,9 @@ class EqualsMatcher(object):
         return 'EqualsMatcher({!r})'.format(self._rhs)
 
 
-class PatternMatcher(object):
+class RegexMatcher(object):
     """
-    Matcher than matches log lines by regex pattern.
+    Matcher that matches log lines by regex pattern.
     """
     def __init__(self, pattern):
         self._regex = re.compile(pattern)
@@ -124,8 +124,8 @@ class PatternMatcher(object):
         return self._regex.search(line) is not None
 
     def __str__(self):
-        return 'PatternMatcher({!r})'.format(self._regex.pattern)
+        return 'RegexMatcher({!r})'.format(self._regex.pattern)
 
 
-__all__ = ['EqualsMatcher', 'PatternMatcher', 'SequentialLinesMatcher',
+__all__ = ['EqualsMatcher', 'RegexMatcher', 'SequentialLinesMatcher',
            'wait_for_log_line']

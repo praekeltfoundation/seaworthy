@@ -1,7 +1,6 @@
 from unittest import TestCase
 
-from seaworthy.logs import (
-    EqualsMatcher, PatternMatcher, SequentialLinesMatcher)
+from seaworthy.logs import EqualsMatcher, RegexMatcher, SequentialLinesMatcher
 
 
 class TestEqualsMatcher(TestCase):
@@ -17,19 +16,19 @@ class TestEqualsMatcher(TestCase):
         self.assertEqual(str(matcher), "EqualsMatcher('bar')")
 
 
-class TestPatternMatcher(TestCase):
+class TestRegexMatcher(TestCase):
     def test_matching(self):
         """
         Matches strings that match the pattern, doesn't match other strings.
         """
-        matcher = PatternMatcher(r'^foo')
+        matcher = RegexMatcher(r'^foo')
         self.assertTrue(matcher('foobar'))
         self.assertFalse(matcher('barfoo'))
 
     def test_str(self):
         """ The string representation is readable. """
-        matcher = PatternMatcher(r'^bar')
-        self.assertEqual(str(matcher), "PatternMatcher('^bar')")
+        matcher = RegexMatcher(r'^bar')
+        self.assertEqual(str(matcher), "RegexMatcher('^bar')")
 
 
 class TestSequentialLinesMatcher(TestCase):
@@ -38,7 +37,7 @@ class TestSequentialLinesMatcher(TestCase):
         Applies each matcher sequentially and returns True on the final match.
         """
         matcher = SequentialLinesMatcher(
-            EqualsMatcher('foo'), PatternMatcher('^bar'))
+            EqualsMatcher('foo'), RegexMatcher('^bar'))
 
         self.assertFalse(matcher('barfoo'))
         self.assertFalse(matcher('foo'))
@@ -57,10 +56,10 @@ class TestSequentialLinesMatcher(TestCase):
         self.assertFalse(matcher('baz'))
         self.assertTrue(matcher('bar'))
 
-    def test_by_patterns(self):
+    def test_by_regex(self):
         """
-        The ``by_patterns`` utility method takes a list of patterns and
-        produces a matcher that matches by those patterns sequentially.
+        The ``by_regex`` utility method takes a list of patterns and produces a
+        matcher that matches by those regex patterns sequentially.
         """
         matcher = SequentialLinesMatcher.by_patterns(r'^foo', r'bar$')
 
@@ -88,23 +87,23 @@ class TestSequentialLinesMatcher(TestCase):
         been matched and which are still to be matched.
         """
         matcher = SequentialLinesMatcher(
-            EqualsMatcher('foo'), PatternMatcher('^bar'))
+            EqualsMatcher('foo'), RegexMatcher('^bar'))
 
         self.assertEqual(
             str(matcher),
             'SequentialLinesMatcher(matched=[], '
-            "unmatched=[EqualsMatcher('foo'), PatternMatcher('^bar')])")
+            "unmatched=[EqualsMatcher('foo'), RegexMatcher('^bar')])")
 
         self.assertFalse(matcher('foo'))
 
         self.assertEqual(
             str(matcher),
             "SequentialLinesMatcher(matched=[EqualsMatcher('foo')], "
-            "unmatched=[PatternMatcher('^bar')])")
+            "unmatched=[RegexMatcher('^bar')])")
 
         self.assertTrue(matcher('barfoo'))
 
         self.assertEqual(
             str(matcher),
             "SequentialLinesMatcher(matched=[EqualsMatcher('foo'), "
-            "PatternMatcher('^bar')], unmatched=[])")
+            "RegexMatcher('^bar')], unmatched=[])")
