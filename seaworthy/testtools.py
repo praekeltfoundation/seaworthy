@@ -10,6 +10,11 @@ from testtools.matchers import MatchesSetwise, MatchesStructure, Mismatch
 
 
 class PsTreeMismatch(Mismatch):
+    """
+    Custom mismatch container for MatchesPsTree so we get somewhat more
+    comprehensible failure messages.
+    """
+
     def __init__(self, row_fields, child_count, fields_mm, children_mm):
         self.row_fields = row_fields
         self.child_count = child_count
@@ -35,6 +40,15 @@ class PsTreeMismatch(Mismatch):
 
 
 class MatchesPsTree(object):
+    """
+    Matches a nested PsTree object in a sensible way.
+
+    The `ruser` and `args` fields are always checked. The `pid` and `ppid`
+    fields are only checked if non-None values are explicitly provided, because
+    real pids are essentially arbitrary integers. The `children` field is
+    always checked, but order is ignored.
+    """
+
     def __init__(self, ruser, args, pid=None, ppid=None, children=()):
         self.row_fields = {'ruser': ruser, 'args': args}
         if pid is not None:

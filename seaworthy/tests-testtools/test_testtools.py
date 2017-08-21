@@ -182,7 +182,7 @@ class TestMatchesPsTree(object):
 
     def test_using_assert_that(self):
         """
-        MatchesPsTree can be used with testtools.assert_that().
+        MatchesPsTree can be used with assert_that() from testtools.
         """
         pst = PsTree(PsRow(1, 0, 'root', 'tini -- app'), [
             PsTree(PsRow(2, 1, 'root', 'app --arg'), [
