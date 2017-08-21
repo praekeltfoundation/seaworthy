@@ -1,3 +1,6 @@
+from testtools.assertions import assert_that
+from testtools.matchers import Not
+
 from seaworthy.ps import PsRow, PsTree
 from seaworthy.testtools import MatchesPsTree
 
@@ -176,3 +179,39 @@ class TestMatchesPsTree(object):
         mm = matcher.match(ps_tree).describe()
         assert "mismatches in children:" in mm
         assert "'app --child3' != 'app --child2': args" in mm
+
+    def test_using_assert_that(self):
+        """
+        MatchesPsTree can be used with testtools.assert_that().
+        """
+        pst = PsTree(PsRow(1, 0, 'root', 'tini -- app'), [
+            PsTree(PsRow(2, 1, 'root', 'app --arg'), [
+                PsTree(PsRow(3, 2, 'appuser', 'app --child1')),
+                PsTree(PsRow(4, 2, 'appuser', 'app --child2')),
+            ]),
+            PsTree(PsRow(5, 1, 'root', 'app2 --arg'), [
+                PsTree(PsRow(6, 5, 'root', 'app2 --child')),
+            ]),
+        ])
+
+        # This passes if the MatchesPsTree matcher matches.
+        assert_that(pst, MatchesPsTree('root', 'tini -- app', children=[
+            MatchesPsTree('root', 'app --arg', children=[
+                MatchesPsTree('appuser', 'app --child1'),
+                MatchesPsTree('appuser', 'app --child2'),
+            ]),
+            MatchesPsTree('root', 'app2 --arg', children=[
+                MatchesPsTree('root', 'app2 --child'),
+            ]),
+        ]))
+
+        # This passes if the MatchesPsTree matcher does not match.
+        assert_that(pst, Not(MatchesPsTree('root', 'tini -- app', children=[
+            MatchesPsTree('root', 'app --arg', children=[
+                MatchesPsTree('appuser', 'app --child1'),
+            ]),
+            MatchesPsTree('root', 'app2 --arg', children=[
+                MatchesPsTree('root', 'app2 --child'),
+                MatchesPsTree('appuser', 'app --child2'),
+            ]),
+        ])))
