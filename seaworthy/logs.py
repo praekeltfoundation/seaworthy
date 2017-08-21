@@ -54,7 +54,6 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
                 if matcher(line):
                     return line
     except TimeoutException:
-        # In Python 3 we have TimeoutError
         raise TimeoutError('Timeout waiting for logs matching {}.{}'.format(
             matcher, _last_few_log_lines(container)))
 
