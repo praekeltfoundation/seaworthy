@@ -61,7 +61,7 @@ class TestSequentialLinesMatcher(TestCase):
         The ``by_regex`` utility method takes a list of patterns and produces a
         matcher that matches by those regex patterns sequentially.
         """
-        matcher = SequentialLinesMatcher.by_patterns(r'^foo', r'bar$')
+        matcher = SequentialLinesMatcher.by_regex(r'^foo', r'bar$')
 
         self.assertFalse(matcher('fuzzbar'))
         self.assertFalse(matcher('foobar'))
