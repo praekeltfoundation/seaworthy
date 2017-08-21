@@ -26,9 +26,11 @@ setup(
         'stopit >= 1.0.0',
     ],
     extras_require={
+        'testtools': [
+            'testtools',
+        ],
         'test': [
             'pytest>=3.0.0',
-            'testtools',
         ],
         'docstest': [
             'doc8',
