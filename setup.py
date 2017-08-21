@@ -31,7 +31,6 @@ setup(
         ],
         'test': [
             'pytest>=3.0.0',
-            'testtools',
         ],
         'docstest': [
             'doc8',

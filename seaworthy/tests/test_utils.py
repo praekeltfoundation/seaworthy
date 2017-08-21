@@ -1,9 +1,9 @@
-from testtools.assertions import assert_that
-from testtools.matchers import Equals
+from unittest import TestCase
 
 from seaworthy.utils import resource_name
 
 
-def test_resource_name():
-    # Dummy test so that pytest passes
-    assert_that(resource_name('foo'), Equals('test_foo'))
+class DummyTest(TestCase):
+    def test_resource_name(self):
+        # Dummy test so that pytest passes
+        self.assertEqual(resource_name('foo'), 'test_foo')
