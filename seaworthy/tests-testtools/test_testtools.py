@@ -12,16 +12,16 @@ class TestMatchesPsTree(object):
         matcher = MatchesPsTree('root', 'tini -- echo "hi"')
         assert matcher.match(ps_tree) is None
 
-        matcher = MatchesPsTree('root', 'tini -- echo "hi"', 0)
+        matcher = MatchesPsTree('root', 'tini -- echo "hi"', 1)
         assert matcher.match(ps_tree) is None
 
-        matcher = MatchesPsTree('root', 'tini -- echo "hi"', pid=1)
+        matcher = MatchesPsTree('root', 'tini -- echo "hi"', ppid=0)
         assert matcher.match(ps_tree) is None
 
-        matcher = MatchesPsTree('root', 'tini -- echo "hi"', 0, 1)
+        matcher = MatchesPsTree('root', 'tini -- echo "hi"', 1, 0)
         assert matcher.match(ps_tree) is None
 
-        matcher = MatchesPsTree('root', 'tini -- echo "hi"', 0, 1, children=[])
+        matcher = MatchesPsTree('root', 'tini -- echo "hi"', 1, 0, children=[])
         assert matcher.match(ps_tree) is None
 
     def test_minimal_tree_mismatches(self):

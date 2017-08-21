@@ -34,12 +34,12 @@ class PsTreeMismatch(Mismatch):
 
 
 class MatchesPsTree(object):
-    def __init__(self, ruser, args, ppid=None, pid=None, children=()):
+    def __init__(self, ruser, args, pid=None, ppid=None, children=()):
         self.row_fields = {'ruser': ruser, 'args': args}
-        if ppid is not None:
-            self.row_fields['ppid'] = ppid
         if pid is not None:
             self.row_fields['pid'] = pid
+        if ppid is not None:
+            self.row_fields['ppid'] = ppid
         self.children = children
 
     def __str__(self):
