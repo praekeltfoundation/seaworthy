@@ -202,6 +202,9 @@ class TestFakeLogsContainer(unittest.TestCase):
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):
+    def wflm(self, container, matcher, timeout=0.5, **kw):
+        return wait_for_logs_matching(container, matcher, timeout=timeout, **kw)
+
     def test_one_matching_line(self):
         """
         If one matching line is logged, all is happy.
@@ -210,7 +213,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
             (0, b'hello\n'),
         ])
         # If this doesn't raise an exception, the test passes.
-        wait_for_logs_matching(con, EqualsMatcher('hello'), timeout=0.001)
+        self.wflm(con, EqualsMatcher('hello'))
 
     def test_one_non_matching_line(self):
         """
@@ -220,7 +223,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
             (0, b'goodbye\n'),
         ])
         with self.assertRaises(RuntimeError) as cm:
-            wait_for_logs_matching(con, EqualsMatcher('hello'), timeout=0.001)
+            self.wflm(con, EqualsMatcher('hello'))
         self.assertIn(
             "Logs matching EqualsMatcher('hello') not found.",
             str(cm.exception))
@@ -235,7 +238,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
             (2, b'hello\n'),
         ])
         with self.assertRaises(TimeoutError) as cm:
-            wait_for_logs_matching(con, EqualsMatcher('hello'), timeout=1)
+            self.wflm(con, EqualsMatcher('hello'), timeout=1)
         self.assertIn(
             "Timeout waiting for logs matching EqualsMatcher('hello').",
             str(cm.exception))
@@ -251,9 +254,29 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
             (0.01, b'hello\n'),
         ])
         with self.assertRaises(TimeoutError) as cm:
-            wait_for_logs_matching(con, EqualsMatcher('hello'), timeout=0.001)
+            self.wflm(con, EqualsMatcher('hello'), timeout=0.001)
         self.assertIn(
             "Timeout waiting for logs matching EqualsMatcher('hello').",
             str(cm.exception))
         self.assertIn('hi\n', str(cm.exception))
         self.assertNotIn('hello\n', str(cm.exception))
+
+    def test_default_encoding(self):
+        """
+        By default, we assume logs are UTF-8.
+        """
+        con = FakeLogsContainer([
+            (0, b'\xc3\xbeorn\n'),
+        ])
+        # If this doesn't raise an exception, the test passes.
+        self.wflm(con, EqualsMatcher('\u00feorn'))
+
+    def test_encoding(self):
+        """
+        We can operate on logs that use excitingly horrible encodings.
+        """
+        con = FakeLogsContainer([
+            (0, b'\xfeorn\n'),
+        ])
+        # If this doesn't raise an exception, the test passes.
+        self.wflm(con, EqualsMatcher('\u00feorn'), encoding='latin1')
