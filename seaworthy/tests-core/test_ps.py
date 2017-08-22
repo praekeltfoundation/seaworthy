@@ -43,9 +43,6 @@ class FakePsContainer:
     def __init__(self, rows):
         self.rows = rows
 
-    def mk_row(self, entry):
-        return '{ >5!s} { >5!s} { <8!s} {!s}'.format(*entry).encode('utf-8')
-
     def exec_run(self, cmd):
         assert cmd == ['ps', 'ax', '-o', 'pid,ppid,ruser,args']
         return b'\n'.join(self.rows)
@@ -84,7 +81,7 @@ class TestListContainerProcessesFunc(unittest.TestCase):
         ])
         self.assertEqual(ps_rows, list_container_processes(debian_con))
 
-    @unittest.skip("We don't handle this properly yet.")
+    @unittest.expectedFailure
     def test_header_alignment_long_pids(self):
         """
         For some header alignments, the pids may extend beyond the left edge of
