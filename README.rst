@@ -40,21 +40,21 @@ To make sure that none of the optional dependencies accidentally creep into the
 core modules (or other optional modules), we have several sets of tests that
 run in different environments:
 
-  * `tests-core`: This is a set of core tests that cover basic functionality.
-    `tox -e py36-core` will run just these tests in an environment without any
-    optional or extra dependencies installed.
+* ``tests-core``: This is a set of core tests that cover basic functionality.
+  ``tox -e py36-core`` will run just these tests in an environment without any
+  optional or extra dependencies installed.
 
-  * `tests-testtools`, etc.: These are tests for the optional integration
-    modules. `tox -e py36-testtools` will run just the `seaworthy.testtools`
-    module's tests in an environment with only the necessary dependencies
-    installed, and the other optional integration modules have similar tox
-    environments.
+* ``tests-testtools``, etc.: These are tests for the optional integration
+  modules. ``tox -e py36-testtools`` will run just the ``seaworthy.testtools``
+  module's tests in an environment with only the necessary dependencies
+  installed, and the other optional integration modules have similar tox
+  environments.
 
-  * `tests`: These are general tests that are hard or annoying to write with
-    only the minimal dependencies, so we don't have any tooling restrictions
-    here. `tox -e py36-full` will run these, as well as all the other test sets
-    mentioned above, in an environment with all optional dependencies (and
-    potentially some additional test-only dependencies) installed.
+* ``tests``: These are general tests that are hard or annoying to write with
+  only the minimal dependencies, so we don't have any tooling restrictions
+  here. ``tox -e py36-full`` will run these, as well as all the other test sets
+  mentioned above, in an environment with all optional dependencies (and
+  potentially some additional test-only dependencies) installed.
 
 
 .. _`TestContainers`: https://www.testcontainers.org/
