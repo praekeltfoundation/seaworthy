@@ -16,6 +16,28 @@ def mkrow(pid, ppid, ruser='root', args=None):
     return PsRow(pid, ppid, ruser, args)
 
 
+class TestPsRow(unittest.TestCase):
+    def test_columns(self):
+        """
+        The PsRow class knows what columns it requires from ps.
+        """
+        self.assertEqual(PsRow.columns(), ['pid', 'ppid', 'ruser', 'args'])
+
+    def test_fields(self):
+        """
+        A PsRow can be created from field values of various types.
+        """
+        ps_row = PsRow('1', '0', 'root', 'tini -- true')
+        self.assertEqual(
+            (ps_row.pid, ps_row.ppid, ps_row.ruser, ps_row.args),
+            (1, 0, 'root', 'tini -- true'))
+
+        ps_row = PsRow(1, 0, 'root', 'tini -- true')
+        self.assertEqual(
+            (ps_row.pid, ps_row.ppid, ps_row.ruser, ps_row.args),
+            (1, 0, 'root', 'tini -- true'))
+
+
 class TestPsTree(unittest.TestCase):
     def test_count(self):
         """
