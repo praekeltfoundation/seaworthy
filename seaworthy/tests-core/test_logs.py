@@ -125,16 +125,19 @@ class FakeLogsContainer:
     def __init__(self, log_entries, expected_kw=None):
         self.log_entries = log_entries
         self._seen_logs = []
-        self.expected_kw = {} if expected_kw is None else expected_kw
+        self._expected_kw = {} if expected_kw is None else expected_kw
 
     def logs(self, stream=False, **kw):
         if stream:
             # We're streaming logs, so return our iterator.
-            assert kw == self.expected_kw
+            assert kw == self._expected_kw
             return self.iter_logs()
         # We're not streaming logs, make sure we're tailing them.
-        assert kw['tail'] > 0
-        return b''.join(self._seen_logs[-kw['tail']:])
+        tail = kw.get('tail', 'all')
+        if tail == 'all':
+            tail = len(self._seen_logs)
+        assert tail > 0
+        return b''.join(self._seen_logs[-tail:])
 
     def iter_logs(self):
         for line in self._seen_logs:
@@ -169,13 +172,15 @@ class TestFakeLogsContainer(unittest.TestCase):
     def test_tail_tails(self):
         """
         Tailing returns the last N log lines, or all line if there are fewer
-        than N.
+        than N or if N is 'all' (which is the default).
         """
         con = FakeLogsContainer([(0, b'hello\n'), (0, b'goodbye\n')])
         self.stream(con)
         self.assertEqual(con.logs(tail=1), b'goodbye\n')
         self.assertEqual(con.logs(tail=2), b'hello\ngoodbye\n')
         self.assertEqual(con.logs(tail=3), b'hello\ngoodbye\n')
+        self.assertEqual(con.logs(tail='all'), b'hello\ngoodbye\n')
+        self.assertEqual(con.logs(), b'hello\ngoodbye\n')
 
     def test_streaming_waits(self):
         """
