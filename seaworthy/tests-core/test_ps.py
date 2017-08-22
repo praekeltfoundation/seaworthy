@@ -21,15 +21,15 @@ class TestPsTree(unittest.TestCase):
         """
         A PsTree knows how many entries it contains.
         """
-        assert 1 == PsTree(mkrow(1, 0)).count()
+        self.assertEqual(1, PsTree(mkrow(1, 0)).count())
 
-        assert 3 == PsTree(mkrow(1, 0), [
+        self.assertEqual(3, PsTree(mkrow(1, 0), [
             PsTree(mkrow(6, 1), [
                 PsTree(mkrow(8, 6)),
             ]),
-        ]).count()
+        ]).count())
 
-        assert 6 == PsTree(mkrow(1, 0), [
+        self.assertEqual(6, PsTree(mkrow(1, 0), [
             PsTree(mkrow(6, 1), [
                 PsTree(mkrow(8, 6)),
             ]),
@@ -37,7 +37,7 @@ class TestPsTree(unittest.TestCase):
                 PsTree(mkrow(11, 9)),
                 PsTree(mkrow(12, 9)),
             ]),
-        ]).count()
+        ]).count())
 
 
 class TestBuildProcessTreeFunc(unittest.TestCase):
@@ -48,7 +48,7 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
         ps_row = PsRow('1', '0', 'root', 'tini -- echo "hi"')
         ps_tree = build_process_tree([ps_row])
 
-        assert ps_tree == PsTree(ps_row, children=[])
+        self.assertEqual(ps_tree, PsTree(ps_row, children=[]))
 
     def test_simple_tree(self):
         """
@@ -60,11 +60,11 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
             mkrow(8, 6, 'nginx', 'nginx: worker process'),
         ]
         ps_tree = build_process_tree(ps_rows)
-        assert ps_tree == PsTree(ps_rows[0], [
+        self.assertEqual(ps_tree, PsTree(ps_rows[0], [
             PsTree(ps_rows[1], [
                 PsTree(ps_rows[2], []),
             ]),
-        ])
+        ]))
 
     def test_bigger_tree(self):
         """
@@ -83,7 +83,7 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
             mkrow(9, 1),
         ]
         ps_tree = build_process_tree(ps_rows[1:])
-        assert ps_tree == PsTree(ps_rows[1], [
+        self.assertEqual(ps_tree, PsTree(ps_rows[1], [
             PsTree(ps_rows[2], [
                 PsTree(ps_rows[4], [
                     PsTree(ps_rows[7]),
@@ -95,7 +95,7 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
                 PsTree(ps_rows[6]),
             ]),
             PsTree(ps_rows[9]),
-        ])
+        ]))
 
     def test_no_root_pid(self):
         """
@@ -103,7 +103,7 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
         """
         with self.assertRaises(PsException) as cm:
             build_process_tree([])
-        assert "No process tree root" in str(cm.exception)
+        self.assertIn("No process tree root", str(cm.exception))
 
         with self.assertRaises(PsException) as cm:
             build_process_tree([
@@ -111,7 +111,7 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
                 mkrow(3, 1),
                 mkrow(4, 2),
             ])
-        assert "No process tree root" in str(cm.exception)
+        self.assertIn("No process tree root", str(cm.exception))
 
     def test_multiple_root_pids(self):
         """
@@ -123,7 +123,7 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
                 mkrow(2, 0),
                 mkrow(4, 2),
             ])
-        assert "Too many process tree roots" in str(cm.exception)
+        self.assertIn("Too many process tree roots", str(cm.exception))
 
     def test_malformed_process_tree(self):
         """
@@ -135,7 +135,7 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
                 mkrow(2, 1),
                 mkrow(4, 3),
             ])
-        assert "Unreachable processes" in str(cm.exception)
+        self.assertIn("Unreachable processes", str(cm.exception))
 
     def test_duplicate_pids(self):
         """
@@ -148,4 +148,4 @@ class TestBuildProcessTreeFunc(unittest.TestCase):
                 mkrow(2, 1),
                 mkrow(3, 2),
             ])
-        assert "Duplicate pid found: 2" in str(cm.exception)
+        self.assertIn("Duplicate pid found: 2", str(cm.exception))
