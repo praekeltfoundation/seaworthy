@@ -30,11 +30,11 @@ Optional integrations and testing
 We have strong opinions about the testing tools we use, and we understand that
 other people may have equally strong opinions that differ from ours. For this
 reason, we have decided that none of seaworthy's core functionality will depend
-on pytest, testtools, or anything else that might get in the way of how people
-might wants to write their tests. On the other hand, we don't want to reinvent
-a bunch of integration and helper code for all the third-party testing tools we
-like, so we also provide optional integration modules where it makes sense to
-do so.
+on `pytest`_, `testtools`_, or anything else that might get in the way of how
+people might wants to write their tests. On the other hand, we don't want to
+reinvent a bunch of integration and helper code for all the third-party testing
+tools we like, so we also provide optional integration modules where it makes
+sense to do so.
 
 To make sure that none of the optional dependencies accidentally creep into the
 core modules (or other optional modules), we have several sets of tests that
@@ -59,3 +59,5 @@ run in different environments:
 
 .. _`TestContainers`: https://www.testcontainers.org/
 .. _`docker-django-bootstrap`: https://github.com/praekeltfoundation/docker-django-bootstrap
+.. _`pytest`: https://pytest.org/
+.. _`testtools`: https://testtools.readthedocs.io/en/latest/
