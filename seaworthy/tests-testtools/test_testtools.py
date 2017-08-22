@@ -1,3 +1,5 @@
+import unittest
+
 from testtools.assertions import assert_that
 from testtools.matchers import Not
 
@@ -5,7 +7,7 @@ from seaworthy.ps import PsRow, PsTree
 from seaworthy.testtools import MatchesPsTree
 
 
-class TestMatchesPsTree(object):
+class TestMatchesPsTree(unittest.TestCase):
     def test_minimal_tree_matches(self):
         """
         MatchesPsTree can match a single-process tree.
