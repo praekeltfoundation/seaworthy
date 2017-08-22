@@ -1,9 +1,9 @@
-from unittest import TestCase
+import unittest
 
 from seaworthy.logs import EqualsMatcher, RegexMatcher, SequentialLinesMatcher
 
 
-class TestEqualsMatcher(TestCase):
+class TestEqualsMatcher(unittest.TestCase):
     def test_matching(self):
         """ Matches exactly equal strings and nothing else. """
         matcher = EqualsMatcher('foo')
@@ -16,7 +16,7 @@ class TestEqualsMatcher(TestCase):
         self.assertEqual(str(matcher), "EqualsMatcher('bar')")
 
 
-class TestRegexMatcher(TestCase):
+class TestRegexMatcher(unittest.TestCase):
     def test_matching(self):
         """
         Matches strings that match the pattern, doesn't match other strings.
@@ -31,7 +31,7 @@ class TestRegexMatcher(TestCase):
         self.assertEqual(str(matcher), "RegexMatcher('^bar')")
 
 
-class TestSequentialLinesMatcher(TestCase):
+class TestSequentialLinesMatcher(unittest.TestCase):
     def test_matching(self):
         """
         Applies each matcher sequentially and returns True on the final match.
