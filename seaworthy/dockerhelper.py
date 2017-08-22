@@ -113,8 +113,11 @@ class DockerHelper(object):
             log.info("Pulling image '{}'...".format(image))
             self._client.images.pull(image)
 
+    def inspect_container(self, container):
+        return self._client.api.inspect_container(container.id)
+
     def get_container_host_port(self, container, container_port, index=0):
         # FIXME: Bit of a hack to get the port number on the host
-        inspection = self._client.api.inspect_container(container.id)
+        inspection = self.inspect_container(container)
         return (inspection['NetworkSettings']['Ports']
                 [container_port][index]['HostPort'])
