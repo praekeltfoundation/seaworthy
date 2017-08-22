@@ -75,6 +75,8 @@ class ContainerBase:
 class PostgreSQLContainer(ContainerBase):
     DEFAULT_NAME = 'postgresql'
     DEFAULT_IMAGE = 'postgres:alpine'
+    # The postgres image starts up PostgreSQL twice--the first time to set up
+    # the database and user, and the second to actually run the thing.
     DEFAULT_WAIT_MATCHERS = (
         RegexMatcher(r'database system is ready to accept connections'),
         RegexMatcher(r'database system is ready to accept connections'))
