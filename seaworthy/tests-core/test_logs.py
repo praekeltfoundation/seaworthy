@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime
 from time import sleep
 
 from seaworthy.logs import (
@@ -115,6 +116,10 @@ class TestSequentialLinesMatcher(unittest.TestCase):
 class FakeLogsContainer:
     """
     A container object stub that emits canned logs.
+
+    Logs can either be streamed or tailed. After a log entry has been streamed,
+    it is stored and we don't wait for it next time. Only logs that have
+    already been streamed are tailed.
     """
 
     def __init__(self, log_entries, expected_kw=None):
@@ -124,17 +129,71 @@ class FakeLogsContainer:
 
     def logs(self, stream=False, **kw):
         if stream:
+            # We're streaming logs, so return our iterator.
             assert kw == self.expected_kw
             return self.iter_logs()
+        # We're not streaming logs, make sure we're tailing them.
         assert kw['tail'] > 0
         return b''.join(self._seen_logs[-kw['tail']:])
 
     def iter_logs(self):
-        self._seen_logs = []
-        for wait, line in self.log_entries:
+        for line in self._seen_logs:
+            yield line
+        for wait, line in self.log_entries[len(self._seen_logs):]:
             sleep(wait)
             self._seen_logs.append(line)
             yield line
+
+
+class TestFakeLogsContainer(unittest.TestCase):
+    def stream(self, con):
+        return list(con.logs(stream=True))
+
+    def test_empty(self):
+        """
+        Streaming logs for a container with no logs returns immediately.
+        """
+        con = FakeLogsContainer([])
+        self.assertEqual(list(con.logs(stream=True)), [])
+        self.assertEqual(con.logs(tail=1), b'')
+
+    def test_tail_only_returns_streamed(self):
+        """
+        Only logs that have been streamed can be tailed.
+        """
+        con = FakeLogsContainer([(0, b'hello\n'), (0, b'goodbye\n')])
+        self.assertEqual(con.logs(tail=2), b'')
+        self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
+        self.assertEqual(con.logs(tail=2), b'hello\ngoodbye\n')
+
+    def test_tail_tails(self):
+        """
+        Tailing returns the last N log lines, or all line if there are fewer
+        than N.
+        """
+        con = FakeLogsContainer([(0, b'hello\n'), (0, b'goodbye\n')])
+        self.stream(con)
+        self.assertEqual(con.logs(tail=1), b'goodbye\n')
+        self.assertEqual(con.logs(tail=2), b'hello\ngoodbye\n')
+        self.assertEqual(con.logs(tail=3), b'hello\ngoodbye\n')
+
+    def test_streaming_waits(self):
+        """
+        Streamed logs will be returned at specified intervals. Any logs that
+        have already been streamed are returned immediately when streamed
+        subsequently.
+
+        NOTE: This test measures wall-clock time, so if something causes it to
+              be too slow the second assertion may fail.
+        """
+        con = FakeLogsContainer([(0.01, b'hello\n'), (0.02, b'goodbye\n')])
+        t0 = datetime.now()
+        self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
+        t1 = datetime.now()
+        self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
+        t2 = datetime.now()
+        self.assertLess(0.03, (t1 - t0).total_seconds())
+        self.assertLess((t2 - t1).total_seconds(), 0.03)
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):

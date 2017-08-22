@@ -40,10 +40,15 @@ class TestPsRow(unittest.TestCase):
 
 
 class FakePsContainer:
+    """
+    A container object stub that emits canned process lists.
+    """
+
     def __init__(self, rows):
         self.rows = rows
 
     def exec_run(self, cmd):
+        # We only allow our own ps command to be run.
         assert cmd == ['ps', 'ax', '-o', 'pid,ppid,ruser,args']
         return b'\n'.join(self.rows)
 
