@@ -86,7 +86,6 @@ class TestListContainerProcessesFunc(unittest.TestCase):
         ])
         self.assertEqual(ps_rows, list_container_processes(debian_con))
 
-    @unittest.expectedFailure
     def test_header_alignment_long_pids(self):
         """
         For some header alignments, the pids may extend beyond the left edge of

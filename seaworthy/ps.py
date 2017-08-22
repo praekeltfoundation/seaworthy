@@ -1,5 +1,3 @@
-import re
-
 import attr
 
 from .utils import output_lines
@@ -37,12 +35,12 @@ def list_container_processes(container):
     ps_lines = output_lines(container.exec_run(cmd))
 
     header = ps_lines.pop(0)
-    # Split on the start of the header title words
-    spans = [(match.start(0), match.end(0))
-             for match in re.finditer(r'\b\w+\s*', header)]
-    spans[-1] = (spans[-1][0], None)  # Final span goes to the end of the line
-    ps_entries = [
-        [line[start:end].strip() for start, end in spans] for line in ps_lines]
+    # We can't trust the header alignment because different ps implementations
+    # use different alignments, some of which depend on the alignment of the
+    # columns. Instead, we assume that all columns are whitespace-separated and
+    # that only the last column may contain spaces.
+    maxsplit = len(header.strip().split()) - 1
+    ps_entries = [line.strip().split(None, maxsplit) for line in ps_lines]
 
     # Convert to PsRows
     ps_rows = [PsRow(*entry) for entry in ps_entries]
