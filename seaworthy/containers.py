@@ -76,7 +76,8 @@ class PostgreSQLContainer(ContainerBase):
     DEFAULT_NAME = 'postgresql'
     DEFAULT_IMAGE = 'postgres:alpine'
     DEFAULT_WAIT_MATCHERS = (
-        [RegexMatcher(r'database system is ready to accept connections')] * 2)
+        RegexMatcher(r'database system is ready to accept connections'),
+        RegexMatcher(r'database system is ready to accept connections'))
 
     DEFAULT_DATABASE = 'database'
     DEFAULT_USER = 'user'
@@ -173,7 +174,7 @@ def _parse_rabbitmq_user(user_line):
 class RabbitMQContainer(ContainerBase):
     DEFAULT_NAME = 'rabbitmq'
     DEFAULT_IMAGE = 'rabbitmq:alpine'
-    DEFAULT_WAIT_MATCHERS = [RegexMatcher(r'Server startup complete')]
+    DEFAULT_WAIT_MATCHERS = (RegexMatcher(r'Server startup complete'),)
 
     DEFAULT_VHOST = '/vhost'
     DEFAULT_USER = 'user'
