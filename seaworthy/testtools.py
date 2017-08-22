@@ -1,9 +1,9 @@
 """
 Some (optional) utilities for use with testtools.
 
-While seaworthy doesn't require testtools, we find it useful in downstream
-container tests we write with seaworthy. This module contains various bits and
-pieces to make seaworthy work better with testtools.
+While Seaworthy doesn't require testtools, we find it useful in downstream
+container tests we write with Seaworthy. This module contains various bits and
+pieces to make Seaworthy work better with testtools.
 """
 
 from testtools.matchers import MatchesSetwise, MatchesStructure, Mismatch

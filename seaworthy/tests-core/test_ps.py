@@ -2,7 +2,7 @@
 Tests for seaworthy.ps module.
 
 Please note that these are "core" tests and thus may not depend on anything
-that isn't already a non-optional dependency of seaworthy itself.
+that isn't already a non-optional dependency of Seaworthy itself.
 """
 
 import unittest
