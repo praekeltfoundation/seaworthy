@@ -2,7 +2,7 @@ from .logs import RegexMatcher, SequentialLinesMatcher, wait_for_logs_matching
 from .utils import output_lines
 
 
-class ContainerBase(object):
+class ContainerBase:
     def __init__(self, name, image, wait_matchers):
         """
         :param name:

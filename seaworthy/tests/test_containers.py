@@ -25,7 +25,7 @@ def container_fixture(name, container):
 postgresql = container_fixture('postgresql', PostgreSQLContainer())
 
 
-class TestPostgreSQLContainer(object):
+class TestPostgreSQLContainer:
     def test_inspection(self, docker_helper, postgresql):
         """
         Inspecting the PostgreSQL container should show that the default image
@@ -90,7 +90,7 @@ class TestPostgreSQLContainer(object):
 rabbitmq = container_fixture('rabbitmq', RabbitMQContainer())
 
 
-class TestRabbitMQContainer(object):
+class TestRabbitMQContainer:
     def test_inspection(self, docker_helper, rabbitmq):
         """
         Inspecting the RabbitMQ container should show that the default image
