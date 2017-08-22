@@ -202,8 +202,8 @@ class TestFakeLogsContainer(unittest.TestCase):
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):
-    def wflm(self, container, matcher, timeout=0.5, **kw):
-        return wait_for_logs_matching(container, matcher, timeout=timeout, **kw)
+    def wflm(self, con, matcher, timeout=0.5, **kw):
+        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
 
     def test_one_matching_line(self):
         """
@@ -280,3 +280,14 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         ])
         # If this doesn't raise an exception, the test passes.
         self.wflm(con, EqualsMatcher('\u00feorn'), encoding='latin1')
+
+    def test_kwargs(self):
+        """
+        We pass through any kwargs we don't recognise to docker.
+        """
+        con = FakeLogsContainer([(0, b'hi\n')], {'stdout': False})
+        with self.assertRaises(AssertionError):
+            self.wflm(con, EqualsMatcher('hi'))
+        with self.assertRaises(AssertionError):
+            self.wflm(con, EqualsMatcher('hi'), stdout=False, stderr=False)
+        self.wflm(con, EqualsMatcher('hi'), stdout=False)
