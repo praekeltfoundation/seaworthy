@@ -5,7 +5,7 @@ didn't have to build and maintain ourselves.
 
 import select
 import struct
-from datetime import datetime, timedelta
+import time
 
 
 class SocketClosed(Exception):
@@ -15,7 +15,7 @@ class SocketClosed(Exception):
 
 
 def stream_logs(container, stdout=1, stderr=1, stream=1, timeout=10.0):
-    deadline = datetime.now() + timedelta(seconds=timeout)
+    deadline = time.monotonic() + timeout
     params = {
         'stdout': 1 if stdout else 0,
         'stderr': 1 if stderr else 0,
@@ -36,7 +36,7 @@ def read_n_bytes(sock, n, deadline):
     Read exactly N bytes from a socket before a timeout deadline.
     """
     buf = b''
-    while datetime.now() < deadline:
+    while time.monotonic() < deadline:
         r, _, _ = select.select([sock], [], [], 0.01)
         if r:
             data = sock.recv(n - len(buf))
