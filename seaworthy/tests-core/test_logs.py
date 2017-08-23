@@ -158,12 +158,7 @@ class FakeLogsContainer:
         server, client = socket.socketpair()
         self._feeder = LogFeeder(self, server)
         self._feeder.start()
-        return SocketWrapper(client)
-
-
-class SocketWrapper:
-    def __init__(self, sock):
-        self._sock = sock
+        return socket.SocketIO(client, 'rb')
 
 
 class LogFeeder(threading.Thread):
