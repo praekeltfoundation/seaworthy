@@ -236,14 +236,14 @@ class TestFakeLogsContainer(unittest.TestCase):
         NOTE: This test measures wall-clock time, so if something causes it to
               be too slow the second assertion may fail.
         """
-        con = FakeLogsContainer([(0.01, b'hello\n'), (0.02, b'goodbye\n')])
+        con = FakeLogsContainer([(0.1, b'hello\n'), (0.2, b'goodbye\n')])
         t0 = datetime.now()
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         t1 = datetime.now()
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         t2 = datetime.now()
-        self.assertLess(0.03, (t1 - t0).total_seconds())
-        self.assertLess((t2 - t1).total_seconds(), 0.03)
+        self.assertLess(0.3, (t1 - t0).total_seconds())
+        self.assertLess((t2 - t1).total_seconds(), 0.3)
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):
