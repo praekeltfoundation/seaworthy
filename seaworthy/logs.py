@@ -4,7 +4,7 @@ Tools for waiting on and matching log lines from a container.
 
 import re
 
-from stopit import SignalTimeout, TimeoutException
+from .lowlevel import stream_logs
 
 
 def _last_few_log_lines(container, max_lines=100):
@@ -45,15 +45,12 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         ended without error).
     """
     try:
-        # stopit.ThreadingTimeout doesn't seem to work but a Unix-only
-        # solution should be fine for now :-/
-        with SignalTimeout(timeout):
-            for line in container.logs(stream=True, **logs_kwargs):
-                # Drop the trailing newline
-                line = line.decode(encoding).rstrip()
-                if matcher(line):
-                    return line
-    except TimeoutException:
+        for line in stream_logs(container, timeout=timeout, **logs_kwargs):
+            # Drop the trailing newline
+            line = line.decode(encoding).rstrip()
+            if matcher(line):
+                return line
+    except TimeoutError:
         raise TimeoutError('Timeout waiting for logs matching {}.{}'.format(
             matcher, _last_few_log_lines(container)))
 
