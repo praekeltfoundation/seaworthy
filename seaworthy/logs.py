@@ -4,7 +4,7 @@ Tools for waiting on and matching log lines from a container.
 
 import re
 
-from .lowlevel import stream_logs
+from ._lowlevel import stream_logs
 
 
 def _last_few_log_lines(container, max_lines=100):

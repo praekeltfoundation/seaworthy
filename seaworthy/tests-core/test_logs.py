@@ -4,10 +4,10 @@ import threading
 import unittest
 from datetime import datetime
 
+from seaworthy._lowlevel import stream_logs
 from seaworthy.logs import (
     EqualsMatcher, RegexMatcher, SequentialLinesMatcher,
     wait_for_logs_matching)
-from seaworthy.lowlevel import stream_logs
 
 
 class TestEqualsMatcher(unittest.TestCase):
