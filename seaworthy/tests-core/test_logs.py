@@ -142,6 +142,7 @@ class FakeLogsContainer:
     def cleanup(self):
         if self._feeder is not None:
             self._feeder.cancel()
+            self._feeder = None
 
     def logs(self, stream=False, **kw):
         assert stream is False
@@ -174,6 +175,7 @@ class LogFeeder(threading.Thread):
 
     def cancel(self):
         self.finished.set()
+        self.sock.close()
 
     def send_line(self, line):
         data = b'\x00\x00\x00\x00' + struct.pack('>L', len(line)) + line
@@ -188,14 +190,18 @@ class LogFeeder(threading.Thread):
                 break
             self.con._seen_logs.append(line)
             self.send_line(line)
-        self.finished.set()
-        self.sock.close()
-        self.con._feeder = None
+        self.con.cleanup()
 
 
 class TestFakeLogsContainer(unittest.TestCase):
     def stream(self, con, timeout=1):
-        return list(stream_logs(con, timeout=timeout))
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return list(stream_logs(con, timeout=timeout))
+        finally:
+            con.cleanup()
 
     def test_empty(self):
         """
@@ -253,7 +259,13 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         return con
 
     def wflm(self, con, matcher, timeout=0.5, **kw):
-        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
+        finally:
+            con.cleanup()
 
     def test_one_matching_line(self):
         """
