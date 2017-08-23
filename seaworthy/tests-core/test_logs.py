@@ -162,9 +162,9 @@ class FakeLogsContainer:
 
 
 class LogFeeder(threading.Thread):
-    def __init__(self, con, sock):
+    def __init__(self, container, sock):
         super().__init__()
-        self.con = con
+        self.con = container
         self.sock = sock
         self.finished = threading.Event()
 
@@ -248,7 +248,7 @@ class TestFakeLogsContainer(unittest.TestCase):
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):
-    def mkcon(self, *args, **kw):
+    def mkcontainer(self, *args, **kw):
         con = FakeLogsContainer(*args, **kw)
         self.addCleanup(con.cleanup)
         return con
@@ -266,7 +266,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         If one matching line is logged, all is happy.
         """
-        con = self.mkcon([
+        con = self.mkcontainer([
             (0, b'hello\n'),
         ])
         # If this doesn't raise an exception, the test passes.
@@ -276,7 +276,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         If there's no match by the time the logs end, we raise an exception.
         """
-        con = self.mkcon([
+        con = self.mkcontainer([
             (0, b'goodbye\n'),
         ])
         with self.assertRaises(RuntimeError) as cm:
@@ -290,7 +290,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         If we take too long to get the first line, we time out.
         """
-        con = self.mkcon([
+        con = self.mkcontainer([
             (0.2, b'hello\n'),
         ])
         with self.assertRaises(TimeoutError) as cm:
@@ -304,7 +304,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         If we take too long to get a later line, we time out.
         """
-        con = self.mkcon([
+        con = self.mkcontainer([
             (0, b'hi\n'),
             (0.2, b'hello\n'),
         ])
@@ -320,7 +320,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         By default, we assume logs are UTF-8.
         """
-        con = self.mkcon([
+        con = self.mkcontainer([
             (0, b'\xc3\xbeorn\n'),
         ])
         # If this doesn't raise an exception, the test passes.
@@ -330,7 +330,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         We can operate on logs that use excitingly horrible encodings.
         """
-        con = self.mkcon([
+        con = self.mkcontainer([
             (0, b'\xfeorn\n'),
         ])
         # If this doesn't raise an exception, the test passes.
@@ -340,7 +340,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         We pass through any kwargs we don't recognise to docker.
         """
-        con = self.mkcon([(0, b'hi\n')], {'stdout': False})
+        con = self.mkcontainer([(0, b'hi\n')], {'stdout': False})
         with self.assertRaises(AssertionError):
             self.wflm(con, EqualsMatcher('hi'))
         with self.assertRaises(AssertionError):
