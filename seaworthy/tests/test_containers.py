@@ -2,6 +2,7 @@ import pytest
 
 from seaworthy.containers import PostgreSQLContainer, RabbitMQContainer
 from seaworthy.dockerhelper import DockerHelper
+from seaworthy.pytest import dockertest
 
 
 @pytest.fixture(scope='module')
@@ -25,6 +26,7 @@ def container_fixture(name, container):
 postgresql = container_fixture('postgresql', PostgreSQLContainer())
 
 
+@dockertest()
 class TestPostgreSQLContainer:
     def test_inspection(self, docker_helper, postgresql):
         """
@@ -90,6 +92,7 @@ class TestPostgreSQLContainer:
 rabbitmq = container_fixture('rabbitmq', RabbitMQContainer())
 
 
+@dockertest()
 class TestRabbitMQContainer:
     def test_inspection(self, docker_helper, rabbitmq):
         """
