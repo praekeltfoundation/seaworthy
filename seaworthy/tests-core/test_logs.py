@@ -1,7 +1,10 @@
+import socket
+import struct
+import threading
 import unittest
 from datetime import datetime
-from time import sleep
 
+from seaworthy._lowlevel import stream_logs
 from seaworthy.logs import (
     EqualsMatcher, RegexMatcher, SequentialLinesMatcher,
     wait_for_logs_matching)
@@ -117,47 +120,90 @@ class FakeLogsContainer:
     """
     A container object stub that emits canned logs.
 
-    Logs can either be streamed or tailed. After a log entry has been streamed,
-    it is stored and we don't wait for it next time. Only logs that have
-    already been streamed are tailed.
+    Logs can either be streamed through a socket using ``.attach_socket()`` or
+    tailed by using ``.logs()``. After a log entry has been streamed, it is
+    stored and we don't wait for it next time. Only logs that have already been
+    streamed are tailed.
     """
 
-    def __init__(self, log_entries, expected_kw=None):
+    def __init__(self, log_entries, expected_params=None):
         self.log_entries = log_entries
         self._seen_logs = []
-        self._expected_kw = {} if expected_kw is None else expected_kw
+        self._expected_params = {
+            'stdout': 1,
+            'stderr': 1,
+            'stream': 1,
+            'logs': 1,
+        }
+        if expected_params is not None:
+            self._expected_params.update(expected_params)
+        self._feeder = None
+
+    def cleanup(self):
+        if self._feeder is not None:
+            self._feeder.cancel()
+            self._feeder = None
 
     def logs(self, stream=False, **kw):
-        if stream:
-            # We're streaming logs, so return our iterator.
-            assert kw == self._expected_kw
-            return self.iter_logs()
-        # We're not streaming logs, make sure we're tailing them.
+        assert stream is False
         tail = kw.get('tail', 'all')
         if tail == 'all':
             tail = len(self._seen_logs)
         assert tail > 0
         return b''.join(self._seen_logs[-tail:])
 
-    def iter_logs(self):
-        for line in self._seen_logs:
-            yield line
-        for wait, line in self.log_entries[len(self._seen_logs):]:
-            sleep(wait)
-            self._seen_logs.append(line)
-            yield line
+    def attach_socket(self, params):
+        assert self._feeder is None
+        assert params == self._expected_params
+        server, client = socket.socketpair()
+        self._feeder = LogFeeder(self, server)
+        self._feeder.start()
+        return socket.SocketIO(client, 'rb')
+
+
+class LogFeeder(threading.Thread):
+    def __init__(self, container, sock):
+        super().__init__()
+        self.con = container
+        self.sock = sock
+        self.finished = threading.Event()
+
+    def cancel(self):
+        self.finished.set()
+        self.sock.close()
+
+    def send_line(self, line):
+        data = b'\x00\x00\x00\x00' + struct.pack('>L', len(line)) + line
+        self.sock.send(data)
+
+    def run(self):
+        for line in self.con._seen_logs:
+            self.send_line(line)
+        for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
+            # Wait for either cancelation (break) or timeout (no break).
+            if self.finished.wait(delay):
+                break
+            self.con._seen_logs.append(line)
+            self.send_line(line)
+        self.con.cleanup()
 
 
 class TestFakeLogsContainer(unittest.TestCase):
-    def stream(self, con):
-        return list(con.logs(stream=True))
+    def stream(self, con, timeout=1):
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return list(stream_logs(con, timeout=timeout))
+        finally:
+            con.cleanup()
 
     def test_empty(self):
         """
         Streaming logs for a container with no logs returns immediately.
         """
         con = FakeLogsContainer([])
-        self.assertEqual(list(con.logs(stream=True)), [])
+        self.assertEqual(self.stream(con), [])
         self.assertEqual(con.logs(tail=1), b'')
 
     def test_tail_only_returns_streamed(self):
@@ -191,25 +237,36 @@ class TestFakeLogsContainer(unittest.TestCase):
         NOTE: This test measures wall-clock time, so if something causes it to
               be too slow the second assertion may fail.
         """
-        con = FakeLogsContainer([(0.01, b'hello\n'), (0.02, b'goodbye\n')])
+        con = FakeLogsContainer([(0.1, b'hello\n'), (0.2, b'goodbye\n')])
         t0 = datetime.now()
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         t1 = datetime.now()
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         t2 = datetime.now()
-        self.assertLess(0.03, (t1 - t0).total_seconds())
-        self.assertLess((t2 - t1).total_seconds(), 0.03)
+        self.assertLess(0.3, (t1 - t0).total_seconds())
+        self.assertLess((t2 - t1).total_seconds(), 0.3)
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):
+    def mkcontainer(self, *args, **kw):
+        con = FakeLogsContainer(*args, **kw)
+        self.addCleanup(con.cleanup)
+        return con
+
     def wflm(self, con, matcher, timeout=0.5, **kw):
-        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
+        finally:
+            con.cleanup()
 
     def test_one_matching_line(self):
         """
         If one matching line is logged, all is happy.
         """
-        con = FakeLogsContainer([
+        con = self.mkcontainer([
             (0, b'hello\n'),
         ])
         # If this doesn't raise an exception, the test passes.
@@ -219,7 +276,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         If there's no match by the time the logs end, we raise an exception.
         """
-        con = FakeLogsContainer([
+        con = self.mkcontainer([
             (0, b'goodbye\n'),
         ])
         with self.assertRaises(RuntimeError) as cm:
@@ -229,32 +286,30 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
             str(cm.exception))
         self.assertIn('goodbye\n', str(cm.exception))
 
-    @unittest.skip('This timeout stuff is currently broken.')
     def test_timeout_first_line(self):
         """
         If we take too long to get the first line, we time out.
         """
-        con = FakeLogsContainer([
-            (2, b'hello\n'),
+        con = self.mkcontainer([
+            (0.2, b'hello\n'),
         ])
         with self.assertRaises(TimeoutError) as cm:
-            self.wflm(con, EqualsMatcher('hello'), timeout=1)
+            self.wflm(con, EqualsMatcher('hello'), timeout=0.1)
         self.assertIn(
             "Timeout waiting for logs matching EqualsMatcher('hello').",
             str(cm.exception))
         self.assertNotIn('hello\n', str(cm.exception))
 
-    @unittest.skip('This timeout stuff is currently broken.')
     def test_timeout_later_line(self):
         """
         If we take too long to get a later line, we time out.
         """
-        con = FakeLogsContainer([
+        con = self.mkcontainer([
             (0, b'hi\n'),
-            (0.01, b'hello\n'),
+            (0.2, b'hello\n'),
         ])
         with self.assertRaises(TimeoutError) as cm:
-            self.wflm(con, EqualsMatcher('hello'), timeout=0.001)
+            self.wflm(con, EqualsMatcher('hello'), timeout=0.1)
         self.assertIn(
             "Timeout waiting for logs matching EqualsMatcher('hello').",
             str(cm.exception))
@@ -265,7 +320,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         By default, we assume logs are UTF-8.
         """
-        con = FakeLogsContainer([
+        con = self.mkcontainer([
             (0, b'\xc3\xbeorn\n'),
         ])
         # If this doesn't raise an exception, the test passes.
@@ -275,7 +330,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         We can operate on logs that use excitingly horrible encodings.
         """
-        con = FakeLogsContainer([
+        con = self.mkcontainer([
             (0, b'\xfeorn\n'),
         ])
         # If this doesn't raise an exception, the test passes.
@@ -285,7 +340,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         """
         We pass through any kwargs we don't recognise to docker.
         """
-        con = FakeLogsContainer([(0, b'hi\n')], {'stdout': False})
+        con = self.mkcontainer([(0, b'hi\n')], {'stdout': False})
         with self.assertRaises(AssertionError):
             self.wflm(con, EqualsMatcher('hi'))
         with self.assertRaises(AssertionError):
