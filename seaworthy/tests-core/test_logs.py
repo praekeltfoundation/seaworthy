@@ -179,9 +179,9 @@ class LogFeeder(threading.Thread):
     def run(self):
         for line in self.con._seen_logs:
             self.send_line(line)
-        for wait, line in self.con.log_entries[len(self.con._seen_logs):]:
-            self.finished.wait(wait)
-            if self.finished.is_set():
+        for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
+            # Wait for either cancelation (break) or timeout (no break).
+            if self.finished.wait(delay):
                 break
             self.con._seen_logs.append(line)
             self.send_line(line)
