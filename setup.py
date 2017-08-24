@@ -23,7 +23,6 @@ setup(
     install_requires=[
         'attrs',
         'docker >= 2.4.0',
-        'stopit >= 1.0.0',
     ],
     extras_require={
         'testtools': [
