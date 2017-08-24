@@ -40,6 +40,22 @@ class TestDockerHelper(unittest.TestCase):
         dh.teardown()
         self.assertEqual([], client.networks.list(names=[network_name]))
 
+    def test_network_already_exists(self):
+        """
+        If the test network already exists during setup, we fail.
+        """
+        # We use a separate DockerHelper (with the usual cleanup) to create the
+        # test network so that the DockerHelper under test will see that it
+        # already exists.
+        dh_outer = self.make_helper()
+        dh_outer.setup()
+        # Now for the test.
+        dh = self.make_helper()
+        with self.assertRaises(RuntimeError) as cm:
+            dh.setup()
+        self.assertIn('network', str(cm.exception))
+        self.assertIn('already exists', str(cm.exception))
+
     def test_teardown_safe(self):
         """
         DockerHelper.teardown() is safe to call multiple times, both before and

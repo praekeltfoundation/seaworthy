@@ -50,8 +50,9 @@ class DockerHelper(object):
         self._container_ids = None
 
         # Remove the network
-        self._network.remove()
-        self._network = None
+        if self._network is not None:
+            self._network.remove()
+            self._network = None
 
         # We need to close the underlying APIClient explicitly to avoid
         # ResourceWarnings from unclosed HTTP connections.
