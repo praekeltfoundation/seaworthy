@@ -1,5 +1,4 @@
 import logging
-import warnings
 
 import docker
 
@@ -9,13 +8,11 @@ log = logging.getLogger(__name__)
 
 
 class DockerHelper(object):
-    def setup(self):
-        # Filter out unclosed socket ResourceWarnings. These happen due to
-        # requests' connection pooling and spam the logs unnecessarily:
-        # https://github.com/requests/requests/issues/1882
-        warnings.filterwarnings(
-            action='ignore', message='unclosed', category=ResourceWarning)
+    _network = None
+    _container_ids = None
+    _client = None
 
+    def setup(self):
         self._client = docker.client.from_env()
         self._container_ids = set()
 
@@ -33,6 +30,9 @@ class DockerHelper(object):
         self._network = self._client.networks.create(name, driver='bridge')
 
     def teardown(self):
+        if self._client is None:
+            return
+
         # Remove all containers
         for container_id in self._container_ids.copy():
             # Check if the container exists before trying to remove it
@@ -47,13 +47,16 @@ class DockerHelper(object):
             if container.status == 'running':
                 self.stop_container(container)
             self.remove_container(container)
+        self._container_ids = None
 
         # Remove the network
         self._network.remove()
+        self._network = None
 
-        # Restore unclosed ResourceWarnings
-        warnings.filterwarnings(
-            action='default', message='unclosed', category=ResourceWarning)
+        # We need to close the underlying APIClient explicitly to avoid
+        # ResourceWarnings from unclosed HTTP connections.
+        self._client.api.close()
+        self._client = None
 
     def create_container(self, name, image, **kwargs):
         container_name = resource_name(name)

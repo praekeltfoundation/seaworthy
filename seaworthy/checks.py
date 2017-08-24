@@ -4,15 +4,25 @@ that require docker to be present.
 """
 
 import unittest
+from contextlib import contextmanager
 
 import docker
+from requests.exceptions import ConnectionError
+
+
+@contextmanager
+def docker_client():
+    client = docker.client.from_env()
+    yield client
+    client.api.close()
 
 
 def docker_available():
-    try:
-        return docker.client.from_env().ping()
-    except:
-        return False
+    with docker_client() as client:
+        try:
+            return client.ping()
+        except ConnectionError:
+            return False
 
 
 def dockertest():
