@@ -21,7 +21,7 @@ def docker_available():
     with docker_client() as client:
         try:
             return client.ping()
-        except ConnectionError:
+        except ConnectionError:  # pragma: no cover
             return False
 
 
