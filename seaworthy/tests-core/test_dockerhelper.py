@@ -4,18 +4,33 @@ import docker
 
 from seaworthy.checks import dockertest
 from seaworthy.dockerhelper import DockerHelper
-from seaworthy.utils import resource_name
+
+
+# We use this image to test with because it is a small (~7MB) image from
+# https://github.com/docker-library/official-images that runs indefinitely with
+# no configuration.
+TEST_IMAGE = 'nginx:alpine'
+
+
+def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
+    client = docker.client.from_env()
+    try:
+        client.images.get(TEST_IMAGE)
+    except docker.errors.ImageNotFound:
+        client.images.pull(TEST_IMAGE)
+    finally:
+        client.api.close()
+
+
+def filter_by_name(things, prefix):
+    return [t for t in things if t.name.startswith(prefix)]
 
 
 @dockertest()
 class TestDockerHelper(unittest.TestCase):
-    def make_client(self):
-        """
-        Create and return a docker client that will be cleaned up properly.
-        """
-        client = docker.client.from_env()
-        self.addCleanup(client.api.close)
-        return client
+    def setUp(self):
+        self.client = docker.client.from_env()
+        self.addCleanup(self.client.api.close)
 
     def make_helper(self):
         """
@@ -26,19 +41,25 @@ class TestDockerHelper(unittest.TestCase):
         self.addCleanup(dh.teardown)
         return dh
 
+    def list_networks(self, *args, **kw):
+        return filter_by_name(
+            self.client.networks.list(*args, **kw), 'test_')
+
+    def list_containers(self, *args, **kw):
+        return filter_by_name(
+            self.client.containers.list(*args, **kw), 'test_')
+
     def test_lifecycle_network(self):
         """
         A DockerHelper creates a test network during setup and removes that
         network during teardown.
         """
-        client = self.make_client()
-        network_name = resource_name('default')
         dh = self.make_helper()
-        self.assertEqual([], client.networks.list(names=[network_name]))
+        self.assertEqual([], self.list_networks())
         dh.setup()
-        self.assertNotEqual([], client.networks.list(names=[network_name]))
+        self.assertNotEqual([], self.list_networks())
         dh.teardown()
-        self.assertEqual([], client.networks.list(names=[network_name]))
+        self.assertEqual([], self.list_networks())
 
     def test_network_already_exists(self):
         """
@@ -74,3 +95,37 @@ class TestDockerHelper(unittest.TestCase):
         dh.teardown()
         # This should silently do nothing.
         dh.teardown()
+
+    def test_teardown_containers(self):
+        """
+        DockerHelper.teardown() will remove any containers that were created,
+        no matter what state they are in or even whether they still exist.
+        """
+        dh = self.make_helper()
+        dh.setup()
+        self.assertEqual([], self.list_containers(all=True))
+        con_created = dh.create_container('created', TEST_IMAGE)
+        self.assertEqual(con_created.status, 'created')
+
+        con_running = dh.create_container('running', TEST_IMAGE)
+        dh.start_container(con_running)
+        self.assertEqual(con_running.status, 'running')
+
+        con_stopped = dh.create_container('stopped', TEST_IMAGE)
+        dh.start_container(con_stopped)
+        self.assertEqual(con_stopped.status, 'running')
+        dh.stop_container(con_stopped)
+        self.assertNotEqual(con_stopped.status, 'running')
+
+        con_removed = dh.create_container('removed', TEST_IMAGE)
+        # We remove this behind the helper's back so the helper thinks it still
+        # exists at teardown time.
+        con_removed.remove()
+        with self.assertRaises(docker.errors.NotFound):
+            con_removed.reload()
+
+        self.assertEqual(
+            set([con_created, con_running, con_stopped]),
+            set(self.list_containers(all=True)))
+        dh.teardown()
+        self.assertEqual([], self.list_containers(all=True))
