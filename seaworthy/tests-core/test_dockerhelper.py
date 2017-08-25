@@ -2,7 +2,7 @@ import unittest
 
 import docker
 
-from seaworthy.checks import dockertest
+from seaworthy.checks import dockertest, fetch_images
 from seaworthy.dockerhelper import DockerHelper
 
 
@@ -12,14 +12,9 @@ from seaworthy.dockerhelper import DockerHelper
 TEST_IMAGE = 'nginx:alpine'
 
 
+@dockertest()
 def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
-    client = docker.client.from_env()
-    try:
-        client.images.get(TEST_IMAGE)
-    except docker.errors.ImageNotFound:
-        client.images.pull(TEST_IMAGE)
-    finally:
-        client.api.close()
+    fetch_images([TEST_IMAGE])
 
 
 def filter_by_name(things, prefix):
@@ -127,5 +122,12 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(
             set([con_created, con_running, con_stopped]),
             set(self.list_containers(all=True)))
-        dh.teardown()
+
+        with self.assertLogs('seaworthy', level='WARNING') as cm:
+            dh.teardown()
+        self.assertEquals(sorted(l.getMessage() for l in cm.records), [
+            "Container 'test_created' still existed during teardown",
+            "Container 'test_running' still existed during teardown",
+            "Container 'test_stopped' still existed during teardown",
+        ])
         self.assertEqual([], self.list_containers(all=True))

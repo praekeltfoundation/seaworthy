@@ -41,7 +41,7 @@ class DockerHelper(object):
             except docker.errors.NotFound:
                 continue
 
-            log.warn("Container '{}' still existed during teardown".format(
+            log.warning("Container '{}' still existed during teardown".format(
                 container.name))
 
             if container.status == 'running':
