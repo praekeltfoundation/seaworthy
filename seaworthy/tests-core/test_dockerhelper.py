@@ -125,7 +125,7 @@ class TestDockerHelper(unittest.TestCase):
 
         with self.assertLogs('seaworthy', level='WARNING') as cm:
             dh.teardown()
-        self.assertEquals(sorted(l.getMessage() for l in cm.records), [
+        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
             "Container 'test_created' still existed during teardown",
             "Container 'test_running' still existed during teardown",
             "Container 'test_stopped' still existed during teardown",
@@ -229,3 +229,33 @@ class TestDockerHelper(unittest.TestCase):
         dh.stop_and_remove_container(con_running, remove_force=False)
         with self.assertRaises(docker.errors.NotFound):
             con_running.reload()
+
+    def test_pull_image_if_not_found(self):
+        """
+        We check if the image is already present and pull it if necessary.
+        """
+        dh = self.make_helper()
+
+        # First, remove the image if it's already present. (We use the busybox
+        # image for this test because it's the smallest I can find that is
+        # likely to be reliably available.)
+        try:
+            self.client.images.get('busybox:latest')
+        except docker.errors.ImageNotFound:  # pragma: no cover
+            pass
+        else:
+            self.client.images.remove('busybox:latest')  # pragma: no cover
+
+        # Pull the image, which we now know we don't have.
+        with self.assertLogs('seaworthy', level='INFO') as cm:
+            dh.pull_image_if_not_found('busybox:latest')
+        self.assertEqual(
+            [l.getMessage() for l in cm.records],
+            ["Pulling image 'busybox:latest'..."])
+
+        # Pull the image again, now that we know it's present.
+        with self.assertLogs('seaworthy', level='DEBUG') as cm:
+            dh.pull_image_if_not_found('busybox:latest')
+        self.assertEqual(
+            [l.getMessage() for l in cm.records],
+            ["Image 'busybox:latest' found"])
