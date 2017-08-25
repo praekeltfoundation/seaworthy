@@ -25,7 +25,7 @@ def fetch_images(images):
         for image in images:
             try:
                 client.images.get(image)
-            except docker.errors.ImageNotFound:
+            except docker.errors.ImageNotFound:  # pragma: no cover
                 client.images.pull(image)
 
 
