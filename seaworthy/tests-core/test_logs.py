@@ -138,11 +138,18 @@ class FakeLogsContainer:
         if expected_params is not None:
             self._expected_params.update(expected_params)
         self._feeder = None
+        self._client_sockets = set()
 
     def cleanup(self):
-        if self._feeder is not None:
-            self._feeder.cancel()
-            self._feeder = None
+        self.cancel_feeder()
+        while self._client_sockets:
+            self._client_sockets.pop().close()
+
+    def cancel_feeder(self):
+        feeder = self._feeder
+        if feeder is not None:
+            feeder.finished.set()
+            feeder.join()
 
     def logs(self, stream=False, **kw):
         assert stream is False
@@ -156,6 +163,7 @@ class FakeLogsContainer:
         assert self._feeder is None
         assert params == self._expected_params
         server, client = socket.socketpair()
+        self._client_sockets.add(client)
         self._feeder = LogFeeder(self, server)
         self._feeder.start()
         return socket.SocketIO(client, 'rb')
@@ -168,27 +176,33 @@ class LogFeeder(threading.Thread):
         self.sock = sock
         self.finished = threading.Event()
 
-    def cancel(self):
-        self.finished.set()
-        self.sock.close()
-
     def send_line(self, line):
         data = b'\x00\x00\x00\x00' + struct.pack('>L', len(line)) + line
         self.sock.send(data)
 
     def run(self):
+        # Emit lines we've already streamed.
         for line in self.con._seen_logs:
             self.send_line(line)
+        # Emit previously unstreamed lines at designated intervals.
         for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
             # Wait for either cancelation (break) or timeout (no break).
             if self.finished.wait(delay):
                 break
             self.con._seen_logs.append(line)
             self.send_line(line)
-        self.con.cleanup()
+        # For whatever reason, we're done. Time to clean up.
+        self.sock.shutdown(socket.SHUT_RDWR)
+        self.sock.close()
+        self.con._feeder = None
 
 
 class TestFakeLogsContainer(unittest.TestCase):
+    def mkcontainer(self, *args, **kw):
+        con = FakeLogsContainer(*args, **kw)
+        self.addCleanup(con.cleanup)
+        return con
+
     def stream(self, con, timeout=1):
         # Always clean up the feeder machinery when we're done. This is only
         # necessary if we timed out, but it doesn't hurt to clean up an
@@ -196,13 +210,13 @@ class TestFakeLogsContainer(unittest.TestCase):
         try:
             return list(stream_logs(con, timeout=timeout))
         finally:
-            con.cleanup()
+            con.cancel_feeder()
 
     def test_empty(self):
         """
         Streaming logs for a container with no logs returns immediately.
         """
-        con = FakeLogsContainer([])
+        con = self.mkcontainer([])
         self.assertEqual(self.stream(con), [])
         self.assertEqual(con.logs(tail=1), b'')
 
@@ -210,7 +224,7 @@ class TestFakeLogsContainer(unittest.TestCase):
         """
         Only logs that have been streamed can be tailed.
         """
-        con = FakeLogsContainer([(0, b'hello\n'), (0, b'goodbye\n')])
+        con = self.mkcontainer([(0, b'hello\n'), (0, b'goodbye\n')])
         self.assertEqual(con.logs(tail=2), b'')
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         self.assertEqual(con.logs(tail=2), b'hello\ngoodbye\n')
@@ -220,7 +234,7 @@ class TestFakeLogsContainer(unittest.TestCase):
         Tailing returns the last N log lines, or all line if there are fewer
         than N or if N is 'all' (which is the default).
         """
-        con = FakeLogsContainer([(0, b'hello\n'), (0, b'goodbye\n')])
+        con = self.mkcontainer([(0, b'hello\n'), (0, b'goodbye\n')])
         self.stream(con)
         self.assertEqual(con.logs(tail=1), b'goodbye\n')
         self.assertEqual(con.logs(tail=2), b'hello\ngoodbye\n')
@@ -237,7 +251,7 @@ class TestFakeLogsContainer(unittest.TestCase):
         NOTE: This test measures wall-clock time, so if something causes it to
               be too slow the second assertion may fail.
         """
-        con = FakeLogsContainer([(0.1, b'hello\n'), (0.2, b'goodbye\n')])
+        con = self.mkcontainer([(0.1, b'hello\n'), (0.2, b'goodbye\n')])
         t0 = datetime.now()
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         t1 = datetime.now()
