@@ -7,6 +7,19 @@ from .utils import resource_name
 log = logging.getLogger(__name__)
 
 
+def fetch_images(client, images):
+    """
+    Fetch images if they aren't already present.
+    """
+    for image in images:
+        try:
+            client.images.get(image)
+            log.debug("Image '{}' found".format(image))
+        except docker.errors.ImageNotFound:
+            log.info("Pulling image '{}'...".format(image))
+            client.images.pull(image)
+
+
 class DockerHelper(object):
     _network = None
     _container_ids = None
@@ -41,7 +54,7 @@ class DockerHelper(object):
             except docker.errors.NotFound:
                 continue
 
-            log.warn("Container '{}' still existed during teardown".format(
+            log.warning("Container '{}' still existed during teardown".format(
                 container.name))
 
             if container.status == 'running':
@@ -110,18 +123,9 @@ class DockerHelper(object):
         self.remove_container(container, force=remove_force)
 
     def pull_image_if_not_found(self, image):
-        try:
-            self._client.images.get(image)
-            log.debug("Image '{}' found".format(image))
-        except docker.errors.ImageNotFound:
-            log.info("Pulling image '{}'...".format(image))
-            self._client.images.pull(image)
-
-    def inspect_container(self, container):
-        return self._client.api.inspect_container(container.id)
+        fetch_images(self._client, [image])
 
     def get_container_host_port(self, container, container_port, index=0):
         # FIXME: Bit of a hack to get the port number on the host
-        inspection = self.inspect_container(container)
-        return (inspection['NetworkSettings']['Ports']
+        return (container.attrs['NetworkSettings']['Ports']
                 [container_port][index]['HostPort'])
