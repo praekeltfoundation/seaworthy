@@ -24,7 +24,7 @@ def tearDownModule():  # noqa: N802
 @dockertest()
 class TestContainerBase(unittest.TestCase):
     def setUp(self):
-        self.base = ContainerBase('test', IMG, [])
+        self.base = ContainerBase('test', IMG)
 
     def test_create_only_if_not_created(self):
         """The container cannot be created more than once."""
