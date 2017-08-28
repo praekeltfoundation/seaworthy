@@ -17,11 +17,11 @@ cache:
 matrix:
   include:
     - python: '3.4'
-      env: TOXENV=py34-core,py34-testtools,py34-full
+      env: TOXENV=py34-core,py34-pytest,py34-testtools,py34-full
     - python: '3.5'
-      env: TOXENV=py35-core,py35-testtools,py35-full
+      env: TOXENV=py35-core,py35-pytest,py35-testtools,py35-full
     - python: '3.6'
-      env: TOXENV=py36-core,py36-testtools,py36-full
+      env: TOXENV=py36-core,py36-pytest,py36-testtools,py36-full
     - python: '3.6'
       sudo: false
       services: []

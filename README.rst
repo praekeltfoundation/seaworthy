@@ -44,11 +44,14 @@ run in different environments:
   ``tox -e py36-core`` will run just these tests in an environment without any
   optional or extra dependencies installed.
 
-* ``tests-testtools``, etc.: These are tests for the optional integration
-  modules. ``tox -e py36-testtools`` will run just the ``seaworthy.testtools``
-  module's tests in an environment with only the necessary dependencies
-  installed, and the other optional integration modules have similar tox
-  environments.
+* ``tests-pytest``, etc.: These are tests for the optional pytest integration
+  modules. ``tox -e py36-testtools`` will run just the ``seaworthy.pytest``
+  modules' tests in an environment with only the necessary dependencies
+  installed.
+
+* ``tests-testtools``, etc.: These are tests for the optional testtools
+  integration module. ``tox -e py36-testtools`` will run just the
+  ``seaworthy.testtools`` module's tests.
 
 * ``tests``: These are general tests that are hard or annoying to write with
   only the minimal dependencies, so we don't have any tooling restrictions

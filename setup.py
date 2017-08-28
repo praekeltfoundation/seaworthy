@@ -25,6 +25,9 @@ setup(
         'docker >= 2.4.0',
     ],
     extras_require={
+        'pytest': [
+            'pytest>=3.0.0',
+        ],
         'testtools': [
             'testtools',
         ],
