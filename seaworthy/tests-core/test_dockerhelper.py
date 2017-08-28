@@ -2,8 +2,8 @@ import unittest
 
 import docker
 
-from seaworthy.checks import dockertest, fetch_images
-from seaworthy.dockerhelper import DockerHelper
+from seaworthy.checks import docker_client, dockertest
+from seaworthy.dockerhelper import DockerHelper, fetch_missing_images
 
 
 # We use this image to test with because it is a small (~7MB) image from
@@ -14,7 +14,8 @@ IMG = 'nginx:alpine'
 
 @dockertest()
 def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
-    fetch_images([IMG])
+    with docker_client() as client:
+        fetch_missing_images(client, [IMG])
 
 
 def filter_by_name(things, prefix):

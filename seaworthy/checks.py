@@ -17,18 +17,6 @@ def docker_client():
     client.api.close()
 
 
-def fetch_images(images):
-    """
-    Fetch images if they aren't already present.
-    """
-    with docker_client() as client:
-        for image in images:
-            try:
-                client.images.get(image)
-            except docker.errors.ImageNotFound:  # pragma: no cover
-                client.images.pull(image)
-
-
 def docker_available():
     with docker_client() as client:
         try:
