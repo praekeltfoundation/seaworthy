@@ -7,7 +7,7 @@ from .utils import resource_name
 log = logging.getLogger(__name__)
 
 
-def fetch_missing_images(client, images):
+def fetch_images(client, images):
     """
     Fetch images if they aren't already present.
     """
