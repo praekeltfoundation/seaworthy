@@ -123,7 +123,7 @@ class DockerHelper(object):
         self.remove_container(container, force=remove_force)
 
     def pull_image_if_not_found(self, image):
-        fetch_missing_images(self._client, [image])
+        fetch_images(self._client, [image])
 
     def get_container_host_port(self, container, container_port, index=0):
         # FIXME: Bit of a hack to get the port number on the host
