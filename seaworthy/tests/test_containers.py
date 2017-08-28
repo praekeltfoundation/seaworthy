@@ -35,7 +35,7 @@ class TestPostgreSQLContainer:
         the environment variables, a tmpfs is set up in the right place, and
         the network aliases are correct.
         """
-        attrs = postgresql.container().attrs
+        attrs = postgresql.inner().attrs
 
         assert attrs['Config']['Image'] == PostgreSQLContainer.DEFAULT_IMAGE
         assert attrs['Name'] == '/test_{}'.format(
@@ -99,7 +99,7 @@ class TestRabbitMQContainer:
         the environment variables, a tmpfs is set up in the right place, and
         the network aliases are correct.
         """
-        attrs = rabbitmq.container().attrs
+        attrs = rabbitmq.inner().attrs
 
         assert attrs['Config']['Image'] == RabbitMQContainer.DEFAULT_IMAGE
         assert attrs['Name'] == '/test_{}'.format(

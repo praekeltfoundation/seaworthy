@@ -55,18 +55,18 @@ class TestContainerBase(unittest.TestCase):
         """
         # If we try get the container before it's created it'll fail
         with self.assertRaises(RuntimeError) as cm:
-            self.base.container()
+            self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
         self.base.create_and_start(docker_helper, pull=False)
 
         # We can get the container once it's created
-        container = self.base.container()
+        container = self.base.inner()
         self.assertIsInstance(container, Container)
 
         self.base.stop_and_remove(docker_helper)
         with self.assertRaises(RuntimeError) as cm:
-            self.base.container()
+            self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
     def test_default_create_kwargs(self):

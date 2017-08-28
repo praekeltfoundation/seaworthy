@@ -44,10 +44,10 @@ class ContainerBase:
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """
-        docker_helper.stop_and_remove_container(self.container())
+        docker_helper.stop_and_remove_container(self.inner())
         self._container = None
 
-    def container(self):
+    def inner(self):
         """
         :returns: the underlying Docker container object
         :rtype: docker.models.containers.Container
@@ -115,7 +115,7 @@ class PostgreSQLContainer(ContainerBase):
         }
 
     def clean(self):
-        container = self.container()
+        container = self.inner()
         container.exec_run(['dropdb', self.database], user='postgres')
         container.exec_run(
             ['createdb', '-O', self.user, self.database], user='postgres')
@@ -129,7 +129,7 @@ class PostgreSQLContainer(ContainerBase):
         :param psql_opts: a list of extra options to pass to ``psql``
         """
         cmd = ['psql'] + psql_opts + ['--dbname', self.database, '-c', command]
-        return self.container().exec_run(cmd, user='postgres')
+        return self.inner().exec_run(cmd, user='postgres')
 
     def list_databases(self):
         """
@@ -226,7 +226,7 @@ class RabbitMQContainer(ContainerBase):
             a list of extra options to pass to ``rabbitmqctl``
         """
         cmd = ['rabbitmqctl'] + rabbitmqctl_opts + [command] + command_opts
-        return self.container().exec_run(cmd)
+        return self.inner().exec_run(cmd)
 
     def list_vhosts(self):
         """
