@@ -3,20 +3,23 @@ from .utils import output_lines
 
 
 class ContainerBase:
-    def __init__(self, name, image, wait_matchers):
+    def __init__(self, name, image, wait_patterns=None):
         """
         :param name:
             The name for the container. The actual name of the container is
             namespaced by DockerHelper. This name will be used as a network
             alias for the container.
         :param image: image tag to use
-        :param list wait_matchers:
-            Log matchers to use when checking that the container has started
+        :param list wait_patterns:
+            Regex patterns to use when checking that the container has started
             successfully.
         """
         self.name = name
         self.image = image
-        self.wait_matchers = wait_matchers
+        if wait_patterns:
+            self.wait_matchers = [RegexMatcher(p) for p in wait_patterns]
+        else:
+            self.wait_matchers = None
 
         self._container = None
 
@@ -38,6 +41,20 @@ class ContainerBase:
             self.name, self.image, **self.create_kwargs())
         docker_helper.start_container(self._container)
 
+        self.wait_for_start(docker_helper, self._container)
+
+    def wait_for_start(self, docker_helper, container):
+        """
+        Wait for the container to start.
+
+        By default this will wait for the log lines matching the patterns
+        passed in the ``wait_patterns`` parameter of the constructor. For more
+        advanced checks for container startup, this method should be
+        overridden.
+
+        :param DockerHelper docker_helper:
+        :param docker.models.containers.Container container:
+        """
         if self.wait_matchers:
             wait_for_logs_matching(
                 self._container, SequentialLinesMatcher(*self.wait_matchers))
@@ -78,9 +95,9 @@ class PostgreSQLContainer(ContainerBase):
     DEFAULT_IMAGE = 'postgres:alpine'
     # The postgres image starts up PostgreSQL twice--the first time to set up
     # the database and user, and the second to actually run the thing.
-    DEFAULT_WAIT_MATCHERS = (
-        RegexMatcher(r'database system is ready to accept connections'),
-        RegexMatcher(r'database system is ready to accept connections'))
+    DEFAULT_WAIT_PATTERNS = (
+        r'database system is ready to accept connections',
+        r'database system is ready to accept connections',)
 
     DEFAULT_DATABASE = 'database'
     DEFAULT_USER = 'user'
@@ -89,7 +106,7 @@ class PostgreSQLContainer(ContainerBase):
     def __init__(self,
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
-                 wait_matchers=DEFAULT_WAIT_MATCHERS,
+                 wait_patterns=DEFAULT_WAIT_PATTERNS,
                  database=DEFAULT_DATABASE,
                  user=DEFAULT_USER,
                  password=DEFAULT_PASSWORD):
@@ -98,7 +115,7 @@ class PostgreSQLContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_matchers)
+        super().__init__(name, image, wait_patterns)
 
         self.database = database
         self.user = user
@@ -177,7 +194,7 @@ def _parse_rabbitmq_user(user_line):
 class RabbitMQContainer(ContainerBase):
     DEFAULT_NAME = 'rabbitmq'
     DEFAULT_IMAGE = 'rabbitmq:alpine'
-    DEFAULT_WAIT_MATCHERS = (RegexMatcher(r'Server startup complete'),)
+    DEFAULT_WAIT_PATTERNS = (r'Server startup complete',)
 
     DEFAULT_VHOST = '/vhost'
     DEFAULT_USER = 'user'
@@ -186,7 +203,7 @@ class RabbitMQContainer(ContainerBase):
     def __init__(self,
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
-                 wait_matchers=DEFAULT_WAIT_MATCHERS,
+                 wait_patterns=DEFAULT_WAIT_PATTERNS,
                  vhost=DEFAULT_VHOST,
                  user=DEFAULT_USER,
                  password=DEFAULT_PASSWORD):
@@ -195,7 +212,7 @@ class RabbitMQContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_matchers)
+        super().__init__(name, image, wait_patterns)
 
         self.vhost = vhost
         self.user = user
