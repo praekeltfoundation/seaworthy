@@ -38,8 +38,9 @@ class ContainerBase:
             self.name, self.image, **self.create_kwargs())
         docker_helper.start_container(self._container)
 
-        wait_for_logs_matching(
-            self._container, SequentialLinesMatcher(*self.wait_matchers))
+        if self.wait_matchers:
+            wait_for_logs_matching(
+                self._container, SequentialLinesMatcher(*self.wait_matchers))
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """
