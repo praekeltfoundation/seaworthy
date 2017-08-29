@@ -3,7 +3,7 @@ import unittest
 from docker.models.containers import Container
 
 from seaworthy.checks import dockertest
-from seaworthy.containers import ContainerBase
+from seaworthy.containers import ContainerBase, PostgreSQLContainer
 from seaworthy.dockerhelper import DockerHelper
 
 IMG = 'nginx:alpine'
@@ -80,3 +80,77 @@ class TestContainerBase(unittest.TestCase):
         """By default, the ``clean`` method raises a NotImplementedError."""
         with self.assertRaises(NotImplementedError):
             self.base.clean()
+
+
+@dockertest()
+class TestPostgreSQLContainer(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.postgresql = PostgreSQLContainer()
+        cls.postgresql.create_and_start(docker_helper)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.postgresql.stop_and_remove(docker_helper)
+
+    def test_inspection(self):
+        """
+        Inspecting the PostgreSQL container should show that the default image
+        and name has been used, all default values have been set correctly in
+        the environment variables, a tmpfs is set up in the right place, and
+        the network aliases are correct.
+        """
+        attrs = self.postgresql.inner().attrs
+
+        self.assertEqual(attrs['Config']['Image'],
+                         PostgreSQLContainer.DEFAULT_IMAGE)
+        self.assertEqual(attrs['Name'], '/test_{}'.format(
+            PostgreSQLContainer.DEFAULT_NAME))
+
+        env = attrs['Config']['Env']
+        self.assertIn('POSTGRES_DB={}'.format(
+            PostgreSQLContainer.DEFAULT_DATABASE), env)
+        self.assertIn('POSTGRES_USER={}'.format(
+            PostgreSQLContainer.DEFAULT_USER), env)
+        self.assertIn('POSTGRES_PASSWORD={}'.format(
+            PostgreSQLContainer.DEFAULT_PASSWORD), env)
+
+        tmpfs = attrs['HostConfig']['Tmpfs']
+        self.assertEqual(tmpfs, {'/var/lib/postgresql/data': 'uid=70,gid=70'})
+
+        network = attrs['NetworkSettings']['Networks']['test_default']
+        # The ``short_id`` attribute of the container is the first 10
+        # characters, but the network alias is the first 12 :-/
+        self.assertEqual(network['Aliases'], [
+            PostgreSQLContainer.DEFAULT_NAME, attrs['Id'][:12]])
+
+    def test_list_resources(self):
+        """
+        The methods on the PostgreSQLContainer object that list the database
+        resources using ``psql`` should show the database and user have been
+        set up.
+        """
+        self.assertIn('database',
+                      [d[0] for d in self.postgresql.list_databases()])
+        self.assertEqual(self.postgresql.list_tables(), [])
+        self.assertEqual(
+            [r for r in self.postgresql.list_users() if r[0] == 'user'],
+            [['user', 'Superuser', '{}']])
+
+    def test_database_url(self):
+        """
+        The ``database_url`` method should return a single string with all the
+        database connection parameters.
+        """
+        postgresql = PostgreSQLContainer()
+        self.assertEqual(
+            postgresql.database_url(), 'postgres://{}:{}@{}/{}'.format(
+                PostgreSQLContainer.DEFAULT_USER,
+                PostgreSQLContainer.DEFAULT_PASSWORD,
+                PostgreSQLContainer.DEFAULT_NAME,
+                PostgreSQLContainer.DEFAULT_DATABASE))
+
+        postgresql = PostgreSQLContainer(
+            database='db', user='dbuser', password='secret', name='database')
+        self.assertEqual(
+            postgresql.database_url(), 'postgres://dbuser:secret@database/db')
