@@ -2,23 +2,17 @@ import unittest
 
 from docker.models.containers import Container
 
-from seaworthy.checks import dockertest
+from seaworthy.checks import docker_client, dockertest
 from seaworthy.containers import ContainerBase
-from seaworthy.dockerhelper import DockerHelper
+from seaworthy.dockerhelper import DockerHelper, fetch_images
 
 IMG = 'nginx:alpine'
-docker_helper = DockerHelper()
 
 
 @dockertest()
 def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
-    docker_helper.setup()
-    docker_helper.pull_image_if_not_found(IMG)
-
-
-@dockertest()
-def tearDownModule():  # noqa: N802
-    docker_helper.teardown()
+    with docker_client() as client:
+        fetch_images(client, [IMG])
 
 
 @dockertest()
@@ -26,26 +20,38 @@ class TestContainerBase(unittest.TestCase):
     def setUp(self):
         self.base = ContainerBase('test', IMG)
 
+    def make_helper(self, setup=True):
+        """
+        Create and return a DockerHelper instance that will be cleaned up after
+        the test.
+        """
+        dh = DockerHelper()
+        self.addCleanup(dh.teardown)
+        dh.setup()
+        return dh
+
     def test_create_only_if_not_created(self):
         """The container cannot be created more than once."""
-        self.base.create_and_start(docker_helper, pull=False)
+        dh = self.make_helper()
+        self.base.create_and_start(dh, pull=False)
 
         # We can't create the container when it's already created
         with self.assertRaises(RuntimeError) as cm:
-            self.base.create_and_start(docker_helper, pull=False)
+            self.base.create_and_start(dh, pull=False)
         self.assertEqual(str(cm.exception), 'Container already created.')
 
-        self.base.stop_and_remove(docker_helper)
+        self.base.stop_and_remove(dh)
 
     def test_remove_only_if_created(self):
         """The container can only be removed if it has been created."""
-        self.base.create_and_start(docker_helper, pull=False)
+        dh = self.make_helper()
+        self.base.create_and_start(dh, pull=False)
 
         # We can remove the container if it's created
-        self.base.stop_and_remove(docker_helper)
+        self.base.stop_and_remove(dh)
 
         with self.assertRaises(RuntimeError) as cm:
-            self.base.stop_and_remove(docker_helper)
+            self.base.stop_and_remove(dh)
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
     def test_container_only_if_created(self):
@@ -58,13 +64,14 @@ class TestContainerBase(unittest.TestCase):
             self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
-        self.base.create_and_start(docker_helper, pull=False)
+        dh = self.make_helper()
+        self.base.create_and_start(dh, pull=False)
 
         # We can get the container once it's created
         container = self.base.inner()
         self.assertIsInstance(container, Container)
 
-        self.base.stop_and_remove(docker_helper)
+        self.base.stop_and_remove(dh)
         with self.assertRaises(RuntimeError) as cm:
             self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
