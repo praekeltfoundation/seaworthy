@@ -35,15 +35,13 @@ class TestPostgreSQLContainer:
         the environment variables, a tmpfs is set up in the right place, and
         the network aliases are correct.
         """
-        container = postgresql.container()
-        inspection = docker_helper.inspect_container(container)
+        attrs = postgresql.container().attrs
 
-        assert (
-            inspection['Config']['Image'] == PostgreSQLContainer.DEFAULT_IMAGE)
-        assert inspection['Name'] == '/test_{}'.format(
+        assert attrs['Config']['Image'] == PostgreSQLContainer.DEFAULT_IMAGE
+        assert attrs['Name'] == '/test_{}'.format(
             PostgreSQLContainer.DEFAULT_NAME)
 
-        env = inspection['Config']['Env']
+        env = attrs['Config']['Env']
         assert 'POSTGRES_DB={}'.format(
             PostgreSQLContainer.DEFAULT_DATABASE) in env
         assert 'POSTGRES_USER={}'.format(
@@ -51,14 +49,14 @@ class TestPostgreSQLContainer:
         assert 'POSTGRES_PASSWORD={}'.format(
             PostgreSQLContainer.DEFAULT_PASSWORD) in env
 
-        tmpfs = inspection['HostConfig']['Tmpfs']
+        tmpfs = attrs['HostConfig']['Tmpfs']
         assert tmpfs == {'/var/lib/postgresql/data': 'uid=70,gid=70'}
 
-        network = inspection['NetworkSettings']['Networks']['test_default']
+        network = attrs['NetworkSettings']['Networks']['test_default']
         # The ``short_id`` attribute of the container is the first 10
         # characters, but the network alias is the first 12 :-/
         assert network['Aliases'] == [
-            PostgreSQLContainer.DEFAULT_NAME, container.id[:12]]
+            PostgreSQLContainer.DEFAULT_NAME, attrs['Id'][:12]]
 
     def test_list_resources(self, postgresql):
         """
@@ -101,14 +99,13 @@ class TestRabbitMQContainer:
         the environment variables, a tmpfs is set up in the right place, and
         the network aliases are correct.
         """
-        container = rabbitmq.container()
-        inspection = docker_helper.inspect_container(container)
+        attrs = rabbitmq.container().attrs
 
-        assert inspection['Config']['Image'] == RabbitMQContainer.DEFAULT_IMAGE
-        assert inspection['Name'] == '/test_{}'.format(
+        assert attrs['Config']['Image'] == RabbitMQContainer.DEFAULT_IMAGE
+        assert attrs['Name'] == '/test_{}'.format(
             RabbitMQContainer.DEFAULT_NAME)
 
-        env = inspection['Config']['Env']
+        env = attrs['Config']['Env']
         assert 'RABBITMQ_DEFAULT_VHOST={}'.format(
             RabbitMQContainer.DEFAULT_VHOST) in env
         assert 'RABBITMQ_DEFAULT_USER={}'.format(
@@ -116,14 +113,14 @@ class TestRabbitMQContainer:
         assert 'RABBITMQ_DEFAULT_PASS={}'.format(
             RabbitMQContainer.DEFAULT_PASSWORD) in env
 
-        tmpfs = inspection['HostConfig']['Tmpfs']
+        tmpfs = attrs['HostConfig']['Tmpfs']
         assert tmpfs == {'/var/lib/rabbitmq': 'uid=100,gid=101'}
 
-        network = inspection['NetworkSettings']['Networks']['test_default']
+        network = attrs['NetworkSettings']['Networks']['test_default']
         # The ``short_id`` attribute of the container is the first 10
         # characters, but the network alias is the first 12 :-/
         assert network['Aliases'] == [
-            RabbitMQContainer.DEFAULT_NAME, container.id[:12]]
+            RabbitMQContainer.DEFAULT_NAME, attrs['Id'][:12]]
 
     def test_list_resources(self, rabbitmq):
         """
