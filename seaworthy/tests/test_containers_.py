@@ -5,7 +5,7 @@ from seaworthy.dockerhelper import DockerHelper
 from seaworthy.pytest import dockertest
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='class')
 def docker_helper():
     docker_helper = DockerHelper()
     docker_helper.setup()
