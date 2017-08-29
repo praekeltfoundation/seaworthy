@@ -1,5 +1,5 @@
-import pytest
 from docker.errors import NotFound
+import pytest
 
 from seaworthy.checks import docker_client
 from seaworthy.containers import ContainerBase
