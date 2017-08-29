@@ -3,7 +3,8 @@ import unittest
 from docker.models.containers import Container
 
 from seaworthy.checks import dockertest
-from seaworthy.containers import ContainerBase, PostgreSQLContainer
+from seaworthy.containers import (
+    ContainerBase, PostgreSQLContainer, RabbitMQContainer)
 from seaworthy.dockerhelper import DockerHelper
 
 IMG = 'nginx:alpine'
@@ -154,3 +155,74 @@ class TestPostgreSQLContainer(unittest.TestCase):
             database='db', user='dbuser', password='secret', name='database')
         self.assertEqual(
             postgresql.database_url(), 'postgres://dbuser:secret@database/db')
+
+
+@dockertest()
+class TestRabbitMQContainer(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.rabbitmq = RabbitMQContainer()
+        cls.rabbitmq.create_and_start(docker_helper)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.rabbitmq.stop_and_remove(docker_helper)
+
+    def test_inspection(self):
+        """
+        Inspecting the RabbitMQ container should show that the default image
+        and name has been used, all default values have been set correctly in
+        the environment variables, a tmpfs is set up in the right place, and
+        the network aliases are correct.
+        """
+        attrs = self.rabbitmq.inner().attrs
+
+        self.assertEqual(attrs['Config']['Image'],
+                         RabbitMQContainer.DEFAULT_IMAGE)
+        self.assertEqual(attrs['Name'],
+                         '/test_{}'.format(RabbitMQContainer.DEFAULT_NAME))
+
+        env = attrs['Config']['Env']
+        self.assertIn('RABBITMQ_DEFAULT_VHOST={}'.format(
+            RabbitMQContainer.DEFAULT_VHOST), env)
+        self.assertIn('RABBITMQ_DEFAULT_USER={}'.format(
+            RabbitMQContainer.DEFAULT_USER), env)
+        self.assertIn('RABBITMQ_DEFAULT_PASS={}'.format(
+            RabbitMQContainer.DEFAULT_PASSWORD), env)
+
+        tmpfs = attrs['HostConfig']['Tmpfs']
+        self.assertEqual(tmpfs, {'/var/lib/rabbitmq': 'uid=100,gid=101'})
+
+        network = attrs['NetworkSettings']['Networks']['test_default']
+        # The ``short_id`` attribute of the container is the first 10
+        # characters, but the network alias is the first 12 :-/
+        self.assertEqual(network['Aliases'],
+                         [RabbitMQContainer.DEFAULT_NAME, attrs['Id'][:12]])
+
+    def test_list_resources(self):
+        """
+        The methods on the RabbitMQContainer object that list the AMQP
+        resources using ``rabbitmqctl`` should show the vhost and user have
+        been set up.
+        """
+        self.assertEqual(self.rabbitmq.list_vhosts(), ['/vhost'])
+        self.assertEqual(
+            self.rabbitmq.list_users(), [('user', ['administrator'])])
+        self.assertEqual(self.rabbitmq.list_policies(), [])
+
+    def test_broker_url(self):
+        """
+        The ``broker_url`` method should return a single string with all the
+        vhost connection parameters.
+        """
+        rabbitmq = RabbitMQContainer()
+        self.assertEqual(
+            rabbitmq.broker_url(), 'amqp://{}:{}@{}/{}'.format(
+                RabbitMQContainer.DEFAULT_USER,
+                RabbitMQContainer.DEFAULT_PASSWORD,
+                RabbitMQContainer.DEFAULT_NAME,
+                RabbitMQContainer.DEFAULT_VHOST))
+
+        rabbitmq = RabbitMQContainer(
+            vhost='/', user='guest', password='guest', name='amqp')
+        self.assertEqual(rabbitmq.broker_url(), 'amqp://guest:guest@amqp//')
