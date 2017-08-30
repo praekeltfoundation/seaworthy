@@ -3,7 +3,7 @@ import unittest
 from docker.models.containers import Container
 
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.containers import ContainerBase
+from seaworthy.containers.base import ContainerBase
 from seaworthy.dockerhelper import DockerHelper, fetch_images
 
 IMG = 'nginx:alpine'

@@ -1,6 +1,7 @@
 import pytest
 
-from seaworthy.containers import PostgreSQLContainer, RabbitMQContainer
+from seaworthy.containers.provided import (
+    PostgreSQLContainer, RabbitMQContainer)
 from seaworthy.dockerhelper import DockerHelper
 from seaworthy.pytest import dockertest
 
