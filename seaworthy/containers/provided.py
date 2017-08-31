@@ -1,75 +1,5 @@
-from .logs import RegexMatcher, SequentialLinesMatcher, wait_for_logs_matching
-from .utils import output_lines
-
-
-class ContainerBase:
-    def __init__(self, name, image, wait_matchers):
-        """
-        :param name:
-            The name for the container. The actual name of the container is
-            namespaced by DockerHelper. This name will be used as a network
-            alias for the container.
-        :param image: image tag to use
-        :param list wait_matchers:
-            Log matchers to use when checking that the container has started
-            successfully.
-        """
-        self.name = name
-        self.image = image
-        self.wait_matchers = wait_matchers
-
-        self._container = None
-
-    def create_and_start(self, docker_helper, pull=True):
-        """
-        Create the container and start it, waiting for the expected log lines.
-
-        :param pull:
-            Whether or not to attempt to pull the image if the image tag is not
-            known.
-        """
-        if self._container is not None:
-            raise RuntimeError('Container already created.')
-
-        if pull:
-            docker_helper.pull_image_if_not_found(self.image)
-
-        self._container = docker_helper.create_container(
-            self.name, self.image, **self.create_kwargs())
-        docker_helper.start_container(self._container)
-
-        wait_for_logs_matching(
-            self._container, SequentialLinesMatcher(*self.wait_matchers))
-
-    def stop_and_remove(self, docker_helper):
-        """ Stop the container and remove it. """
-        docker_helper.stop_and_remove_container(self.container())
-        self._container = None
-
-    def container(self):
-        """
-        :returns: the underlying Docker container object
-        :rtype: docker.models.containers.Container
-        """
-        if self._container is None:
-            raise RuntimeError('Container not created yet.')
-        return self._container
-
-    def create_kwargs(self):
-        """
-        :returns:
-            any extra keyword arguments to pass to
-            ~DockerHelper.create_container
-        :rtype: dict
-        """
-        return {}
-
-    def clean(self):
-        """
-        This method should "clean" the container so that it is in the same
-        state as it was when it was started.
-        """
-        raise NotImplementedError()
+from seaworthy.utils import output_lines
+from .base import ContainerBase
 
 
 class PostgreSQLContainer(ContainerBase):
@@ -77,9 +7,9 @@ class PostgreSQLContainer(ContainerBase):
     DEFAULT_IMAGE = 'postgres:alpine'
     # The postgres image starts up PostgreSQL twice--the first time to set up
     # the database and user, and the second to actually run the thing.
-    DEFAULT_WAIT_MATCHERS = (
-        RegexMatcher(r'database system is ready to accept connections'),
-        RegexMatcher(r'database system is ready to accept connections'))
+    DEFAULT_WAIT_PATTERNS = (
+        r'database system is ready to accept connections',
+        r'database system is ready to accept connections',)
 
     DEFAULT_DATABASE = 'database'
     DEFAULT_USER = 'user'
@@ -88,7 +18,7 @@ class PostgreSQLContainer(ContainerBase):
     def __init__(self,
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
-                 wait_matchers=DEFAULT_WAIT_MATCHERS,
+                 wait_patterns=DEFAULT_WAIT_PATTERNS,
                  database=DEFAULT_DATABASE,
                  user=DEFAULT_USER,
                  password=DEFAULT_PASSWORD):
@@ -97,7 +27,7 @@ class PostgreSQLContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_matchers)
+        super().__init__(name, image, wait_patterns)
 
         self.database = database
         self.user = user
@@ -114,7 +44,7 @@ class PostgreSQLContainer(ContainerBase):
         }
 
     def clean(self):
-        container = self.container()
+        container = self.inner()
         container.exec_run(['dropdb', self.database], user='postgres')
         container.exec_run(
             ['createdb', '-O', self.user, self.database], user='postgres')
@@ -128,7 +58,7 @@ class PostgreSQLContainer(ContainerBase):
         :param psql_opts: a list of extra options to pass to ``psql``
         """
         cmd = ['psql'] + psql_opts + ['--dbname', self.database, '-c', command]
-        return self.container().exec_run(cmd, user='postgres')
+        return self.inner().exec_run(cmd, user='postgres')
 
     def list_databases(self):
         """
@@ -176,7 +106,7 @@ def _parse_rabbitmq_user(user_line):
 class RabbitMQContainer(ContainerBase):
     DEFAULT_NAME = 'rabbitmq'
     DEFAULT_IMAGE = 'rabbitmq:alpine'
-    DEFAULT_WAIT_MATCHERS = (RegexMatcher(r'Server startup complete'),)
+    DEFAULT_WAIT_PATTERNS = (r'Server startup complete',)
 
     DEFAULT_VHOST = '/vhost'
     DEFAULT_USER = 'user'
@@ -185,7 +115,7 @@ class RabbitMQContainer(ContainerBase):
     def __init__(self,
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
-                 wait_matchers=DEFAULT_WAIT_MATCHERS,
+                 wait_patterns=DEFAULT_WAIT_PATTERNS,
                  vhost=DEFAULT_VHOST,
                  user=DEFAULT_USER,
                  password=DEFAULT_PASSWORD):
@@ -194,7 +124,7 @@ class RabbitMQContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_matchers)
+        super().__init__(name, image, wait_patterns)
 
         self.vhost = vhost
         self.user = user
@@ -225,7 +155,7 @@ class RabbitMQContainer(ContainerBase):
             a list of extra options to pass to ``rabbitmqctl``
         """
         cmd = ['rabbitmqctl'] + rabbitmqctl_opts + [command] + command_opts
-        return self.container().exec_run(cmd)
+        return self.inner().exec_run(cmd)
 
     def list_vhosts(self):
         """
