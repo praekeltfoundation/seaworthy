@@ -264,6 +264,15 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
         self.addCleanup(con.cleanup)
         return con
 
+    def stream(self, con, timeout=1):
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return list(stream_logs(con, timeout=timeout))
+        finally:
+            con.cancel_feeder()
+
     def swh(self, con, timeout=0.5, **kw):
         # Always clean up the feeder machinery when we're done. This is only
         # necessary if we timed out, but it doesn't hurt to clean up an
@@ -291,8 +300,8 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
             (0.1, b'hello\n'),
             (0.1, b'goodbye\n'),
         ])
-        self.assertEqual(list(stream_logs(con)), [b'hello\n', b'goodbye\n'])
-        self.assertEqual(list(stream_logs(con)), [])
+        self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
+        self.assertEqual(self.stream(con), [])
         self.assertEqual(list(self.swh(con)), [b'hello\n', b'goodbye\n'])
 
     def test_timeout_and_stream_again(self):
