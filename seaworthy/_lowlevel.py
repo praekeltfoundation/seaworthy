@@ -15,7 +15,7 @@ class SocketClosed(Exception):
     """
 
 
-def stream_logs(container, stdout=1, stderr=1, stream=1, timeout=10.0):
+def stream_logs(container, stdout=1, stderr=1, timeout=10.0):
     """
     Stream logs from a docker container within a timeout.
 
@@ -26,7 +26,7 @@ def stream_logs(container, stdout=1, stderr=1, stream=1, timeout=10.0):
     params = {
         'stdout': 1 if stdout else 0,
         'stderr': 1 if stderr else 0,
-        'stream': 1 if stream else 0,
+        'stream': 1,
         'logs': 1,
     }
     fileobj = container.attach_socket(params=params)
