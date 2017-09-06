@@ -208,7 +208,7 @@ class TestFakeLogsContainer(unittest.TestCase):
         try:
             return list(stream_logs(con, timeout=timeout))
         finally:
-            con.cancel_feeder()
+            con.cleanup()
 
     def test_empty(self):
         """
@@ -271,7 +271,7 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
         try:
             return list(stream_logs(con, timeout=timeout))
         finally:
-            con.cancel_feeder()
+            con.cleanup()
 
     def swh(self, con, timeout=0.5, **kw):
         # Always clean up the feeder machinery when we're done. This is only
@@ -307,7 +307,7 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
     def test_timeout_and_stream_again(self):
         """
         If we take too long to get the next line, we time out. When we stream
-        again, we only get historical logs as well as new ones.
+        again, we get historical logs as well as new ones.
         """
         con = self.mkcontainer([
             (0.1, b'hello\n'),

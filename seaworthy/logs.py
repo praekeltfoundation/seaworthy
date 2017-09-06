@@ -21,6 +21,8 @@ def stream_with_history(container, timeout=10, **logs_kwargs):
     the last few lines. To get around this, we fetch all the historical logs
     before we start streaming the new logs.
     """
+    # Ignore the `stream` kwarg, because we handle that ourselves.
+    logs_kwargs.pop('stream', None)
     # Start streaming immediately after fetching the old logs to minimise the
     # chance of a race condition.
     old_logs = container.logs(**logs_kwargs)
