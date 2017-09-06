@@ -12,6 +12,27 @@ def _last_few_log_lines(container, max_lines=100):
     return '\nLast few log lines:\n{}'.format(logs)
 
 
+def stream_with_history(container, timeout=10, **logs_kwargs):
+    """
+    Return an iterator over all container logs, past and future.
+
+    The docker API we use in stream_logs() won't give us old logs, and the
+    docker API container.logs() uses seems to sometimes block indefinitely on
+    the last few lines. To get around this, we fetch all the historical logs
+    before we start streaming the new logs.
+    """
+    # Ignore the `stream` kwarg, because we handle that ourselves.
+    logs_kwargs.pop('stream', None)
+    # Start streaming immediately after fetching the old logs to minimise the
+    # chance of a race condition.
+    old_logs = container.logs(**logs_kwargs)
+    stream = stream_logs(container, timeout=timeout, **logs_kwargs)
+    # To make sure old logs match new, we keep the newlines we split on.
+    for line in old_logs.splitlines(keepends=True):
+        yield line
+    yield from stream
+
+
 def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
                            **logs_kwargs):
     """
@@ -45,7 +66,9 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         ended without error).
     """
     try:
-        for line in stream_logs(container, timeout=timeout, **logs_kwargs):
+        # for line in stream_logs(container, timeout=timeout, **logs_kwargs):
+        for line in stream_with_history(
+                container, timeout=timeout, **logs_kwargs):
             # Drop the trailing newline
             line = line.decode(encoding).rstrip()
             if matcher(line):

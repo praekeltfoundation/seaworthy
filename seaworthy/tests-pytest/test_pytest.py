@@ -2,14 +2,19 @@ from docker.errors import NotFound
 import pytest
 
 from seaworthy.checks import docker_client
-from seaworthy.containers import ContainerBase
-from seaworthy.dockerhelper import DockerHelper
+from seaworthy.containers.base import ContainerBase
+from seaworthy.dockerhelper import DockerHelper, fetch_images
 from seaworthy.pytest import dockertest
 from seaworthy.pytest.fixtures import (
     clean_container_fixtures, container_fixture, docker_helper)
 
 
 IMG = 'nginx:alpine'
+
+
+def setup_module():
+    with docker_client() as client:
+        fetch_images(client, [IMG])
 
 
 @dockertest()
@@ -34,7 +39,7 @@ class TestDockerHelperFixture:
 
 class CleanableContainer(ContainerBase):
     def __init__(self):
-        super().__init__(name='test', image=IMG, wait_matchers=[])
+        super().__init__(name='test', image=IMG)
         self.cleaned = False
 
     def clean(self):
@@ -49,7 +54,7 @@ class TestContainerFixtureFunc:
     def test_fixture(self, container):
         assert isinstance(container, CleanableContainer)
 
-        inner = container.container()
+        inner = container.inner()
         assert inner.status == 'running'
 
 

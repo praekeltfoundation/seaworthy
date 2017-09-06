@@ -1,11 +1,12 @@
 import pytest
 
-from seaworthy.containers import PostgreSQLContainer, RabbitMQContainer
+from seaworthy.containers.provided import (
+    PostgreSQLContainer, RabbitMQContainer)
 from seaworthy.dockerhelper import DockerHelper
 from seaworthy.pytest import dockertest
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='class')
 def docker_helper():
     docker_helper = DockerHelper()
     docker_helper.setup()
@@ -13,29 +14,24 @@ def docker_helper():
     docker_helper.teardown()
 
 
-def container_fixture(name, container):
-    @pytest.fixture(name=name, scope='class')
-    def fixture(docker_helper):
+@dockertest()
+class TestPostgreSQLContainer:
+    @classmethod
+    @pytest.fixture(scope='class')
+    def postgresql(cls, docker_helper):
+        container = PostgreSQLContainer()
         container.create_and_start(docker_helper)
         yield container
         container.stop_and_remove(docker_helper)
 
-    return fixture
-
-
-postgresql = container_fixture('postgresql', PostgreSQLContainer())
-
-
-@dockertest()
-class TestPostgreSQLContainer:
-    def test_inspection(self, docker_helper, postgresql):
+    def test_inspection(self, postgresql):
         """
         Inspecting the PostgreSQL container should show that the default image
         and name has been used, all default values have been set correctly in
         the environment variables, a tmpfs is set up in the right place, and
         the network aliases are correct.
         """
-        attrs = postgresql.container().attrs
+        attrs = postgresql.inner().attrs
 
         assert attrs['Config']['Image'] == PostgreSQLContainer.DEFAULT_IMAGE
         assert attrs['Name'] == '/test_{}'.format(
@@ -55,8 +51,8 @@ class TestPostgreSQLContainer:
         network = attrs['NetworkSettings']['Networks']['test_default']
         # The ``short_id`` attribute of the container is the first 10
         # characters, but the network alias is the first 12 :-/
-        assert network['Aliases'] == [
-            PostgreSQLContainer.DEFAULT_NAME, attrs['Id'][:12]]
+        assert (network['Aliases'] ==
+                [PostgreSQLContainer.DEFAULT_NAME, attrs['Id'][:12]])
 
     def test_list_resources(self, postgresql):
         """
@@ -87,19 +83,24 @@ class TestPostgreSQLContainer:
                 'postgres://dbuser:secret@database/db')
 
 
-rabbitmq = container_fixture('rabbitmq', RabbitMQContainer())
-
-
 @dockertest()
 class TestRabbitMQContainer:
-    def test_inspection(self, docker_helper, rabbitmq):
+    @classmethod
+    @pytest.fixture(scope='class')
+    def rabbitmq(cls, docker_helper):
+        container = RabbitMQContainer()
+        container.create_and_start(docker_helper)
+        yield container
+        container.stop_and_remove(docker_helper)
+
+    def test_inspection(self, rabbitmq):
         """
         Inspecting the RabbitMQ container should show that the default image
         and name has been used, all default values have been set correctly in
         the environment variables, a tmpfs is set up in the right place, and
         the network aliases are correct.
         """
-        attrs = rabbitmq.container().attrs
+        attrs = rabbitmq.inner().attrs
 
         assert attrs['Config']['Image'] == RabbitMQContainer.DEFAULT_IMAGE
         assert attrs['Name'] == '/test_{}'.format(
@@ -119,8 +120,8 @@ class TestRabbitMQContainer:
         network = attrs['NetworkSettings']['Networks']['test_default']
         # The ``short_id`` attribute of the container is the first 10
         # characters, but the network alias is the first 12 :-/
-        assert network['Aliases'] == [
-            RabbitMQContainer.DEFAULT_NAME, attrs['Id'][:12]]
+        assert (network['Aliases'] ==
+                [RabbitMQContainer.DEFAULT_NAME, attrs['Id'][:12]])
 
     def test_list_resources(self, rabbitmq):
         """

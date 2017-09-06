@@ -7,7 +7,7 @@ from datetime import datetime
 from seaworthy._lowlevel import stream_logs
 from seaworthy.logs import (
     EqualsMatcher, RegexMatcher, SequentialLinesMatcher,
-    wait_for_logs_matching)
+    stream_with_history, wait_for_logs_matching)
 
 
 class TestEqualsMatcher(unittest.TestCase):
@@ -122,7 +122,7 @@ class FakeLogsContainer:
 
     Logs can either be streamed through a socket using ``.attach_socket()`` or
     tailed by using ``.logs()``. After a log entry has been streamed, it is
-    stored and we don't wait for it next time. Only logs that have already been
+    stored and we don't stream it next time. Only logs that have already been
     streamed are tailed.
     """
 
@@ -155,8 +155,9 @@ class FakeLogsContainer:
         assert stream is False
         tail = kw.get('tail', 'all')
         if tail == 'all':
-            tail = len(self._seen_logs)
-        assert tail > 0
+            tail = 0
+        else:
+            assert tail > 0
         return b''.join(self._seen_logs[-tail:])
 
     def attach_socket(self, params):
@@ -181,9 +182,6 @@ class LogFeeder(threading.Thread):
         self.sock.send(data)
 
     def run(self):
-        # Emit lines we've already streamed.
-        for line in self.con._seen_logs:
-            self.send_line(line)
         # Emit previously unstreamed lines at designated intervals.
         for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
             # Wait for either cancelation (break) or timeout (no break).
@@ -210,7 +208,7 @@ class TestFakeLogsContainer(unittest.TestCase):
         try:
             return list(stream_logs(con, timeout=timeout))
         finally:
-            con.cancel_feeder()
+            con.cleanup()
 
     def test_empty(self):
         """
@@ -245,8 +243,7 @@ class TestFakeLogsContainer(unittest.TestCase):
     def test_streaming_waits(self):
         """
         Streamed logs will be returned at specified intervals. Any logs that
-        have already been streamed are returned immediately when streamed
-        subsequently.
+        have already been streamed are not returned again.
 
         NOTE: This test measures wall-clock time, so if something causes it to
               be too slow the second assertion may fail.
@@ -255,10 +252,74 @@ class TestFakeLogsContainer(unittest.TestCase):
         t0 = datetime.now()
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         t1 = datetime.now()
-        self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
+        self.assertEqual(self.stream(con), [])
         t2 = datetime.now()
         self.assertLess(0.3, (t1 - t0).total_seconds())
         self.assertLess((t2 - t1).total_seconds(), 0.3)
+
+
+class TestStreamWithHistoryFunc(unittest.TestCase):
+    def mkcontainer(self, *args, **kw):
+        con = FakeLogsContainer(*args, **kw)
+        self.addCleanup(con.cleanup)
+        return con
+
+    def stream(self, con, timeout=1):
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return list(stream_logs(con, timeout=timeout))
+        finally:
+            con.cleanup()
+
+    def swh(self, con, timeout=0.5, **kw):
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return stream_with_history(con, timeout=timeout, **kw)
+        finally:
+            con.cleanup()
+
+    def test_stream_only(self):
+        """
+        If there are no historical logs, we get all the streamed logs.
+        """
+        con = self.mkcontainer([
+            (0.1, b'hello\n'),
+            (0.1, b'goodbye\n'),
+        ])
+        self.assertEqual(list(self.swh(con)), [b'hello\n', b'goodbye\n'])
+
+    def test_historical_only(self):
+        """
+        If all the logs have been streamed, we only get the old ones.
+        """
+        con = self.mkcontainer([
+            (0.1, b'hello\n'),
+            (0.1, b'goodbye\n'),
+        ])
+        self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
+        self.assertEqual(self.stream(con), [])
+        self.assertEqual(list(self.swh(con)), [b'hello\n', b'goodbye\n'])
+
+    def test_timeout_and_stream_again(self):
+        """
+        If we take too long to get the next line, we time out. When we stream
+        again, we get historical logs as well as new ones.
+        """
+        con = self.mkcontainer([
+            (0.1, b'hello\n'),
+            (0.2, b'goodbye\n'),
+        ])
+        lines = []
+        with self.assertRaises(TimeoutError):
+            for line in self.swh(con, timeout=0.15):
+                lines.append(line)
+        self.assertEqual(lines, [b'hello\n'])
+        lines = list(self.swh(con, timeout=0.25))
+        self.assertEqual(lines, [b'hello\n', b'goodbye\n'])
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):
