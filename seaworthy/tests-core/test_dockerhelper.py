@@ -252,11 +252,13 @@ class TestDockerHelper(unittest.TestCase):
             dh.pull_image_if_not_found('busybox:latest')
         self.assertEqual(
             [l.getMessage() for l in cm.records],
-            ["Pulling image 'busybox:latest'..."])
+            ["Pulling tag 'busybox:latest'..."])
 
         # Pull the image again, now that we know it's present.
         with self.assertLogs('seaworthy', level='DEBUG') as cm:
             dh.pull_image_if_not_found('busybox:latest')
-        self.assertEqual(
-            [l.getMessage() for l in cm.records],
-            ["Image 'busybox:latest' found"])
+        logs = [l.getMessage() for l in cm.records]
+        self.assertEqual(len(logs), 1)
+        self.assertRegex(
+            logs[0],
+            r"Found image 'sha256:[a-f0-9]{64}' for tag 'busybox:latest'")
