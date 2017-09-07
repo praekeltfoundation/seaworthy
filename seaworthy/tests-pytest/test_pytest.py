@@ -6,7 +6,8 @@ from seaworthy.containers.base import ContainerBase
 from seaworthy.dockerhelper import DockerHelper, fetch_images
 from seaworthy.pytest.checks import dockertest
 from seaworthy.pytest.fixtures import (
-    clean_container_fixtures, container_fixture, docker_helper_fixture)
+    clean_container_fixtures, container_fixture, docker_helper_fixture,
+    image_pull_fixture)
 
 
 IMG = 'nginx:alpine'
@@ -88,6 +89,17 @@ class TestImagePullFixtureFunc:
             def test_image_pull(image):
                 assert 'busybox:latest' in image.tags
         """)
+
+    def test_create_fixture(self, docker_helper):
+        """
+        We can create an fixture that pulls an image and returns an image
+        model.
+        """
+        fixture = image_pull_fixture(IMG, name='image', scope='module')
+        image = fixture(docker_helper)
+
+        assert isinstance(image, docker.models.images.Image)
+        assert IMG in image.tags
 
 
 @dockertest()
