@@ -47,6 +47,7 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
+        'Framework :: Pytest',
         'Natural Language :: English',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3 :: Only',
@@ -56,4 +57,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Software Development :: Testing',
     ],
+    entry_points={
+        'pytest11': ['seaworthy = seaworthy.pytest'],
+    },
 )

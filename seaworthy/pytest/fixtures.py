@@ -1,9 +1,5 @@
 """
 Contains a number of pytest fixtures or factories for fixtures.
-
-To us this module, import the fixtures in your tests.::
-
-    from seaworthy.pytest.fixtures import *  # noqa: F401,F403
 """
 
 import pytest
@@ -11,15 +7,29 @@ import pytest
 from seaworthy.dockerhelper import DockerHelper
 
 
-@pytest.fixture(scope='module')
-def docker_helper():
+def docker_helper_fixture(name='docker_helper', scope='module'):
     """
-    Default fixture for the ``DockerHelper``. Has module scope.
+    Create a fixture for the ``DockerHelper``.
+
+    This can be used to create a fixture with a different name to the default.
+    It can also be used to override the scope of the default fixture:::
+
+        docker_helper = docker_helper_fixture(scope='class')
+
     """
-    docker_helper = DockerHelper()
-    docker_helper.setup()
-    yield docker_helper
-    docker_helper.teardown()
+    @pytest.fixture(name=name, scope=scope)
+    def fixture():
+        docker_helper = DockerHelper()
+        docker_helper.setup()
+        yield docker_helper
+        docker_helper.teardown()
+    return fixture
+
+
+"""
+Default fixture for the ``DockerHelper``. Has module scope.
+"""
+docker_helper = docker_helper_fixture()
 
 
 def container_fixture(container, name, scope='function'):
@@ -105,4 +115,5 @@ def clean_container_fixtures(container, name, scope='class'):
             _clean_container_fixture(name, raw_name))
 
 
-__all__ = ['container_fixture', 'docker_helper']
+__all__ = ['clean_container_fixtures', 'container_fixture', 'docker_helper',
+           'docker_helper_fixture']
