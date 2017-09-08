@@ -11,13 +11,21 @@ def fetch_images(client, images):
     """
     Fetch images if they aren't already present.
     """
-    for image in images:
-        try:
-            client.images.get(image)
-            log.debug("Image '{}' found".format(image))
-        except docker.errors.ImageNotFound:
-            log.info("Pulling image '{}'...".format(image))
-            client.images.pull(image)
+    return [fetch_image(client, image) for image in images]
+
+
+def fetch_image(client, name):
+    """
+    Fetch an image if it isn't already present.
+    """
+    try:
+        image = client.images.get(name)
+    except docker.errors.ImageNotFound:
+        log.info("Pulling tag '{}'...".format(name))
+        image = client.images.pull(name)
+
+    log.debug("Found image '{}' for tag '{}'".format(image.id, name))
+    return image
 
 
 class DockerHelper(object):
@@ -123,7 +131,7 @@ class DockerHelper(object):
         self.remove_container(container, force=remove_force)
 
     def pull_image_if_not_found(self, image):
-        fetch_images(self._client, [image])
+        return fetch_image(self._client, image)
 
     def get_container_host_port(self, container, container_port, index=0):
         # FIXME: Bit of a hack to get the port number on the host
