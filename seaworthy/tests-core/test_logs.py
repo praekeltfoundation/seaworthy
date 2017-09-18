@@ -5,9 +5,22 @@ import unittest
 from datetime import datetime
 
 from seaworthy._lowlevel import stream_logs
+from seaworthy.checks import docker_client, dockertest
+from seaworthy.dockerhelper import DockerHelper, fetch_images
 from seaworthy.logs import (
     EqualsMatcher, RegexMatcher, SequentialLinesMatcher,
     stream_with_history, wait_for_logs_matching)
+
+# We use this image to test with because it is a small (~7MB) image from
+# https://github.com/docker-library/official-images that we can run shell
+# scripts in.
+IMG = 'alpine:latest'
+
+
+@dockertest()
+def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
+    with docker_client() as client:
+        fetch_images(client, [IMG])
 
 
 class TestEqualsMatcher(unittest.TestCase):
@@ -133,7 +146,6 @@ class FakeLogsContainer:
             'stdout': 1,
             'stderr': 1,
             'stream': 1,
-            'logs': 1,
         }
         if expected_params is not None:
             self._expected_params.update(expected_params)
@@ -162,19 +174,22 @@ class FakeLogsContainer:
 
     def attach_socket(self, params):
         assert self._feeder is None
-        assert params == self._expected_params
+        expected_params = {'logs': params['logs']}
+        expected_params.update(self._expected_params)
+        assert params == expected_params
         server, client = socket.socketpair()
         self._client_sockets.add(client)
-        self._feeder = LogFeeder(self, server)
+        self._feeder = LogFeeder(self, server, history=params['logs'])
         self._feeder.start()
         return socket.SocketIO(client, 'rb')
 
 
 class LogFeeder(threading.Thread):
-    def __init__(self, container, sock):
+    def __init__(self, container, sock, history):
         super().__init__()
         self.con = container
         self.sock = sock
+        self.history = history
         self.finished = threading.Event()
 
     def send_line(self, line):
@@ -182,6 +197,10 @@ class LogFeeder(threading.Thread):
         self.sock.send(data)
 
     def run(self):
+        # If we've been asked to send history, send it first.
+        if self.history:
+            for line in self.con._seen_logs:
+                self.send_line(line)
         # Emit previously unstreamed lines at designated intervals.
         for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
             # Wait for either cancelation (break) or timeout (no break).
@@ -421,3 +440,108 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.wflm(con, EqualsMatcher('hi'), stdout=False, stderr=False)
         self.wflm(con, EqualsMatcher('hi'), stdout=False)
+
+
+class FakeAndRealContainerMixin:
+    def test_fake_and_real_logging_behaviour(self):
+        """
+        Our fake logs container should exhibit similar behaviour to a real
+        container.
+        """
+        logger = self.start_logging_container()
+        self.wflm(logger, EqualsMatcher('Log entry 1'), timeout=1)
+
+        early_logs = logger.logs().decode('utf8').splitlines()
+        print('early_logs:', early_logs)
+        self.assertIn('Log entry 1', early_logs)
+        self.assertNotIn('Log entry 4', early_logs)
+
+        streamed_logs = []
+        with self.assertRaises(TimeoutError):
+            for line in self.stream(logger, timeout=0.7):
+                streamed_logs.append(line.decode('utf8').rstrip())
+        print('streamed_logs:', streamed_logs)
+        self.assertNotIn('Log entry 1', streamed_logs)
+        self.assertIn('Log entry 4', streamed_logs)
+        self.assertNotIn('Log entry 9', streamed_logs)
+
+        swh_logs = []
+        for line in self.swh(logger, timeout=2):
+            swh_logs.append(line.decode('utf8').rstrip())
+        print('swh_logs:', swh_logs)
+        self.assertIn('Log entry 1', swh_logs)
+        self.assertIn('Log entry 4', swh_logs)
+        self.assertIn('Log entry 9', swh_logs)
+
+
+class TestWithFakeContainer(unittest.TestCase, FakeAndRealContainerMixin):
+    def mkcontainer(self, *args, **kw):
+        con = FakeLogsContainer(*args, **kw)
+        self.addCleanup(con.cleanup)
+        return con
+
+    def start_logging_container(self):
+        return self.mkcontainer([
+            (0.2, 'Log entry {}\n'.format(n).encode('utf8'))
+            for n in range(10)])
+
+    def wflm(self, con, matcher, timeout=0.5, **kw):
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
+        finally:
+            con.cleanup()
+
+    def stream(self, con, timeout=1):
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            for line in stream_logs(con, timeout=timeout):
+                yield line
+        finally:
+            con.cleanup()
+
+    def swh(self, con, timeout=0.5, **kw):
+        # Always clean up the feeder machinery when we're done. This is only
+        # necessary if we timed out, but it doesn't hurt to clean up an
+        # already-clean FakeLogsContainer.
+        try:
+            for line in stream_with_history(con, timeout=timeout, **kw):
+                yield line
+        finally:
+            con.cleanup()
+
+
+@dockertest()
+class TestWithRealContainer(unittest.TestCase, FakeAndRealContainerMixin):
+    def setUp(self):
+        self.dh = DockerHelper()
+        self.addCleanup(self.dh.teardown)
+        self.dh.setup()
+
+    def start_logging_container(self):
+        script = '\n'.join([
+            'for n in 0 1 2 3 4 5 6 7 8 9; do',
+            '    sleep 0.2',
+            '    echo "Log entry ${n}"',
+            'done',
+        ])
+        logger = self.dh.create_container(
+            'logger', IMG, command=['sh', '-c', script])
+        self.addCleanup(self.dh.stop_and_remove_container, logger)
+        self.dh.start_container(logger)
+        return logger
+
+    def wflm(self, con, matcher, timeout=0.5, **kw):
+        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
+
+    def stream(self, con, timeout=1):
+        for line in stream_logs(con, timeout=timeout):
+            yield line
+
+    def swh(self, con, timeout=0.5, **kw):
+        for line in stream_with_history(con, timeout=timeout, **kw):
+            yield line
