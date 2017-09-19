@@ -16,10 +16,11 @@ def stream_with_history(container, timeout=10, **logs_kwargs):
     """
     Return an iterator over all container logs, past and future.
 
-    The docker API we use in stream_logs() won't give us old logs, and the
-    docker API container.logs() uses seems to sometimes block indefinitely on
-    the last few lines. To get around this, we fetch all the historical logs
-    before we start streaming the new logs.
+    The docker API we use in stream_logs() doesn't *reliably* give us old logs
+    (they're usually there, but sometimes they just aren't), and the docker API
+    container.logs() uses seems to sometimes block indefinitely on the last few
+    lines. To get around these issues, we fetch all the historical logs using
+    one of the APIs before we start streaming the new logs with the other.
     """
     # Ignore the `stream` kwarg, because we handle that ourselves.
     logs_kwargs.pop('stream', None)

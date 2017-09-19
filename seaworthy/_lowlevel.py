@@ -21,13 +21,17 @@ def stream_logs(container, stdout=1, stderr=1, timeout=10.0):
 
     We can't use docker-py's existing streaming support because that's stuck
     behind a blocking API and we have no (sane) way to enforce a timeout.
+
+    NOTE: This function deliberately doesn't support logs=1 because docker
+    sometimes just ignores it and skips all the old logs we asked it to give
+    us.
     """
     deadline = time.monotonic() + timeout
     params = {
         'stdout': 1 if stdout else 0,
         'stderr': 1 if stderr else 0,
         'stream': 1,
-        'logs': 1,
+        'logs': 0,
     }
     fileobj = container.attach_socket(params=params)
     fileobj._sock.setblocking(False)  # Make the socket nonblocking.
