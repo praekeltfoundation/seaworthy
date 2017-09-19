@@ -11,7 +11,7 @@ from seaworthy.logs import (
     EqualsMatcher, RegexMatcher, SequentialLinesMatcher,
     stream_with_history, wait_for_logs_matching)
 
-# We use this image to test with because it is a small (~7MB) image from
+# We use this image to test with because it is a small (~4MB) image from
 # https://github.com/docker-library/official-images that we can run shell
 # scripts in.
 IMG = 'alpine:latest'
