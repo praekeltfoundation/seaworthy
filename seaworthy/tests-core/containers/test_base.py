@@ -105,10 +105,10 @@ class TestContainerBase(unittest.TestCase):
         # We get the specific port we defined here.
         self.assertEqual(self.base.get_host_port('9090/tcp', 0), '10701')
 
-    def run_logs_container(self, logs):
+    def run_logs_container(self, logs, wait=True, delay=0.01):
         # Sleep a millisecond between lines to ensure ordering across stdout
         # and stderr.
-        script = '\nsleep 0.01\n'.join(logs)
+        script = '\nsleep {}\n'.format(delay).join(logs)
 
         script_con = ContainerBase('script', IMG_SCRIPT)
         self.addCleanup(self._cleanup_container, script_con)
@@ -116,7 +116,8 @@ class TestContainerBase(unittest.TestCase):
         script_con.create_kwargs = lambda: {'command': ['sh', '-c', script]}
         script_con.create_and_start(self.dh, pull=False)
         # Wait for the output to arrive.
-        time.sleep(0.1)
+        if wait:
+            time.sleep(len(logs) * delay)
         return script_con
 
     def test_get_logs_out_err(self):
@@ -179,3 +180,79 @@ class TestContainerBase(unittest.TestCase):
             self.assertLess(earlier, ts)
             earlier = ts
         self.assertLess(earlier, after)
+
+    def test_stream_logs_timeout(self):
+        """
+        We can stream logs with a timeout.
+        """
+        script = self.run_logs_container([
+            'echo "o0"', 'echo "e0" >&2',
+            'echo "o1"', 'echo "e1" >&2',
+        ], delay=0.2, wait=False)
+
+        time.sleep(0.01)
+        lines = []
+        with self.assertRaises(TimeoutError):
+            for line in script.stream_logs(timeout=0.3):
+                lines.append(line)
+        # We missed the first line and time out before the third.
+        self.assertEqual(lines, [b'e0\n'])
+
+        lines = []
+        for line in script.stream_logs(timeout=1.0):
+            lines.append(line)
+        # We should get the third and fourth now.
+        self.assertEqual(lines, [b'o1\n', b'e1\n'])
+
+    def test_stream_old_logs(self):
+        """
+        We can stream logs, including old logs, with a timeout.
+        """
+        script = self.run_logs_container([
+            'echo "o0"', 'echo "e0" >&2',
+            'echo "o1"', 'echo "e1" >&2',
+        ], delay=0.2, wait=False)
+
+        time.sleep(0.01)
+        lines = []
+        with self.assertRaises(TimeoutError):
+            for line in script.stream_logs(old_logs=True, timeout=0.3):
+                lines.append(line)
+        # We get the (old) first line and time out before the third.
+        self.assertEqual(lines, [b'o0\n', b'e0\n'])
+
+        lines = []
+        for line in script.stream_logs(old_logs=True, timeout=1.0):
+            lines.append(line)
+        self.assertEqual(lines, [b'o0\n', b'e0\n', b'o1\n', b'e1\n'])
+
+    def test_stream_logs_stdout(self):
+        """
+        We can choose stdout when streaming logs.
+        """
+        script = self.run_logs_container([
+            'echo "first"',
+            'echo "o0"', 'echo "e0" >&2',
+            'echo "o1"', 'echo "e1" >&2',
+        ], delay=0.1, wait=False)
+        time.sleep(0.01)
+
+        lines = []
+        for line in script.stream_logs(stderr=False, timeout=1.0):
+            lines.append(line)
+        self.assertEqual(lines, [b'o0\n', b'o1\n'])
+
+    def test_stream_logs_stderr(self):
+        """
+        We can choose stderr when streaming logs.
+        """
+        script = self.run_logs_container([
+            'echo "o0"', 'echo "e0" >&2',
+            'echo "o1"', 'echo "e1" >&2',
+        ], delay=0.1, wait=False)
+        time.sleep(0.01)
+
+        lines = []
+        for line in script.stream_logs(stdout=False, timeout=1.0):
+            lines.append(line)
+        self.assertEqual(lines, [b'e0\n', b'e1\n'])
