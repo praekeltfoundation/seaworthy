@@ -1,5 +1,6 @@
 from seaworthy.logs import (
-    RegexMatcher, SequentialLinesMatcher, wait_for_logs_matching)
+    RegexMatcher, SequentialLinesMatcher, stream_logs, stream_with_history,
+    wait_for_logs_matching)
 
 
 class ContainerBase:
@@ -98,3 +99,24 @@ class ContainerBase:
         # FIXME: The mapping entries are not necessarily in a sensible order.
         ports = self.inner().attrs['NetworkSettings']['Ports']
         return ports[port_spec][index]['HostPort']
+
+    def get_logs(self, stdout=True, stderr=True, timestamps=False, tail='all',
+                 since=None):
+        """
+        Get container logs.
+
+        This method does not support streaming, use :meth:`stream_logs` for
+        that.
+        """
+        return self.inner().logs(
+            stdout=stdout, stderr=stderr, timestamps=timestamps, tail=tail,
+            since=since)
+
+    def stream_logs(self, stdout=True, stderr=True, old_logs=False,
+                    timeout=10.0):
+        """
+        Stream container output.
+        """
+        stream_func = stream_with_history if old_logs else stream_logs
+        return stream_func(
+                self.inner(), stdout=stdout, stderr=stderr, timeout=timeout)
