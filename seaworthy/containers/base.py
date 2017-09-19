@@ -88,3 +88,13 @@ class ContainerBase:
         state as it was when it was started.
         """
         raise NotImplementedError()
+
+    def get_host_port(self, port_spec, index=0):
+        """
+        :param port_spec: A container port mapping specifier.
+        :param index: The index of the mapping entry to return.
+        :returns: The host port the container is mapped to.
+        """
+        # FIXME: The mapping entries are not necessarily in a sensible order.
+        ports = self.inner().attrs['NetworkSettings']['Ports']
+        return ports[port_spec][index]['HostPort']

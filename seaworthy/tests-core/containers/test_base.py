@@ -87,3 +87,22 @@ class TestContainerBase(unittest.TestCase):
         """By default, the ``clean`` method raises a NotImplementedError."""
         with self.assertRaises(NotImplementedError):
             self.base.clean()
+
+    def test_get_host_port(self):
+        """
+        We can get the host port mapping of a container.
+        """
+        self.base.create_kwargs = lambda: {'ports': {
+            '8080/tcp': ('127.0.0.1',),
+            '9090/tcp': ('127.0.0.1', '10701'),
+        }}
+        dh = self.make_helper()
+        self.base.create_and_start(dh, pull=False)
+
+        # We get a random high port number here.
+        random_host_port = self.base.get_host_port('8080/tcp')
+        self.assertGreater(int(random_host_port), 1024)
+        self.assertLess(int(random_host_port), 102400)
+
+        # We get the specific port we defined here.
+        self.assertEqual(self.base.get_host_port('9090/tcp', 0), '10701')
