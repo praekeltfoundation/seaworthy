@@ -446,7 +446,6 @@ class FakeAndRealContainerMixin:
         self.wflm(logger, EqualsMatcher('Log entry 1'), timeout=1)
 
         early_logs = logger.logs().decode('utf8').splitlines()
-        print('early_logs:', early_logs)
         self.assertIn('Log entry 1', early_logs)
         self.assertNotIn('Log entry 4', early_logs)
 
@@ -454,7 +453,6 @@ class FakeAndRealContainerMixin:
         with self.assertRaises(TimeoutError):
             for line in self.stream(logger, timeout=0.7):
                 streamed_logs.append(line.decode('utf8').rstrip())
-        print('streamed_logs:', streamed_logs)
         self.assertNotIn('Log entry 1', streamed_logs)
         self.assertIn('Log entry 4', streamed_logs)
         self.assertNotIn('Log entry 9', streamed_logs)
@@ -462,7 +460,6 @@ class FakeAndRealContainerMixin:
         swh_logs = []
         for line in self.swh(logger, timeout=2):
             swh_logs.append(line.decode('utf8').rstrip())
-        print('swh_logs:', swh_logs)
         self.assertIn('Log entry 1', swh_logs)
         self.assertIn('Log entry 4', swh_logs)
         self.assertIn('Log entry 9', swh_logs)
