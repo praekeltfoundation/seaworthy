@@ -102,7 +102,7 @@ class TestContainerBase(unittest.TestCase):
         # We get a random high port number here.
         random_host_port = self.base.get_host_port('8080/tcp')
         self.assertGreater(int(random_host_port), 1024)
-        self.assertLess(int(random_host_port), 102400)
+        self.assertLess(int(random_host_port), 65536)
 
         # We get the specific port we defined here.
         self.assertEqual(self.base.get_host_port('9090/tcp', 0), '10701')
