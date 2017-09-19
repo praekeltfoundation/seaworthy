@@ -146,6 +146,7 @@ class FakeLogsContainer:
             'stdout': 1,
             'stderr': 1,
             'stream': 1,
+            'logs': 0,
         }
         if expected_params is not None:
             self._expected_params.update(expected_params)
@@ -174,22 +175,19 @@ class FakeLogsContainer:
 
     def attach_socket(self, params):
         assert self._feeder is None
-        expected_params = {'logs': params['logs']}
-        expected_params.update(self._expected_params)
-        assert params == expected_params
+        assert params == self._expected_params
         server, client = socket.socketpair()
         self._client_sockets.add(client)
-        self._feeder = LogFeeder(self, server, history=params['logs'])
+        self._feeder = LogFeeder(self, server)
         self._feeder.start()
         return socket.SocketIO(client, 'rb')
 
 
 class LogFeeder(threading.Thread):
-    def __init__(self, container, sock, history):
+    def __init__(self, container, sock):
         super().__init__()
         self.con = container
         self.sock = sock
-        self.history = history
         self.finished = threading.Event()
 
     def send_line(self, line):
@@ -197,10 +195,6 @@ class LogFeeder(threading.Thread):
         self.sock.send(data)
 
     def run(self):
-        # If we've been asked to send history, send it first.
-        if self.history:
-            for line in self.con._seen_logs:
-                self.send_line(line)
         # Emit previously unstreamed lines at designated intervals.
         for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
             # Wait for either cancelation (break) or timeout (no break).
