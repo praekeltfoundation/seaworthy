@@ -9,8 +9,12 @@ def deep_merge(*dicts):
         if not isinstance(d, dict):
             raise Exception('Can only deep_merge dicts, got {}'.format(d))
         for k, v in d.items():
-            if k in result and isinstance(result[k], dict):
-                v = deep_merge(result[k], v)
+            # Whenever the value is a dict, we deep_merge it. This ensures that
+            # (a) we only ever merge dicts with dicts and (b) we always get a
+            # deep(ish) copy of the dicts and are thus safe from accidental
+            # mutations to shared state.
+            if isinstance(v, dict):
+                v = deep_merge(result.get(k, {}), v)
             result[k] = v
     return result
 
