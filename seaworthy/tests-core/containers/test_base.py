@@ -150,9 +150,11 @@ class TestContainerBase(unittest.TestCase):
         self.assertEqual(self.base.get_host_port('9090/tcp', 0), '10701')
 
     def run_logs_container(self, logs, wait=True, delay=0.01):
-        # Sleep a millisecond between lines to ensure ordering across stdout
-        # and stderr.
+        # Sleep some amount between lines to ensure ordering across stdout and
+        # stderr. Also sleep a bit at the end to avoid having the container
+        # finish end exit before we notice that it started.
         script = '\nsleep {}\n'.format(delay).join(logs)
+        script += '\nsleep 0.2\n'
 
         script_con = self.with_cleanup(ContainerBase('script', IMG_SCRIPT))
 
