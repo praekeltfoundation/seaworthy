@@ -3,8 +3,20 @@ from seaworthy.logs import (
     wait_for_logs_matching)
 
 
+def deep_merge(*dicts):
+    result = {}
+    for d in dicts:
+        if not isinstance(d, dict):
+            raise Exception('Can only deep_merge dicts, got {}'.format(d))
+        for k, v in d.items():
+            if k in result and isinstance(result[k], dict):
+                v = deep_merge(result[k], v)
+            result[k] = v
+    return result
+
+
 class ContainerBase:
-    def __init__(self, name, image, wait_patterns=None):
+    def __init__(self, name, image, wait_patterns=None, create_kwargs=None):
         """
         :param name:
             The name for the container. The actual name of the container is
@@ -22,9 +34,11 @@ class ContainerBase:
         else:
             self.wait_matchers = None
 
+        self._create_kwargs = {} if create_kwargs is None else create_kwargs
+
         self._container = None
 
-    def create_and_start(self, docker_helper, pull=True):
+    def create_and_start(self, docker_helper, pull=True, kwargs=None):
         """
         Create the container and start it, waiting for the expected log lines.
 
@@ -38,8 +52,11 @@ class ContainerBase:
         if pull:
             docker_helper.pull_image_if_not_found(self.image)
 
+        kwargs = {} if kwargs is None else kwargs
+        kwargs = self.merge_kwargs(self._create_kwargs, kwargs)
+
         self._container = docker_helper.create_container(
-            self.name, self.image, **self.create_kwargs())
+            self.name, self.image, **kwargs)
         docker_helper.start_container(self._container)
 
         self.wait_for_start(docker_helper, self._container)
@@ -74,14 +91,11 @@ class ContainerBase:
             raise RuntimeError('Container not created yet.')
         return self._container
 
-    def create_kwargs(self):
+    def merge_kwargs(self, default_kwargs, kwargs):
         """
-        :returns:
-            any extra keyword arguments to pass to
-            ~DockerHelper.create_container
-        :rtype: dict
+        Override this method to merge kwargs differently.
         """
-        return {}
+        return deep_merge(default_kwargs, kwargs)
 
     def clean(self):
         """

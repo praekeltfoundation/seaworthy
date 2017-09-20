@@ -25,8 +25,11 @@ class TestContainerBase(unittest.TestCase):
         self.addCleanup(self.dh.teardown)
         self.dh.setup()
 
-        self.base = ContainerBase('wait', IMG_WAIT)
-        self.addCleanup(self._cleanup_container, self.base)
+        self.base = self.with_cleanup(ContainerBase('wait', IMG_WAIT))
+
+    def with_cleanup(self, container):
+        self.addCleanup(self._cleanup_container, container)
+        return container
 
     def _cleanup_container(self, container):
         if container._container is not None:
@@ -75,12 +78,54 @@ class TestContainerBase(unittest.TestCase):
             self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
-    def test_default_create_kwargs(self):
+    def test_merge_kwargs(self):
         """
-        The default return value of the ``create_kwargs`` method is an empty
-        dict.
+        The default merge_kwargs() method deep-merges the two kwargs dicts
+        passed to it.
         """
-        self.assertEqual(self.base.create_kwargs(), {})
+        create_kwargs = {'a': {'aa': 1, 'ab': 2}, 's': 'foo', 't': 'bar'}
+        kwargs = {'a': {'ba': 3, 'ab': 4}, 'r': 'arr', 't': 'baz'}
+        self.assertEqual(self.base.merge_kwargs(create_kwargs, kwargs), {
+            'a': {'aa': 1, 'ab': 4, 'ba': 3},
+            'r': 'arr',
+            's': 'foo',
+            't': 'baz',
+        })
+
+    def test_merge_kwargs_dicts_only(self):
+        """
+        The kwargs we merge must be dicts.
+        """
+        with self.assertRaises(Exception):
+            self.base.merge_kwargs({}, 'hello')
+        with self.assertRaises(Exception):
+            self.base.merge_kwargs('hello', {})
+
+    def test_create_kwargs_handling(self):
+        """
+        The keyword args passed used for container creation come from the
+        return value of merge_kwargs() called on create_kwargs from the
+        constructor and kwargs from the create_and_start() method.
+        """
+        create_kwargs = {
+            'environment': {'CREATE_KWARGS': 't', 'KWARGS_MERGED': 'f'},
+        }
+        kwargs = {'environment': {'KWARGS': 't', 'KWARGS_MERGED': 't'}}
+        merge_kwargs_args = []
+
+        class SubContainer(ContainerBase):
+            def merge_kwargs(self, *args):
+                merge_kwargs_args.extend(args)
+                return super().merge_kwargs(*args)
+
+        c = self.with_cleanup(SubContainer(
+            'kwargs', IMG_WAIT, create_kwargs=create_kwargs))
+        c.create_and_start(self.dh, pull=False, kwargs=kwargs)
+
+        self.assertEqual(merge_kwargs_args, [create_kwargs, kwargs])
+        c_env = [v for v in c.inner().attrs['Config']['Env'] if 'KWARGS' in v]
+        self.assertEqual(
+            sorted(c_env), ['CREATE_KWARGS=t', 'KWARGS=t', 'KWARGS_MERGED=t'])
 
     def test_default_clean(self):
         """By default, the ``clean`` method raises a NotImplementedError."""
@@ -91,11 +136,10 @@ class TestContainerBase(unittest.TestCase):
         """
         We can get the host port mapping of a container.
         """
-        self.base.create_kwargs = lambda: {'ports': {
+        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
             '8080/tcp': ('127.0.0.1',),
             '9090/tcp': ('127.0.0.1', '10701'),
-        }}
-        self.base.create_and_start(self.dh, pull=False)
+        }})
 
         # We get a random high port number here.
         random_host_port = self.base.get_host_port('8080/tcp')
@@ -110,11 +154,11 @@ class TestContainerBase(unittest.TestCase):
         # and stderr.
         script = '\nsleep {}\n'.format(delay).join(logs)
 
-        script_con = ContainerBase('script', IMG_SCRIPT)
-        self.addCleanup(self._cleanup_container, script_con)
+        script_con = self.with_cleanup(ContainerBase('script', IMG_SCRIPT))
 
-        script_con.create_kwargs = lambda: {'command': ['sh', '-c', script]}
-        script_con.create_and_start(self.dh, pull=False)
+        script_con.create_and_start(self.dh, pull=False, kwargs={
+            'command': ['sh', '-c', script],
+        })
         # Wait for the output to arrive.
         if wait:
             time.sleep(len(logs) * delay)
