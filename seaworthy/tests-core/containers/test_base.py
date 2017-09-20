@@ -232,7 +232,7 @@ class TestContainerBase(unittest.TestCase):
         script = self.run_logs_container([
             'echo "o0"', 'echo "e0" >&2',
             'echo "o1"', 'echo "e1" >&2',
-        ], delay=0.2, wait=False)
+        ], delay=0.25, wait=False)
 
         time.sleep(0.01)
         lines = []
@@ -255,7 +255,7 @@ class TestContainerBase(unittest.TestCase):
         script = self.run_logs_container([
             'echo "o0"', 'echo "e0" >&2',
             'echo "o1"', 'echo "e1" >&2',
-        ], delay=0.2, wait=False)
+        ], delay=0.25, wait=False)
 
         time.sleep(0.01)
         lines = []
