@@ -78,8 +78,8 @@ class ContainerBase:
         :param docker.models.containers.Container container:
         """
         if self.wait_matchers:
-            wait_for_logs_matching(
-                self._container, SequentialLinesMatcher(*self.wait_matchers))
+            self.wait_for_logs_matching(
+                SequentialLinesMatcher(*self.wait_matchers))
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """
@@ -138,3 +138,12 @@ class ContainerBase:
         stream_func = stream_with_history if old_logs else stream_logs
         return stream_func(
                 self.inner(), stdout=stdout, stderr=stderr, timeout=timeout)
+
+    def wait_for_logs_matching(self, matcher, timeout=10, encoding='utf-8',
+                               **logs_kwargs):
+        """
+        Wait for logs matching the given matcher.
+        """
+        wait_for_logs_matching(
+            self.inner(), matcher, timeout=timeout, encoding=encoding,
+            **logs_kwargs)

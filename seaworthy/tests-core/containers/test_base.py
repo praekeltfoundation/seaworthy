@@ -7,6 +7,7 @@ from docker.models.containers import Container
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.containers.base import ContainerBase
 from seaworthy.dockerhelper import DockerHelper, fetch_images
+from seaworthy.logs import EqualsMatcher
 
 IMG_SCRIPT = 'alpine:latest'
 IMG_WAIT = 'nginx:alpine'
@@ -302,3 +303,30 @@ class TestContainerBase(unittest.TestCase):
         for line in script.stream_logs(stdout=False, timeout=1.0):
             lines.append(line)
         self.assertEqual(lines, [b'e0\n', b'e1\n'])
+
+    def test_wait_for_logs_matching(self):
+        """
+        This behaves like calling the underlying wait_for_logs_matching()
+        function with the container object as the first parameter.
+        """
+        script = self.run_logs_container([
+            'echo "hi"',
+            'echo "heya" >&2',
+            'echo "hello"',
+        ], delay=0.1, wait=False)
+
+        script.wait_for_logs_matching(EqualsMatcher('hello'))
+        with self.assertRaises(RuntimeError):
+            script.wait_for_logs_matching(EqualsMatcher('goodbye'))
+
+    def test_wait_for_logs_matching_timeout(self):
+        """
+        If we take too long to get a match, we time out.
+        """
+        script = self.run_logs_container([
+            'echo "hi"',
+            'echo "heya" >&2',
+            'echo "hello"',
+        ], delay=0.2, wait=False)
+        with self.assertRaises(TimeoutError):
+            script.wait_for_logs_matching(EqualsMatcher('hello'), timeout=0.1)
