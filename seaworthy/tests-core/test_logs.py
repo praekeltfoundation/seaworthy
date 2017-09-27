@@ -181,11 +181,11 @@ class FakeLogsContainer:
         self._feeder = LogFeeder(self, server)
         fileobj = socket.SocketIO(client, 'rb')
         # The "socket" object we get back from the real attach_socket() method
-        # has the real response object added to it like this to keep it around
-        # for as long as we're using the socket. We (ab)use that to properly
-        # close the connection when we're done (to avoid leaks and
-        # ResourceWarnings), so we need an equivalent in this fake. We do this
-        # before starting the feeder to avoid races with really fast logs.
+        # has the real response object added to it like this so it doesn't get
+        # garbage-collected too soon. We (ab)use that to properly close the
+        # connection when we're done (to avoid leaks and ResourceWarnings), so
+        # we need an equivalent in this fake. We do this before starting the
+        # feeder to avoid races with really fast logs.
         fileobj._response = self._feeder
         self._feeder.start()
         return fileobj
