@@ -281,7 +281,7 @@ class TestContainerBase(unittest.TestCase):
             'echo "first"',
             'echo "o0"', 'echo "e0" >&2',
             'echo "o1"', 'echo "e1" >&2',
-        ], delay=0.1, wait=False)
+        ], delay=0.2, wait=False)
         time.sleep(0.01)
 
         lines = []
@@ -296,7 +296,7 @@ class TestContainerBase(unittest.TestCase):
         script = self.run_logs_container([
             'echo "o0"', 'echo "e0" >&2',
             'echo "o1"', 'echo "e1" >&2',
-        ], delay=0.1, wait=False)
+        ], delay=0.2, wait=False)
         time.sleep(0.01)
 
         lines = []
@@ -313,7 +313,7 @@ class TestContainerBase(unittest.TestCase):
             'echo "hi"',
             'echo "heya" >&2',
             'echo "hello"',
-        ], delay=0.1, wait=False)
+        ], delay=0.2, wait=False)
 
         script.wait_for_logs_matching(EqualsMatcher('hello'))
         with self.assertRaises(RuntimeError):
