@@ -112,7 +112,9 @@ class DockerHelper(object):
     def start_container(self, container):
         log.info("Starting container '{}'...".format(container.name))
         container.start()
-        assert self.container_status(container) == 'running'
+        # If the container is short-lived, it may have finished and exited
+        # before we check its status.
+        assert self.container_status(container) in ['running', 'exited']
 
     def stop_container(self, container, timeout=5):
         log.info("Stopping container '{}'...".format(container.name))
