@@ -1,9 +1,26 @@
 from seaworthy.logs import (
-    RegexMatcher, SequentialLinesMatcher, wait_for_logs_matching)
+    RegexMatcher, SequentialLinesMatcher, stream_logs, stream_with_history,
+    wait_for_logs_matching)
+
+
+def deep_merge(*dicts):
+    result = {}
+    for d in dicts:
+        if not isinstance(d, dict):
+            raise Exception('Can only deep_merge dicts, got {}'.format(d))
+        for k, v in d.items():
+            # Whenever the value is a dict, we deep_merge it. This ensures that
+            # (a) we only ever merge dicts with dicts and (b) we always get a
+            # deep(ish) copy of the dicts and are thus safe from accidental
+            # mutations to shared state.
+            if isinstance(v, dict):
+                v = deep_merge(result.get(k, {}), v)
+            result[k] = v
+    return result
 
 
 class ContainerBase:
-    def __init__(self, name, image, wait_patterns=None):
+    def __init__(self, name, image, wait_patterns=None, create_kwargs=None):
         """
         :param name:
             The name for the container. The actual name of the container is
@@ -21,9 +38,11 @@ class ContainerBase:
         else:
             self.wait_matchers = None
 
+        self._create_kwargs = {} if create_kwargs is None else create_kwargs
+
         self._container = None
 
-    def create_and_start(self, docker_helper, pull=True):
+    def create_and_start(self, docker_helper, pull=True, kwargs=None):
         """
         Create the container and start it, waiting for the expected log lines.
 
@@ -37,8 +56,11 @@ class ContainerBase:
         if pull:
             docker_helper.pull_image_if_not_found(self.image)
 
+        kwargs = {} if kwargs is None else kwargs
+        kwargs = self.merge_kwargs(self._create_kwargs, kwargs)
+
         self._container = docker_helper.create_container(
-            self.name, self.image, **self.create_kwargs())
+            self.name, self.image, **kwargs)
         docker_helper.start_container(self._container)
 
         self.wait_for_start(docker_helper, self._container)
@@ -56,8 +78,8 @@ class ContainerBase:
         :param docker.models.containers.Container container:
         """
         if self.wait_matchers:
-            wait_for_logs_matching(
-                self._container, SequentialLinesMatcher(*self.wait_matchers))
+            self.wait_for_logs_matching(
+                SequentialLinesMatcher(*self.wait_matchers))
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """
@@ -73,14 +95,11 @@ class ContainerBase:
             raise RuntimeError('Container not created yet.')
         return self._container
 
-    def create_kwargs(self):
+    def merge_kwargs(self, default_kwargs, kwargs):
         """
-        :returns:
-            any extra keyword arguments to pass to
-            ~DockerHelper.create_container
-        :rtype: dict
+        Override this method to merge kwargs differently.
         """
-        return {}
+        return deep_merge(default_kwargs, kwargs)
 
     def clean(self):
         """
@@ -88,3 +107,43 @@ class ContainerBase:
         state as it was when it was started.
         """
         raise NotImplementedError()
+
+    def get_host_port(self, port_spec, index=0):
+        """
+        :param port_spec: A container port mapping specifier.
+        :param index: The index of the mapping entry to return.
+        :returns: The host port the container is mapped to.
+        """
+        # FIXME: The mapping entries are not necessarily in a sensible order.
+        ports = self.inner().attrs['NetworkSettings']['Ports']
+        return ports[port_spec][index]['HostPort']
+
+    def get_logs(self, stdout=True, stderr=True, timestamps=False, tail='all',
+                 since=None):
+        """
+        Get container logs.
+
+        This method does not support streaming, use :meth:`stream_logs` for
+        that.
+        """
+        return self.inner().logs(
+            stdout=stdout, stderr=stderr, timestamps=timestamps, tail=tail,
+            since=since)
+
+    def stream_logs(self, stdout=True, stderr=True, old_logs=False,
+                    timeout=10.0):
+        """
+        Stream container output.
+        """
+        stream_func = stream_with_history if old_logs else stream_logs
+        return stream_func(
+                self.inner(), stdout=stdout, stderr=stderr, timeout=timeout)
+
+    def wait_for_logs_matching(self, matcher, timeout=10, encoding='utf-8',
+                               **logs_kwargs):
+        """
+        Wait for logs matching the given matcher.
+        """
+        wait_for_logs_matching(
+            self.inner(), matcher, timeout=timeout, encoding=encoding,
+            **logs_kwargs)

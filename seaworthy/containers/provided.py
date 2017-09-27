@@ -1,5 +1,5 @@
 from seaworthy.utils import output_lines
-from .base import ContainerBase
+from .base import ContainerBase, deep_merge
 
 
 class PostgreSQLContainer(ContainerBase):
@@ -19,6 +19,7 @@ class PostgreSQLContainer(ContainerBase):
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
                  wait_patterns=DEFAULT_WAIT_PATTERNS,
+                 create_kwargs=None,
                  database=DEFAULT_DATABASE,
                  user=DEFAULT_USER,
                  password=DEFAULT_PASSWORD):
@@ -27,14 +28,14 @@ class PostgreSQLContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_patterns)
+        super().__init__(name, image, wait_patterns, create_kwargs)
 
         self.database = database
         self.user = user
         self.password = password
 
-    def create_kwargs(self):
-        return {
+    def merge_kwargs(self, default_kwargs, kwargs):
+        base_kwargs = {
             'environment': {
                 'POSTGRES_DB': self.database,
                 'POSTGRES_USER': self.user,
@@ -42,6 +43,7 @@ class PostgreSQLContainer(ContainerBase):
             },
             'tmpfs': {'/var/lib/postgresql/data': 'uid=70,gid=70'},
         }
+        return deep_merge(base_kwargs, default_kwargs, kwargs)
 
     def clean(self):
         container = self.inner()
@@ -116,6 +118,7 @@ class RabbitMQContainer(ContainerBase):
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
                  wait_patterns=DEFAULT_WAIT_PATTERNS,
+                 create_kwargs=None,
                  vhost=DEFAULT_VHOST,
                  user=DEFAULT_USER,
                  password=DEFAULT_PASSWORD):
@@ -124,14 +127,14 @@ class RabbitMQContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_patterns)
+        super().__init__(name, image, wait_patterns, create_kwargs)
 
         self.vhost = vhost
         self.user = user
         self.password = password
 
-    def create_kwargs(self):
-        return {
+    def merge_kwargs(self, default_kwargs, kwargs):
+        base_kwargs = {
             'environment': {
                 'RABBITMQ_DEFAULT_VHOST': self.vhost,
                 'RABBITMQ_DEFAULT_USER': self.user,
@@ -139,6 +142,7 @@ class RabbitMQContainer(ContainerBase):
             },
             'tmpfs': {'/var/lib/rabbitmq': 'uid=100,gid=101'},
         }
+        return deep_merge(base_kwargs, default_kwargs, kwargs)
 
     def clean(self):
         reset_erl = 'rabbit:stop(), rabbit_mnesia:reset(), rabbit:start().'

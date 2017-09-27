@@ -112,7 +112,9 @@ class DockerHelper(object):
     def start_container(self, container):
         log.info("Starting container '{}'...".format(container.name))
         container.start()
-        assert self.container_status(container) == 'running'
+        # If the container is short-lived, it may have finished and exited
+        # before we check its status.
+        assert self.container_status(container) in ['running', 'exited']
 
     def stop_container(self, container, timeout=5):
         log.info("Stopping container '{}'...".format(container.name))
@@ -132,8 +134,3 @@ class DockerHelper(object):
 
     def pull_image_if_not_found(self, image):
         return fetch_image(self._client, image)
-
-    def get_container_host_port(self, container, container_port, index=0):
-        # FIXME: Bit of a hack to get the port number on the host
-        return (container.attrs['NetworkSettings']['Ports']
-                [container_port][index]['HostPort'])

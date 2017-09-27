@@ -45,6 +45,9 @@ def stream_logs(container, stdout=1, stderr=1, timeout=10.0):
                 return
     finally:
         sel.close()
+        # We also need to close the response object our socket comes from to
+        # avoid leaking any resources.
+        fileobj._response.close()
 
 
 def read_from_ready(fileobj, n):

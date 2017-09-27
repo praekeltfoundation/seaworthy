@@ -179,8 +179,16 @@ class FakeLogsContainer:
         server, client = socket.socketpair()
         self._client_sockets.add(client)
         self._feeder = LogFeeder(self, server)
+        fileobj = socket.SocketIO(client, 'rb')
+        # The "socket" object we get back from the real attach_socket() method
+        # has the real response object added to it like this so it doesn't get
+        # garbage-collected too soon. We (ab)use that to properly close the
+        # connection when we're done (to avoid leaks and ResourceWarnings), so
+        # we need an equivalent in this fake. We do this before starting the
+        # feeder to avoid races with really fast logs.
+        fileobj._response = self._feeder
         self._feeder.start()
-        return socket.SocketIO(client, 'rb')
+        return fileobj
 
 
 class LogFeeder(threading.Thread):
@@ -189,6 +197,11 @@ class LogFeeder(threading.Thread):
         self.con = container
         self.sock = sock
         self.finished = threading.Event()
+
+    def close(self):
+        # This is a bit of a hack to avoid having a separate fake request
+        # object for the streaming client to close when it's done.
+        self.con.cleanup()
 
     def send_line(self, line):
         data = b'\x00\x00\x00\x00' + struct.pack('>L', len(line)) + line
@@ -215,13 +228,7 @@ class TestFakeLogsContainer(unittest.TestCase):
         return con
 
     def stream(self, con, timeout=1):
-        # Always clean up the feeder machinery when we're done. This is only
-        # necessary if we timed out, but it doesn't hurt to clean up an
-        # already-clean FakeLogsContainer.
-        try:
-            return list(stream_logs(con, timeout=timeout))
-        finally:
-            con.cleanup()
+        return list(stream_logs(con, timeout=timeout))
 
     def test_empty(self):
         """
@@ -278,22 +285,10 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
         return con
 
     def stream(self, con, timeout=1):
-        # Always clean up the feeder machinery when we're done. This is only
-        # necessary if we timed out, but it doesn't hurt to clean up an
-        # already-clean FakeLogsContainer.
-        try:
-            return list(stream_logs(con, timeout=timeout))
-        finally:
-            con.cleanup()
+        return list(stream_logs(con, timeout=timeout))
 
     def swh(self, con, timeout=0.5, **kw):
-        # Always clean up the feeder machinery when we're done. This is only
-        # necessary if we timed out, but it doesn't hurt to clean up an
-        # already-clean FakeLogsContainer.
-        try:
-            return stream_with_history(con, timeout=timeout, **kw)
-        finally:
-            con.cleanup()
+        return stream_with_history(con, timeout=timeout, **kw)
 
     def test_stream_only(self):
         """
@@ -342,13 +337,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         return con
 
     def wflm(self, con, matcher, timeout=0.5, **kw):
-        # Always clean up the feeder machinery when we're done. This is only
-        # necessary if we timed out, but it doesn't hurt to clean up an
-        # already-clean FakeLogsContainer.
-        try:
-            return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
-        finally:
-            con.cleanup()
+        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
 
     def test_one_matching_line(self):
         """
@@ -446,7 +435,6 @@ class FakeAndRealContainerMixin:
         self.wflm(logger, EqualsMatcher('Log entry 1'), timeout=1)
 
         early_logs = logger.logs().decode('utf8').splitlines()
-        print('early_logs:', early_logs)
         self.assertIn('Log entry 1', early_logs)
         self.assertNotIn('Log entry 4', early_logs)
 
@@ -454,7 +442,6 @@ class FakeAndRealContainerMixin:
         with self.assertRaises(TimeoutError):
             for line in self.stream(logger, timeout=0.7):
                 streamed_logs.append(line.decode('utf8').rstrip())
-        print('streamed_logs:', streamed_logs)
         self.assertNotIn('Log entry 1', streamed_logs)
         self.assertIn('Log entry 4', streamed_logs)
         self.assertNotIn('Log entry 9', streamed_logs)
@@ -462,7 +449,6 @@ class FakeAndRealContainerMixin:
         swh_logs = []
         for line in self.swh(logger, timeout=2):
             swh_logs.append(line.decode('utf8').rstrip())
-        print('swh_logs:', swh_logs)
         self.assertIn('Log entry 1', swh_logs)
         self.assertIn('Log entry 4', swh_logs)
         self.assertIn('Log entry 9', swh_logs)
@@ -480,33 +466,15 @@ class TestWithFakeContainer(unittest.TestCase, FakeAndRealContainerMixin):
             for n in range(10)])
 
     def wflm(self, con, matcher, timeout=0.5, **kw):
-        # Always clean up the feeder machinery when we're done. This is only
-        # necessary if we timed out, but it doesn't hurt to clean up an
-        # already-clean FakeLogsContainer.
-        try:
-            return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
-        finally:
-            con.cleanup()
+        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
 
     def stream(self, con, timeout=1):
-        # Always clean up the feeder machinery when we're done. This is only
-        # necessary if we timed out, but it doesn't hurt to clean up an
-        # already-clean FakeLogsContainer.
-        try:
-            for line in stream_logs(con, timeout=timeout):
-                yield line
-        finally:
-            con.cleanup()
+        for line in stream_logs(con, timeout=timeout):
+            yield line
 
     def swh(self, con, timeout=0.5, **kw):
-        # Always clean up the feeder machinery when we're done. This is only
-        # necessary if we timed out, but it doesn't hurt to clean up an
-        # already-clean FakeLogsContainer.
-        try:
-            for line in stream_with_history(con, timeout=timeout, **kw):
-                yield line
-        finally:
-            con.cleanup()
+        for line in stream_with_history(con, timeout=timeout, **kw):
+            yield line
 
 
 @dockertest()
