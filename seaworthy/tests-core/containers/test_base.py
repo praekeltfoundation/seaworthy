@@ -152,10 +152,8 @@ class TestContainerBase(unittest.TestCase):
 
     def run_logs_container(self, logs, wait=True, delay=0.01):
         # Sleep some amount between lines to ensure ordering across stdout and
-        # stderr. Also sleep a bit at the end to avoid having the container
-        # finish end exit before we notice that it started.
+        # stderr.
         script = '\nsleep {}\n'.format(delay).join(logs)
-        script += '\nsleep 0.2\n'
 
         script_con = self.with_cleanup(ContainerBase('script', IMG_SCRIPT))
 
