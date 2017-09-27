@@ -285,7 +285,7 @@ class TestContainerBase(unittest.TestCase):
         time.sleep(0.01)
 
         lines = []
-        for line in script.stream_logs(stderr=False, timeout=1.0):
+        for line in script.stream_logs(stderr=False, timeout=1.5):
             lines.append(line)
         self.assertEqual(lines, [b'o0\n', b'o1\n'])
 
@@ -300,7 +300,7 @@ class TestContainerBase(unittest.TestCase):
         time.sleep(0.01)
 
         lines = []
-        for line in script.stream_logs(stdout=False, timeout=1.0):
+        for line in script.stream_logs(stdout=False, timeout=1.5):
             lines.append(line)
         self.assertEqual(lines, [b'e0\n', b'e1\n'])
 
