@@ -122,12 +122,12 @@ class SequentialLinesMatcher(LogMatcher):
         self._position = 0
 
     @classmethod
-    def by_equality(cls, *rhs):
-        return SequentialLinesMatcher(*map(EqualsMatcher, rhs))
+    def by_equality(cls, *expected_lines):
+        return cls(*map(EqualsMatcher, expected_lines))
 
     @classmethod
     def by_regex(cls, *patterns):
-        return SequentialLinesMatcher(*map(RegexMatcher, patterns))
+        return cls(*map(RegexMatcher, patterns))
 
     def match(self, log_line):
         if self._position == len(self._matchers):
@@ -146,6 +146,51 @@ class SequentialLinesMatcher(LogMatcher):
     def args_str(self):
         matched = [str(m) for m in self._matchers[:self._position]]
         unmatched = [str(m) for m in self._matchers[self._position:]]
+        return 'matched=[{}], unmatched=[{}]'.format(
+            ', '.join(matched), ', '.join(unmatched))
+
+
+class AnyOrderLinesMatcher(LogMatcher):
+    """
+    Matcher that takes a list of matchers, and matches each one to a line. Each
+    line is tested against each unmatched matcher until a match is found or all
+    unmatched matchers are checked. Returns True ("matches") on the final
+    match.
+
+    **Note:** This is a *stateful* matcher. Once it has done its matching,
+    you'll need to create a new instance.
+    """
+    def __init__(self, *matchers):
+        self._unmatched = list(matchers)
+        self._matched = []
+
+    @classmethod
+    def by_equality(cls, *expected_lines):
+        return cls(*map(EqualsMatcher, expected_lines))
+
+    @classmethod
+    def by_regex(cls, *patterns):
+        return cls(*map(RegexMatcher, patterns))
+
+    def match(self, log_line):
+        if not self._unmatched:
+            raise RuntimeError('Matcher exhausted, no more matchers to use')
+
+        for i, matcher in enumerate(self._unmatched):
+            if matcher(log_line):
+                self._matched.append(matcher)
+                self._unmatched.pop(i)
+                break
+
+        if not self._unmatched:
+            # All patterns have been matched
+            return True
+
+        return False
+
+    def args_str(self):
+        matched = [str(m) for m in self._matched]
+        unmatched = [str(m) for m in self._unmatched]
         return 'matched=[{}], unmatched=[{}]'.format(
             ', '.join(matched), ', '.join(unmatched))
 
