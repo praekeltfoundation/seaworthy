@@ -1,5 +1,5 @@
 from seaworthy.logs import (
-    RegexMatcher, SequentialLinesMatcher, stream_logs, stream_with_history,
+    OrderedLinesMatcher, RegexMatcher, stream_logs, stream_with_history,
     wait_for_logs_matching)
 
 
@@ -76,7 +76,7 @@ class ContainerBase:
         """
         if self.wait_matchers:
             self.wait_for_logs_matching(
-                SequentialLinesMatcher(*self.wait_matchers))
+                OrderedLinesMatcher(*self.wait_matchers))
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """

@@ -8,7 +8,7 @@ from seaworthy._lowlevel import stream_logs
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.dockerhelper import DockerHelper, fetch_images
 from seaworthy.logs import (
-    AnyOrderLinesMatcher, EqualsMatcher, RegexMatcher, SequentialLinesMatcher,
+    EqualsMatcher, OrderedLinesMatcher, RegexMatcher, UnorderedLinesMatcher,
     stream_with_history, wait_for_logs_matching)
 
 # We use this image to test with because it is a small (~4MB) image from
@@ -53,12 +53,12 @@ class TestRegexMatcher(unittest.TestCase):
         self.assertEqual(repr(matcher), str(matcher))
 
 
-class TestSequentialLinesMatcher(unittest.TestCase):
+class TestOrderedLinesMatcher(unittest.TestCase):
     def test_matching(self):
         """
         Applies each matcher sequentially and returns True on the final match.
         """
-        matcher = SequentialLinesMatcher(
+        matcher = OrderedLinesMatcher(
             EqualsMatcher('foo'), RegexMatcher('^bar'))
 
         self.assertFalse(matcher('barfoo'))
@@ -71,7 +71,7 @@ class TestSequentialLinesMatcher(unittest.TestCase):
         The ``by_equality`` utility method takes a list of strings and produces
         a matcher that matches those strings by equality sequentially.
         """
-        matcher = SequentialLinesMatcher.by_equality('foo', 'bar')
+        matcher = OrderedLinesMatcher.by_equality('foo', 'bar')
 
         self.assertFalse(matcher('bar'))
         self.assertFalse(matcher('foo'))
@@ -83,7 +83,7 @@ class TestSequentialLinesMatcher(unittest.TestCase):
         The ``by_regex`` utility method takes a list of patterns and produces a
         matcher that matches by those regex patterns sequentially.
         """
-        matcher = SequentialLinesMatcher.by_regex(r'^foo', r'bar$')
+        matcher = OrderedLinesMatcher.by_regex(r'^foo', r'bar$')
 
         self.assertFalse(matcher('fuzzbar'))
         self.assertFalse(matcher('foobar'))
@@ -95,7 +95,7 @@ class TestSequentialLinesMatcher(unittest.TestCase):
         Once all matchers have been matched, further calls to ``match`` should
         raise an error.
         """
-        matcher = SequentialLinesMatcher.by_equality('foo')
+        matcher = OrderedLinesMatcher.by_equality('foo')
         self.assertTrue(matcher('foo'))
 
         with self.assertRaises(RuntimeError) as cm:
@@ -108,12 +108,12 @@ class TestSequentialLinesMatcher(unittest.TestCase):
         The string representation is readable and shows which matchers have
         been matched and which are still to be matched.
         """
-        matcher = SequentialLinesMatcher(
+        matcher = OrderedLinesMatcher(
             EqualsMatcher('foo'), RegexMatcher('^bar'))
 
         self.assertEqual(
             str(matcher),
-            'SequentialLinesMatcher(matched=[], '
+            'OrderedLinesMatcher(matched=[], '
             "unmatched=[EqualsMatcher('foo'), RegexMatcher('^bar')])")
         self.assertEqual(repr(matcher), str(matcher))
 
@@ -121,7 +121,7 @@ class TestSequentialLinesMatcher(unittest.TestCase):
 
         self.assertEqual(
             str(matcher),
-            "SequentialLinesMatcher(matched=[EqualsMatcher('foo')], "
+            "OrderedLinesMatcher(matched=[EqualsMatcher('foo')], "
             "unmatched=[RegexMatcher('^bar')])")
         self.assertEqual(repr(matcher), str(matcher))
 
@@ -129,24 +129,24 @@ class TestSequentialLinesMatcher(unittest.TestCase):
 
         self.assertEqual(
             str(matcher),
-            "SequentialLinesMatcher(matched=[EqualsMatcher('foo'), "
+            "OrderedLinesMatcher(matched=[EqualsMatcher('foo'), "
             "RegexMatcher('^bar')], unmatched=[])")
         self.assertEqual(repr(matcher), str(matcher))
 
 
-class TestAnyOrderLinesMatcher(unittest.TestCase):
+class TestUnorderedLinesMatcher(unittest.TestCase):
     def test_matching(self):
         """
         Applies each matcher sequentially and returns True on the final match.
         """
-        matcher = AnyOrderLinesMatcher(
+        matcher = UnorderedLinesMatcher(
             EqualsMatcher('foo'), RegexMatcher('^bar'))
 
         self.assertFalse(matcher('barfoo'))
         self.assertFalse(matcher('baz'))
         self.assertTrue(matcher('foo'))
 
-        matcher = AnyOrderLinesMatcher(
+        matcher = UnorderedLinesMatcher(
             EqualsMatcher('foo'), RegexMatcher('^bar'))
 
         self.assertFalse(matcher('foo'))
@@ -158,7 +158,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
         The ``by_equality`` utility method takes a list of strings and produces
         a matcher that matches those strings by equality sequentially.
         """
-        matcher = AnyOrderLinesMatcher.by_equality('foo', 'bar')
+        matcher = UnorderedLinesMatcher.by_equality('foo', 'bar')
 
         self.assertFalse(matcher('foo'))
         self.assertFalse(matcher('baz'))
@@ -169,7 +169,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
         The ``by_regex`` utility method takes a list of patterns and produces a
         matcher that matches by those regex patterns sequentially.
         """
-        matcher = AnyOrderLinesMatcher.by_regex(r'^foo', r'bar$')
+        matcher = UnorderedLinesMatcher.by_regex(r'^foo', r'bar$')
 
         self.assertFalse(matcher('foobar'))
         self.assertFalse(matcher('baz'))
@@ -180,7 +180,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
         Once all matchers have been matched, further calls to ``match`` should
         raise an error.
         """
-        matcher = AnyOrderLinesMatcher.by_equality('foo')
+        matcher = UnorderedLinesMatcher.by_equality('foo')
         self.assertTrue(matcher('foo'))
 
         with self.assertRaises(RuntimeError) as cm:
@@ -193,12 +193,12 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
         The string representation is readable and shows which matchers have
         been matched and which are still to be matched.
         """
-        matcher = AnyOrderLinesMatcher(
+        matcher = UnorderedLinesMatcher(
             EqualsMatcher('foo'), RegexMatcher('^bar'))
 
         self.assertEqual(
             str(matcher),
-            'AnyOrderLinesMatcher(matched=[], '
+            'UnorderedLinesMatcher(matched=[], '
             "unmatched=[EqualsMatcher('foo'), RegexMatcher('^bar')])")
         self.assertEqual(repr(matcher), str(matcher))
 
@@ -206,7 +206,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
 
         self.assertEqual(
             str(matcher),
-            "AnyOrderLinesMatcher(matched=[EqualsMatcher('foo')], "
+            "UnorderedLinesMatcher(matched=[EqualsMatcher('foo')], "
             "unmatched=[RegexMatcher('^bar')])")
         self.assertEqual(repr(matcher), str(matcher))
 
@@ -214,7 +214,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
 
         self.assertEqual(
             str(matcher),
-            "AnyOrderLinesMatcher(matched=[EqualsMatcher('foo'), "
+            "UnorderedLinesMatcher(matched=[EqualsMatcher('foo'), "
             "RegexMatcher('^bar')], unmatched=[])")
         self.assertEqual(repr(matcher), str(matcher))
 

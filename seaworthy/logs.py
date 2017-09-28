@@ -137,7 +137,7 @@ class CombinationLogMatcher(LogMatcher):
         return cls(*(to_matcher(RegexMatcher, p) for p in patterns))
 
 
-class SequentialLinesMatcher(CombinationLogMatcher):
+class OrderedLinesMatcher(CombinationLogMatcher):
     """
     Matcher that takes a list of matchers, and uses one after the next after
     each has a successful match. Returns True ("matches") on the final match.
@@ -170,7 +170,7 @@ class SequentialLinesMatcher(CombinationLogMatcher):
             ', '.join(matched), ', '.join(unmatched))
 
 
-class AnyOrderLinesMatcher(CombinationLogMatcher):
+class UnorderedLinesMatcher(CombinationLogMatcher):
     """
     Matcher that takes a list of matchers, and matches each one to a line. Each
     line is tested against each unmatched matcher until a match is found or all
@@ -238,5 +238,5 @@ class RegexMatcher(LogMatcher):
         return repr(self._regex.pattern)
 
 
-__all__ = ['EqualsMatcher', 'RegexMatcher', 'SequentialLinesMatcher',
-           'wait_for_logs_matching']
+__all__ = ['EqualsMatcher', 'RegexMatcher', 'OrderedLinesMatcher',
+           'UnorderedLinesMatcher', 'wait_for_logs_matching']
