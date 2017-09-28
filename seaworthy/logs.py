@@ -67,7 +67,6 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         ended without error).
     """
     try:
-        # for line in stream_logs(container, timeout=timeout, **logs_kwargs):
         for line in stream_with_history(
                 container, timeout=timeout, **logs_kwargs):
             # Drop the trailing newline
@@ -122,6 +121,9 @@ class SequentialLinesMatcher(object):
         return 'SequentialLinesMatcher(matched=[{}], unmatched=[{}])'.format(
             ', '.join(matched), ', '.join(unmatched))
 
+    def __repr__(self):
+        return str(self)
+
 
 class EqualsMatcher(object):
     """
@@ -136,6 +138,9 @@ class EqualsMatcher(object):
     def __str__(self):
         return 'EqualsMatcher({!r})'.format(self._rhs)
 
+    def __repr__(self):
+        return str(self)
+
 
 class RegexMatcher(object):
     """
@@ -149,6 +154,9 @@ class RegexMatcher(object):
 
     def __str__(self):
         return 'RegexMatcher({!r})'.format(self._regex.pattern)
+
+    def __repr__(self):
+        return str(self)
 
 
 __all__ = ['EqualsMatcher', 'RegexMatcher', 'SequentialLinesMatcher',
