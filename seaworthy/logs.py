@@ -109,7 +109,35 @@ class LogMatcher(ABC):
         return str(self)
 
 
-class SequentialLinesMatcher(LogMatcher):
+def to_matcher(matcher_factory, obj):
+    return obj if isinstance(obj, LogMatcher) else matcher_factory(obj)
+
+
+class CombinationLogMatcher(LogMatcher):
+    """
+    Matcher that combines multiple input matchers.
+    """
+    def __init__(self, *matchers):
+        self._matchers = matchers
+
+    @classmethod
+    def by_equality(cls, *expected_lines):
+        """
+        Construct an instance of this combination matcher from a list of
+        expected log lines and/or LogMatcher instances.
+        """
+        return cls(*(to_matcher(EqualsMatcher, l) for l in expected_lines))
+
+    @classmethod
+    def by_regex(cls, *patterns):
+        """
+        Construct an instance of this combination matcher from a list of
+        regex patterns and/or LogMatcher instances.
+        """
+        return cls(*(to_matcher(RegexMatcher, p) for p in patterns))
+
+
+class SequentialLinesMatcher(CombinationLogMatcher):
     """
     Matcher that takes a list of matchers, and uses one after the next after
     each has a successful match. Returns True ("matches") on the final match.
@@ -118,16 +146,8 @@ class SequentialLinesMatcher(LogMatcher):
     you'll need to create a new instance.
     """
     def __init__(self, *matchers):
-        self._matchers = matchers
+        super().__init__(*matchers)
         self._position = 0
-
-    @classmethod
-    def by_equality(cls, *expected_lines):
-        return cls(*map(EqualsMatcher, expected_lines))
-
-    @classmethod
-    def by_regex(cls, *patterns):
-        return cls(*map(RegexMatcher, patterns))
 
     def match(self, log_line):
         if self._position == len(self._matchers):
@@ -150,7 +170,7 @@ class SequentialLinesMatcher(LogMatcher):
             ', '.join(matched), ', '.join(unmatched))
 
 
-class AnyOrderLinesMatcher(LogMatcher):
+class AnyOrderLinesMatcher(CombinationLogMatcher):
     """
     Matcher that takes a list of matchers, and matches each one to a line. Each
     line is tested against each unmatched matcher until a match is found or all
@@ -161,36 +181,31 @@ class AnyOrderLinesMatcher(LogMatcher):
     you'll need to create a new instance.
     """
     def __init__(self, *matchers):
-        self._unmatched = list(matchers)
-        self._matched = []
+        super().__init__(*matchers)
+        self._used_matchers = []
 
-    @classmethod
-    def by_equality(cls, *expected_lines):
-        return cls(*map(EqualsMatcher, expected_lines))
-
-    @classmethod
-    def by_regex(cls, *patterns):
-        return cls(*map(RegexMatcher, patterns))
+    @property
+    def _unused_matchers(self):
+        return [m for m in self._matchers if m not in self._used_matchers]
 
     def match(self, log_line):
-        if not self._unmatched:
+        if not self._unused_matchers:
             raise RuntimeError('Matcher exhausted, no more matchers to use')
 
-        for i, matcher in enumerate(self._unmatched):
+        for matcher in self._unused_matchers:
             if matcher(log_line):
-                self._matched.append(matcher)
-                self._unmatched.pop(i)
+                self._used_matchers.append(matcher)
                 break
 
-        if not self._unmatched:
+        if not self._unused_matchers:
             # All patterns have been matched
             return True
 
         return False
 
     def args_str(self):
-        matched = [str(m) for m in self._matched]
-        unmatched = [str(m) for m in self._unmatched]
+        matched = [str(m) for m in self._used_matchers]
+        unmatched = [str(m) for m in self._unused_matchers]
         return 'matched=[{}], unmatched=[{}]'.format(
             ', '.join(matched), ', '.join(unmatched))
 
