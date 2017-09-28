@@ -63,9 +63,9 @@ class ContainerBase:
             self.name, self.image, **kwargs)
         docker_helper.start_container(self._container)
 
-        self.wait_for_start(docker_helper, self._container)
+        self.wait_for_start()
 
-    def wait_for_start(self, docker_helper, container):
+    def wait_for_start(self):
         """
         Wait for the container to start.
 
@@ -73,9 +73,6 @@ class ContainerBase:
         passed in the ``wait_patterns`` parameter of the constructor. For more
         advanced checks for container startup, this method should be
         overridden.
-
-        :param DockerHelper docker_helper:
-        :param docker.models.containers.Container container:
         """
         if self.wait_matchers:
             self.wait_for_logs_matching(
