@@ -34,6 +34,7 @@ class TestEqualsMatcher(unittest.TestCase):
         """ The string representation is readable. """
         matcher = EqualsMatcher('bar')
         self.assertEqual(str(matcher), "EqualsMatcher('bar')")
+        self.assertEqual(repr(matcher), str(matcher))
 
 
 class TestRegexMatcher(unittest.TestCase):
@@ -49,6 +50,7 @@ class TestRegexMatcher(unittest.TestCase):
         """ The string representation is readable. """
         matcher = RegexMatcher(r'^bar')
         self.assertEqual(str(matcher), "RegexMatcher('^bar')")
+        self.assertEqual(repr(matcher), str(matcher))
 
 
 class TestSequentialLinesMatcher(unittest.TestCase):
@@ -113,6 +115,7 @@ class TestSequentialLinesMatcher(unittest.TestCase):
             str(matcher),
             'SequentialLinesMatcher(matched=[], '
             "unmatched=[EqualsMatcher('foo'), RegexMatcher('^bar')])")
+        self.assertEqual(repr(matcher), str(matcher))
 
         self.assertFalse(matcher('foo'))
 
@@ -120,6 +123,7 @@ class TestSequentialLinesMatcher(unittest.TestCase):
             str(matcher),
             "SequentialLinesMatcher(matched=[EqualsMatcher('foo')], "
             "unmatched=[RegexMatcher('^bar')])")
+        self.assertEqual(repr(matcher), str(matcher))
 
         self.assertTrue(matcher('barfoo'))
 
@@ -127,6 +131,7 @@ class TestSequentialLinesMatcher(unittest.TestCase):
             str(matcher),
             "SequentialLinesMatcher(matched=[EqualsMatcher('foo'), "
             "RegexMatcher('^bar')], unmatched=[])")
+        self.assertEqual(repr(matcher), str(matcher))
 
 
 class TestAnyOrderLinesMatcher(unittest.TestCase):
@@ -195,6 +200,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
             str(matcher),
             'AnyOrderLinesMatcher(matched=[], '
             "unmatched=[EqualsMatcher('foo'), RegexMatcher('^bar')])")
+        self.assertEqual(repr(matcher), str(matcher))
 
         self.assertFalse(matcher('foo'))
 
@@ -202,6 +208,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
             str(matcher),
             "AnyOrderLinesMatcher(matched=[EqualsMatcher('foo')], "
             "unmatched=[RegexMatcher('^bar')])")
+        self.assertEqual(repr(matcher), str(matcher))
 
         self.assertTrue(matcher('barfoo'))
 
@@ -209,6 +216,7 @@ class TestAnyOrderLinesMatcher(unittest.TestCase):
             str(matcher),
             "AnyOrderLinesMatcher(matched=[EqualsMatcher('foo'), "
             "RegexMatcher('^bar')], unmatched=[])")
+        self.assertEqual(repr(matcher), str(matcher))
 
 
 class FakeLogsContainer:
