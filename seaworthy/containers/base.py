@@ -1,5 +1,5 @@
 from seaworthy.logs import (
-    OrderedLinesMatcher, RegexMatcher, stream_logs, stream_with_history,
+    RegexMatcher, UnorderedLinesMatcher, stream_logs, stream_with_history,
     wait_for_logs_matching)
 
 
@@ -70,13 +70,13 @@ class ContainerBase:
         Wait for the container to start.
 
         By default this will wait for the log lines matching the patterns
-        passed in the ``wait_patterns`` parameter of the constructor. For more
-        advanced checks for container startup, this method should be
-        overridden.
+        passed in the ``wait_patterns`` parameter of the constructor using an
+        UnorderedLinesMatcher. For more advanced checks for container startup,
+        this method should be overridden.
         """
         if self.wait_matchers:
             self.wait_for_logs_matching(
-                OrderedLinesMatcher(*self.wait_matchers))
+                UnorderedLinesMatcher(*self.wait_matchers))
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """
