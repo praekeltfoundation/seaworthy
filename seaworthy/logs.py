@@ -3,6 +3,7 @@ Tools for waiting on and matching log lines from a container.
 """
 
 import re
+from abc import ABC, abstractmethod
 
 from ._lowlevel import stream_logs
 
@@ -67,7 +68,6 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         ended without error).
     """
     try:
-        # for line in stream_logs(container, timeout=timeout, **logs_kwargs):
         for line in stream_with_history(
                 container, timeout=timeout, **logs_kwargs):
             # Drop the trailing newline
@@ -82,7 +82,62 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         matcher, _last_few_log_lines(container)))
 
 
-class SequentialLinesMatcher(object):
+class LogMatcher(ABC):
+    """
+    Abstract base class for log matchers.
+    """
+
+    @abstractmethod
+    def match(self, log_line):
+        """
+        Return ``True`` if the matcher matches a line, otherwise ``False``.
+        """
+
+    @abstractmethod
+    def args_str(self):
+        """
+        Return an args string for the repr.
+        """
+
+    def __call__(self, log_line):
+        return self.match(log_line)
+
+    def __str__(self):
+        return '{}({})'.format(type(self).__name__, self.args_str())
+
+    def __repr__(self):
+        return str(self)
+
+
+def to_matcher(matcher_factory, obj):
+    return obj if isinstance(obj, LogMatcher) else matcher_factory(obj)
+
+
+class CombinationLogMatcher(LogMatcher):
+    """
+    Matcher that combines multiple input matchers.
+    """
+    def __init__(self, *matchers):
+        self._matchers = matchers
+
+    @classmethod
+    def by_equality(cls, *expected_lines):
+        """
+        Construct an instance of this combination matcher from a list of
+        expected log lines and/or LogMatcher instances.
+        """
+        return cls(*(to_matcher(EqualsMatcher, l) for l in expected_lines))
+
+    @classmethod
+    def by_regex(cls, *patterns):
+        """
+        Construct an instance of this combination matcher from a list of
+        regex patterns and/or LogMatcher instances.
+        """
+        return cls(*(to_matcher(RegexMatcher, p) for p in patterns))
+
+
+class OrderedLinesMatcher(CombinationLogMatcher):
     """
     Matcher that takes a list of matchers, and uses one after the next after
     each has a successful match. Returns True ("matches") on the final match.
@@ -91,23 +146,15 @@ class SequentialLinesMatcher(object):
     you'll need to create a new instance.
     """
     def __init__(self, *matchers):
-        self._matchers = matchers
+        super().__init__(*matchers)
         self._position = 0
 
-    @classmethod
-    def by_equality(cls, *rhs):
-        return SequentialLinesMatcher(*map(EqualsMatcher, rhs))
-
-    @classmethod
-    def by_regex(cls, *patterns):
-        return SequentialLinesMatcher(*map(RegexMatcher, patterns))
-
-    def __call__(self, line):
+    def match(self, log_line):
         if self._position == len(self._matchers):
             raise RuntimeError('Matcher exhausted, no more matchers to use')
 
         matcher = self._matchers[self._position]
-        if matcher(line):
+        if matcher(log_line):
             self._position += 1
 
         if self._position == len(self._matchers):
@@ -116,40 +163,80 @@ class SequentialLinesMatcher(object):
 
         return False
 
-    def __str__(self):
+    def args_str(self):
         matched = [str(m) for m in self._matchers[:self._position]]
         unmatched = [str(m) for m in self._matchers[self._position:]]
-        return 'SequentialLinesMatcher(matched=[{}], unmatched=[{}])'.format(
+        return 'matched=[{}], unmatched=[{}]'.format(
             ', '.join(matched), ', '.join(unmatched))
 
 
-class EqualsMatcher(object):
+class UnorderedLinesMatcher(CombinationLogMatcher):
+    """
+    Matcher that takes a list of matchers, and matches each one to a line. Each
+    line is tested against each unmatched matcher until a match is found or all
+    unmatched matchers are checked. Returns True ("matches") on the final
+    match.
+
+    **Note:** This is a *stateful* matcher. Once it has done its matching,
+    you'll need to create a new instance.
+    """
+    def __init__(self, *matchers):
+        super().__init__(*matchers)
+        self._used_matchers = []
+
+    @property
+    def _unused_matchers(self):
+        return [m for m in self._matchers if m not in self._used_matchers]
+
+    def match(self, log_line):
+        if not self._unused_matchers:
+            raise RuntimeError('Matcher exhausted, no more matchers to use')
+
+        for matcher in self._unused_matchers:
+            if matcher(log_line):
+                self._used_matchers.append(matcher)
+                break
+
+        if not self._unused_matchers:
+            # All patterns have been matched
+            return True
+
+        return False
+
+    def args_str(self):
+        matched = [str(m) for m in self._used_matchers]
+        unmatched = [str(m) for m in self._unused_matchers]
+        return 'matched=[{}], unmatched=[{}]'.format(
+            ', '.join(matched), ', '.join(unmatched))
+
+
+class EqualsMatcher(LogMatcher):
     """
     Matcher that matches log lines by equality.
     """
-    def __init__(self, rhs):
-        self._rhs = rhs
+    def __init__(self, expected_line):
+        self._expected_line = expected_line
 
-    def __call__(self, lhs):
-        return lhs == self._rhs
+    def match(self, log_line):
+        return log_line == self._expected_line
 
-    def __str__(self):
-        return 'EqualsMatcher({!r})'.format(self._rhs)
+    def args_str(self):
+        return repr(self._expected_line)
 
 
-class RegexMatcher(object):
+class RegexMatcher(LogMatcher):
     """
     Matcher that matches log lines by regex pattern.
     """
     def __init__(self, pattern):
         self._regex = re.compile(pattern)
 
-    def __call__(self, line):
-        return self._regex.search(line) is not None
+    def match(self, log_line):
+        return self._regex.search(log_line) is not None
 
-    def __str__(self):
-        return 'RegexMatcher({!r})'.format(self._regex.pattern)
+    def args_str(self):
+        return repr(self._regex.pattern)
 
 
-__all__ = ['EqualsMatcher', 'RegexMatcher', 'SequentialLinesMatcher',
-           'wait_for_logs_matching']
+__all__ = ['EqualsMatcher', 'RegexMatcher', 'OrderedLinesMatcher',
+           'UnorderedLinesMatcher', 'wait_for_logs_matching']
