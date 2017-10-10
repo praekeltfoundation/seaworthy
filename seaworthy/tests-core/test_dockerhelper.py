@@ -49,28 +49,38 @@ class TestDockerHelper(unittest.TestCase):
 
     def test_lifecycle_network(self):
         """
-        A DockerHelper creates a test network during setup and removes that
-        network during teardown.
+        The default network can only be created once and is removed during
+        teardown.
         """
-        dh = self.make_helper(setup=False)
-        self.assertEqual([], self.list_networks())
-        dh.setup()
-        self.assertNotEqual([], self.list_networks())
+        dh = self.make_helper()
+
+        network = dh.get_default_network(create=True)
+        self.assertIsNotNone(network)
+
+        # We can try to get the network lots of times and it's ok
+        dh.get_default_network(create=False)
+        dh.get_default_network(create=True)
+        networks = self.list_networks()
+        self.assertEqual(networks, [network])
+
         dh.teardown()
-        self.assertEqual([], self.list_networks())
+        network = dh.get_default_network(create=False)
+        self.assertIsNone(network)
 
     def test_network_already_exists(self):
         """
-        If the test network already exists during setup, we fail.
+        If the default network already exists when we try to create it, we
+        fail.
         """
         # We use a separate DockerHelper (with the usual cleanup) to create the
         # test network so that the DockerHelper under test will see that it
         # already exists.
-        self.make_helper(setup=True)
+        dh1 = self.make_helper()
+        dh1.get_default_network()
         # Now for the test.
-        dh = self.make_helper(setup=False)
+        dh2 = self.make_helper()
         with self.assertRaises(RuntimeError) as cm:
-            dh.setup()
+            dh2.get_default_network()
         self.assertIn('network', str(cm.exception))
         self.assertIn('already exists', str(cm.exception))
 
@@ -153,6 +163,36 @@ class TestDockerHelper(unittest.TestCase):
         self.addCleanup(dh.remove_container, con_env)
         self.assertEqual(con_env.status, 'created')
         self.assertIn('FOO=bar', con_env.attrs['Config']['Env'])
+
+    def test_container_networks(self):
+        """
+        When a container is created, the network settings are respected, and if
+        no network settings are specified, the container is connected to a
+        default network.
+        """
+        dh = self.make_helper()
+
+        # TODO: Custom network
+
+        # When 'network_mode' is provided, the default network is not used
+        con_mode = dh.create_container('mode', IMG, network_mode='none')
+        self.addCleanup(dh.remove_container, con_mode)
+        networks = con_mode.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), ['none'])
+
+        # When 'network_disabled' is True, the default network is not used
+        con_disabled = dh.create_container(
+            'disabled', IMG, network_disabled=True)
+        self.addCleanup(dh.remove_container, con_disabled)
+        self.assertEqual(con_disabled.attrs['NetworkSettings']['Networks'], {})
+
+        con_default = dh.create_container('default', IMG)
+        self.addCleanup(dh.remove_container, con_default)
+        networks = con_default.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), ['test_default'])
+        network = networks['test_default']
+        self.assertCountEqual(
+            network['Aliases'], [con_default.id[:12], 'default'])
 
     def test_start_container(self):
         """
@@ -270,9 +310,7 @@ class TestDockerHelper(unittest.TestCase):
         """
         dh = self.make_helper()
 
-        networks = self.list_networks()
-        self.assertEqual(len(networks), 1)
-        [network] = networks
+        network = dh.get_default_network()
         self.assertEqual(network.name, 'test_default')
 
         con = dh.create_container('con', IMG)
@@ -286,9 +324,7 @@ class TestDockerHelper(unittest.TestCase):
         """
         dh = self.make_helper(namespace='integ')
 
-        networks = self.list_networks(namespace='integ')
-        self.assertEqual(len(networks), 1)
-        [network] = networks
+        network = dh.get_default_network()
         self.assertEqual(network.name, 'integ_default')
 
         con = dh.create_container('con', IMG)
