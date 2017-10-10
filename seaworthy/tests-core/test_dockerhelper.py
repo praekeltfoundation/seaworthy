@@ -88,7 +88,6 @@ class TestDockerHelper(unittest.TestCase):
         dh2 = self.make_helper()
         with self.assertRaises(docker.errors.APIError) as cm:
             dh2.get_default_network()
-        self.assertIn('403 Client Error', str(cm.exception))
         self.assertIn('network', str(cm.exception))
         self.assertIn('already exists', str(cm.exception))
 
@@ -412,7 +411,6 @@ class TestDockerHelper(unittest.TestCase):
 
         with self.assertRaises(docker.errors.APIError) as cm:
             dh.remove_network(net_test)
-        self.assertIn('403 Client Error', str(cm.exception))
         self.assertIn('network', str(cm.exception))
         self.assertIn('has active endpoints', str(cm.exception))
 
