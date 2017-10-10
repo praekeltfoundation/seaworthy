@@ -107,11 +107,27 @@ class DockerHelper:
 
         return self._default_network
 
-    def create_container(self, name, image, **kwargs):
+    def create_container(self, name, image, network=None, **kwargs):
+        """
+        Create a new container.
+
+        :param name:
+            The name for the container. This will be prefixed with the
+            namespace.
+        :param image:
+            The image tag or image object to create the container from.
+        :param docker.models.networks.Network network:
+            The network to connect the container to. The container will be
+            given an alias with the ``name`` parameter. Note that, unlike the
+            Docker Python client, this parameter should be a ``Network`` model
+            object, and not just a network ID.
+        :param kwargs:
+            Other parameters to create the container with.
+        """
         container_name = self._resource_name(name)
         log.info("Creating container '{}'...".format(container_name))
 
-        network = self._get_container_network(kwargs)
+        network = self._get_container_network(network, kwargs)
         network_id = network.id if network is not None else None
 
         container = self._client.containers.create(
@@ -127,9 +143,8 @@ class DockerHelper:
 
         return container
 
-    def _get_container_network(self, create_kwargs):
+    def _get_container_network(self, network, create_kwargs):
         # If a network is specified use that
-        network = create_kwargs.pop('network', None)
         if network is not None:
             return network
 
