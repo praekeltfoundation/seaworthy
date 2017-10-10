@@ -28,24 +28,24 @@ class TestDockerHelper(unittest.TestCase):
         self.client = docker.client.from_env()
         self.addCleanup(self.client.api.close)
 
-    def make_helper(self, setup=True):
+    def make_helper(self, *args, setup=True, **kwargs):
         """
         Create and return a DockerHelper instance that will be cleaned up after
         the test.
         """
-        dh = DockerHelper()
+        dh = DockerHelper(*args, **kwargs)
         self.addCleanup(dh.teardown)
         if setup:
             dh.setup()
         return dh
 
-    def list_networks(self, *args, **kw):
+    def list_networks(self, *args, namespace='test', **kw):
         return filter_by_name(
-            self.client.networks.list(*args, **kw), 'test_')
+            self.client.networks.list(*args, **kw), '{}_'.format(namespace))
 
-    def list_containers(self, *args, **kw):
+    def list_containers(self, *args, namespace='test', **kw):
         return filter_by_name(
-            self.client.containers.list(*args, **kw), 'test_')
+            self.client.containers.list(*args, **kw), '{}_'.format(namespace))
 
     def test_lifecycle_network(self):
         """
@@ -262,3 +262,35 @@ class TestDockerHelper(unittest.TestCase):
         self.assertRegex(
             logs[0],
             r"Found image 'sha256:[a-f0-9]{64}' for tag 'busybox:latest'")
+
+    def test_namespace(self):
+        """
+        When the helper has its default namespace, the default network and all
+        created containers should have names prefixed with the namespace.
+        """
+        dh = self.make_helper()
+
+        networks = self.list_networks()
+        self.assertEqual(len(networks), 1)
+        [network] = networks
+        self.assertEqual(network.name, 'test_default')
+
+        con = dh.create_container('con', IMG)
+        self.addCleanup(dh.remove_container, con)
+        self.assertEqual(con.name, 'test_con')
+
+    def test_custom_namespace(self):
+        """
+        When the helper has a custom namespace, the default network and all
+        created containers should have names prefixed with the namespace.
+        """
+        dh = self.make_helper(namespace='integ')
+
+        networks = self.list_networks(namespace='integ')
+        self.assertEqual(len(networks), 1)
+        [network] = networks
+        self.assertEqual(network.name, 'integ_default')
+
+        con = dh.create_container('con', IMG)
+        self.addCleanup(dh.remove_container, con)
+        self.assertEqual(con.name, 'integ_con')

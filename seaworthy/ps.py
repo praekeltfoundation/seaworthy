@@ -1,6 +1,6 @@
 import attr
 
-from .utils import output_lines
+from .logs import output_lines
 
 
 class PsException(Exception):

@@ -2,8 +2,6 @@ import logging
 
 import docker
 
-from .utils import resource_name
-
 log = logging.getLogger(__name__)
 
 
@@ -28,10 +26,16 @@ def fetch_image(client, name):
     return image
 
 
-class DockerHelper(object):
-    _network = None
-    _container_ids = None
-    _client = None
+class DockerHelper:
+    def __init__(self, namespace='test'):
+        self._namespace = namespace
+
+        self._network = None
+        self._container_ids = None
+        self._client = None
+
+    def _resource_name(self, name):
+        return '{}_{}'.format(self._namespace, name)
 
     def setup(self):
         self._client = docker.client.from_env()
@@ -43,7 +47,7 @@ class DockerHelper(object):
         # Docker allows the creation of multiple networks with the same name
         # (unlike containers). This seems to cause problems sometimes with
         # container networking for some reason (?).
-        name = resource_name('default')
+        name = self._resource_name('default')
         if self._client.networks.list(names=[name]):
             raise RuntimeError(
                 "A network with the name '{}' already exists".format(name))
@@ -81,7 +85,7 @@ class DockerHelper(object):
         self._client = None
 
     def create_container(self, name, image, **kwargs):
-        container_name = resource_name(name)
+        container_name = self._resource_name(name)
         log.info("Creating container '{}'...".format(container_name))
         container = self._client.containers.create(
             image, name=container_name, detach=True, network=self._network.id,

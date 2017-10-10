@@ -1,4 +1,4 @@
-from seaworthy.utils import output_lines
+from seaworthy.logs import output_lines
 from .base import ContainerBase, deep_merge
 
 
