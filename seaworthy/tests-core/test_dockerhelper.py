@@ -53,16 +53,22 @@ class TestDockerHelper(unittest.TestCase):
         teardown.
         """
         dh = self.make_helper()
+        # The default network isn't created unless required
+        network = dh.get_default_network(create=False)
+        self.assertIsNone(network)
 
+        # Create the default network
         network = dh.get_default_network(create=True)
         self.assertIsNotNone(network)
 
-        # We can try to get the network lots of times and it's ok
+        # We can try to get the network lots of times and we get the same one
+        # and new ones aren't created.
         dh.get_default_network(create=False)
         dh.get_default_network(create=True)
         networks = self.list_networks()
         self.assertEqual(networks, [network])
 
+        # The default network is removed on teardown
         dh.teardown()
         network = dh.get_default_network(create=False)
         self.assertIsNone(network)
