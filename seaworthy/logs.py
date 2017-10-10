@@ -8,6 +8,10 @@ from abc import ABC, abstractmethod
 from ._lowlevel import stream_logs
 
 
+def output_lines(raw_output, encoding='utf-8'):
+    return raw_output.decode(encoding).splitlines()
+
+
 def _last_few_log_lines(container, max_lines=100):
     logs = container.logs(tail=max_lines).decode('utf-8')
     return '\nLast few log lines:\n{}'.format(logs)
@@ -239,4 +243,4 @@ class RegexMatcher(LogMatcher):
 
 
 __all__ = ['EqualsMatcher', 'RegexMatcher', 'OrderedLinesMatcher',
-           'UnorderedLinesMatcher', 'wait_for_logs_matching']
+           'UnorderedLinesMatcher', 'output_lines', 'wait_for_logs_matching']
