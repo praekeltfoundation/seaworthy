@@ -32,6 +32,7 @@ class DockerHelper:
 
         self._client = None
         self._container_ids = None
+        self._network_ids = None
         self._default_network = None
 
     def _resource_name(self, name):
@@ -40,17 +41,14 @@ class DockerHelper:
     def setup(self):
         self._client = docker.client.from_env()
         self._container_ids = set()
+        self._network_ids = set()
 
     def teardown(self):
         if self._client is None:
             return
 
         self._teardown_containers()
-
-        # Remove the default network
-        if self._default_network is not None:
-            self._default_network.remove()
-            self._default_network = None
+        self._teardown_networks()
 
         # We need to close the underlying APIClient explicitly to avoid
         # ResourceWarnings from unclosed HTTP connections.
@@ -74,6 +72,26 @@ class DockerHelper:
             self.remove_container(container)
         self._container_ids = None
 
+    def _teardown_networks(self):
+        # Remove the default network
+        if self._default_network is not None:
+            self._default_network.remove()
+            self._default_network = None
+
+        # Remove all other networks
+        for network_id in self._network_ids.copy():
+            # Check if the network exists before trying to remove it
+            try:
+                network = self._client.networks.get(network_id)
+            except docker.errors.NotFound:
+                continue
+
+            log.warning("Network '{}' still existed during teardown".format(
+                network.name))
+
+            self.remove_network(network)
+        self._network_ids = None
+
     def get_default_network(self, create=True):
         """
         Get the default bridge network that containers are connected to if no
@@ -83,16 +101,9 @@ class DockerHelper:
             Whether or not to create the network if it doesn't already exist.
         """
         if self._default_network is None and create:
-            network_name = self._resource_name('default')
-            log.info("Creating default network '{}'...".format(network_name))
-
-            # Docker allows the creation of multiple networks with the same
-            # name (unlike containers). This seems to cause problems sometimes
-            # with container networking for some reason (?). The Docker Python
-            # client _claims_ (as of 2.5.1) that ``check_duplicate`` defaults
-            # True but it actually doesn't.
-            self._default_network = self._client.networks.create(
-                network_name, driver='bridge', check_duplicate=True)
+            log.debug("Creating default network...")
+            self._default_network = self.create_network(
+                'default', driver='bridge')
 
         return self._default_network
 
@@ -100,7 +111,7 @@ class DockerHelper:
         container_name = self._resource_name(name)
         log.info("Creating container '{}'...".format(container_name))
 
-        network = self._get_container_network(**kwargs)
+        network = self._get_container_network(kwargs)
         network_id = network.id if network is not None else None
 
         container = self._client.containers.create(
@@ -116,9 +127,9 @@ class DockerHelper:
 
         return container
 
-    def _get_container_network(self, **create_kwargs):
+    def _get_container_network(self, create_kwargs):
         # If a network is specified use that
-        network = create_kwargs.get('network')
+        network = create_kwargs.pop('network', None)
         if network is not None:
             return network
 
@@ -143,6 +154,9 @@ class DockerHelper:
         network.connect(container, **connect_kwargs)
         # Reload the container data to get the new network setup
         container.reload()
+        # We could also reload the network data to update the containers that
+        # are connected to it but that listing doesn't include containers that
+        # have been created and connected but not yet started. :-/
 
     def container_status(self, container):
         container.reload()
@@ -175,3 +189,33 @@ class DockerHelper:
 
     def pull_image_if_not_found(self, image):
         return fetch_image(self._client, image)
+
+    def create_network(self, name, check_duplicate=True, **kwargs):
+        """
+        Create a new network.
+
+        :param name:
+            The name for the network. This will be prefixed with the namespace.
+        :param check_duplicate:
+            Whether or not to check for networks with the same name. Docker
+            allows the creation of multiple networks with the same name (unlike
+            containers). This seems to cause problems sometimes for some reason
+            (?). The Docker Python client _claims_ (as of 2.5.1) that
+            ``check_duplicate`` defaults to True but it actually doesn't. We
+            default it to True ourselves here.
+        :param kwargs:
+            Other parameters to create the network with.
+        """
+        network_name = self._resource_name(name)
+        log.info("Creating network '{}'...".format(network_name))
+
+        network = self._client.networks.create(
+            name=network_name, check_duplicate=check_duplicate, **kwargs)
+        self._network_ids.add(network.id)
+        return network
+
+    def remove_network(self, network):
+        log.info("Removing network '{}'...".format(network.name))
+        network.remove()
+
+        self._network_ids.remove(network.id)

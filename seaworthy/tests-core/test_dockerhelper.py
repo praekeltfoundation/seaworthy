@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import docker
@@ -47,7 +48,7 @@ class TestDockerHelper(unittest.TestCase):
         return filter_by_name(
             self.client.containers.list(*args, **kw), '{}_'.format(namespace))
 
-    def test_lifecycle_network(self):
+    def test_default_network_lifecycle(self):
         """
         The default network can only be created once and is removed during
         teardown.
@@ -73,7 +74,7 @@ class TestDockerHelper(unittest.TestCase):
         network = dh.get_default_network(create=False)
         self.assertIsNone(network)
 
-    def test_network_already_exists(self):
+    def test_default_network_already_exists(self):
         """
         If the default network already exists when we try to create it, we
         fail.
@@ -150,6 +151,35 @@ class TestDockerHelper(unittest.TestCase):
         ])
         self.assertEqual([], self.list_containers(all=True))
 
+    def test_teardown_networks(self):
+        """
+        DockerHelper.teardown() will remove any networks that were created,
+        even if they no longer exist.
+        """
+        dh = self.make_helper()
+        self.assertEqual([], self.list_networks())
+        net_bridge1 = dh.create_network('bridge1', driver='bridge')
+        net_bridge2 = dh.create_network('bridge2', driver='bridge')
+
+        net_removed = dh.create_network('removed')
+        # We remove this behind the helper's back so the helper thinks it still
+        # exists at teardown time.
+        net_removed.remove()
+        with self.assertRaises(docker.errors.NotFound):
+            net_removed.reload()
+
+        self.assertEqual(
+            set([net_bridge1, net_bridge2]),
+            set(self.list_networks()))
+
+        with self.assertLogs('seaworthy', level='WARNING') as cm:
+            dh.teardown()
+        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
+            "Network 'test_bridge1' still existed during teardown",
+            "Network 'test_bridge2' still existed during teardown",
+        ])
+        self.assertEqual([], self.list_networks())
+
     def test_create_container(self):
         """
         We can create a container with various parameters without starting it.
@@ -171,6 +201,35 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(con_env.status, 'created')
         self.assertIn('FOO=bar', con_env.attrs['Config']['Env'])
 
+    def test_create_network(self):
+        """
+        We can create a network with various parameters.
+        """
+        dh = self.make_helper()
+
+        net_simple = dh.create_network('simple')
+        self.addCleanup(dh.remove_network, net_simple)
+        self.assertEqual(net_simple.name, 'test_simple')
+        self.assertEqual(net_simple.attrs['Driver'], 'bridge')
+        self.assertEqual(net_simple.attrs['Internal'], False)
+
+        net_internal = dh.create_network('internal', internal=True)
+        self.addCleanup(dh.remove_network, net_internal)
+        self.assertEqual(net_internal.name, 'test_internal')
+        self.assertEqual(net_internal.attrs['Internal'], True)
+
+        # Copy custom IPAM/subnet example from Docker docs:
+        # https://docker-py.readthedocs.io/en/2.5.1/networks.html#docker.models.networks.NetworkCollection.create
+        ipam_pool = docker.types.IPAMPool(
+            subnet='192.168.52.0/24', gateway='192.168.52.254')
+        ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
+        net_subnet = dh.create_network('subnet', ipam=ipam_config)
+        self.assertEqual(net_subnet.name, 'test_subnet')
+        self.addCleanup(dh.remove_network, net_subnet)
+        config = net_subnet.attrs['IPAM']['Config'][0]
+        self.assertEqual(config['Subnet'], '192.168.52.0/24')
+        self.assertEqual(config['Gateway'], '192.168.52.254')
+
     def test_container_networks(self):
         """
         When a container is created, the network settings are respected, and if
@@ -179,7 +238,17 @@ class TestDockerHelper(unittest.TestCase):
         """
         dh = self.make_helper()
 
-        # TODO: Custom network
+        # When 'network' is provided, that network is used
+        custom_network = dh.create_network('network')
+        self.addCleanup(dh.remove_network, custom_network)
+        con_network = dh.create_container(
+            'network', IMG, network=custom_network)
+        self.addCleanup(dh.remove_container, con_network)
+        networks = con_network.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [custom_network.name])
+        network = networks[custom_network.name]
+        self.assertCountEqual(
+            network['Aliases'], [con_network.id[:12], 'network'])
 
         # When 'network_mode' is provided, the default network is not used
         con_mode = dh.create_container('mode', IMG, network_mode='none')
@@ -195,9 +264,10 @@ class TestDockerHelper(unittest.TestCase):
 
         con_default = dh.create_container('default', IMG)
         self.addCleanup(dh.remove_container, con_default)
+        default_network_name = dh.get_default_network().name
         networks = con_default.attrs['NetworkSettings']['Networks']
-        self.assertEqual(list(networks.keys()), ['test_default'])
-        network = networks['test_default']
+        self.assertEqual(list(networks.keys()), [default_network_name])
+        network = networks[default_network_name]
         self.assertCountEqual(
             network['Aliases'], [con_default.id[:12], 'default'])
 
@@ -277,6 +347,106 @@ class TestDockerHelper(unittest.TestCase):
         dh.stop_and_remove_container(con_running, remove_force=False)
         with self.assertRaises(docker.errors.NotFound):
             con_running.reload()
+
+    def test_remove_network(self):
+        """
+        We can remove a network.
+        """
+        dh = self.make_helper()
+
+        net_test = dh.create_network('test')
+        dh.remove_network(net_test)
+        with self.assertRaises(docker.errors.NotFound):
+            net_test.reload()
+
+    def test_remove_connected_network_created_container(self):
+        """
+        We can remove a network when it is connected to a container if the
+        container hasn't been started yet.
+        """
+        dh = self.make_helper()
+
+        net_test = dh.create_network('test')
+
+        con_created = dh.create_container('created', IMG, network=net_test)
+        self.addCleanup(dh.remove_container, con_created)
+        self.assertEqual(con_created.status, 'created')
+        networks = con_created.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_test.name])
+
+        # Container not yet started so not listed as container connected to
+        # network
+        net_test.reload()
+        self.assertEqual(net_test.containers, [])
+
+        # Container not yet started so we can remove the network
+        dh.remove_network(net_test)
+        with self.assertRaises(docker.errors.NotFound):
+            net_test.reload()
+
+        # The container will still think it's connected to the network
+        con_created.reload()
+        networks = con_created.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_test.name])
+        # But... we can't disconnect it from the old one
+
+    def test_remove_connected_network_running_container(self):
+        """
+        We cannot remove a network when it is connected to a container if the
+        container has been started. Once the container is disconnected, the
+        network can be removed.
+        """
+        dh = self.make_helper()
+
+        # Create a network and connect it to a container
+        net_test = dh.create_network('test')
+        con_running = dh.create_container('running', IMG, network=net_test)
+        networks = con_running.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_test.name])
+
+        # Start the container, now the network should know about it
+        dh.start_container(con_running)
+        self.assertEqual(con_running.status, 'running')
+        net_test.reload()
+        self.assertEqual(net_test.containers, [con_running])
+
+        with self.assertRaises(docker.errors.APIError) as cm:
+            dh.remove_network(net_test)
+        self.assertIn('403 Client Error', str(cm.exception))
+        self.assertIn('network', str(cm.exception))
+        self.assertIn('has active endpoints', str(cm.exception))
+
+        # Once the container is disconnected, the network can be removed
+        net_test.disconnect(con_running)
+        dh.remove_network(net_test)
+
+        with self.assertRaises(docker.errors.NotFound):
+            net_test.reload()
+
+    def test_remove_connected_network_stopped_container(self):
+        """
+        We can remove a network when it is connected to a container if the
+        container has been stopped.
+        """
+        dh = self.make_helper()
+
+        # Create a network and connect it to a container
+        net_test = dh.create_network('test')
+        con_stopped = dh.create_container('stopped', IMG, network=net_test)
+        networks = con_stopped.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_test.name])
+
+        # Stop the container
+        dh.start_container(con_stopped)
+        dh.stop_container(con_stopped)
+        self.assertEqual(con_stopped.status, 'exited')
+
+        net_test.reload()
+        self.assertEqual(net_test.containers, [])
+        dh.remove_network(net_test)
+
+        with self.assertRaises(docker.errors.NotFound):
+            net_test.reload()
 
     def test_pull_image_if_not_found(self):
         """
