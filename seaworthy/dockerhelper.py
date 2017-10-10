@@ -83,19 +83,16 @@ class DockerHelper:
             Whether or not to create the network if it doesn't already exist.
         """
         if self._default_network is None and create:
-            # Docker allows the creation of multiple networks with the same
-            # name (unlike containers). This seems to cause problems sometimes
-            # with container networking for some reason (?).
             network_name = self._resource_name('default')
             log.info("Creating default network '{}'...".format(network_name))
 
-            if self._client.networks.list(names=[network_name]):
-                raise RuntimeError(
-                    "A network with the name '{}' already exists".format(
-                        network_name))
-
-            self._default_network = (
-                self._client.networks.create(network_name, driver='bridge'))
+            # Docker allows the creation of multiple networks with the same
+            # name (unlike containers). This seems to cause problems sometimes
+            # with container networking for some reason (?). The Docker Python
+            # client _claims_ (as of 2.5.1) that ``check_duplicate`` defaults
+            # True but it actually doesn't.
+            self._default_network = self._client.networks.create(
+                network_name, driver='bridge', check_duplicate=True)
 
         return self._default_network
 

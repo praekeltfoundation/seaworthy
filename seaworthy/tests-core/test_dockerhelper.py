@@ -85,8 +85,9 @@ class TestDockerHelper(unittest.TestCase):
         dh1.get_default_network()
         # Now for the test.
         dh2 = self.make_helper()
-        with self.assertRaises(RuntimeError) as cm:
+        with self.assertRaises(docker.errors.APIError) as cm:
             dh2.get_default_network()
+        self.assertIn('403 Client Error', str(cm.exception))
         self.assertIn('network', str(cm.exception))
         self.assertIn('already exists', str(cm.exception))
 
