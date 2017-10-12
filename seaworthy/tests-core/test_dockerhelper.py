@@ -288,7 +288,7 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(vol_opts.name, 'test_opts')
         self.assertEqual(vol_opts.attrs['Options'], driver_opts)
 
-    def test_container_networks(self):
+    def test_container_network(self):
         """
         When a container is created, the network settings are respected, and if
         no network settings are specified, the container is connected to a
@@ -329,6 +329,54 @@ class TestDockerHelper(unittest.TestCase):
         self.assertCountEqual(
             network['Aliases'], [con_default.id[:12], 'default'])
 
+    def test_container_network_id_types(self):
+        """
+        When a container is created, a network can be specified using a network
+        ID, short ID, or name. Specifying a network with some other type
+        results in an error.
+        """
+        dh = self.make_helper()
+
+        # When 'network' is provided as an ID, that network is used
+        net_id = dh.create_network('id')
+        self.addCleanup(dh.remove_network, net_id)
+        con_id = dh.create_container('id', IMG, network=net_id.id)
+        self.addCleanup(dh.remove_container, con_id)
+        networks = con_id.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_id.name])
+        network = networks[net_id.name]
+        self.assertCountEqual(network['Aliases'], [con_id.id[:12], 'id'])
+
+        # When 'network' is provided as a short ID, that network is used
+        net_short_id = dh.create_network('short_id')
+        self.addCleanup(dh.remove_network, net_short_id)
+        con_short_id = dh.create_container(
+            'short_id', IMG, network=net_short_id.short_id)
+        self.addCleanup(dh.remove_container, con_short_id)
+        networks = con_short_id.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_short_id.name])
+        network = networks[net_short_id.name]
+        self.assertCountEqual(
+            network['Aliases'], [con_short_id.id[:12], 'short_id'])
+
+        # When 'network' is provided as a name, that network is used
+        net_name = dh.create_network('name')
+        self.addCleanup(dh.remove_network, net_name)
+        con_name = dh.create_container('name', IMG, network=net_name.name)
+        self.addCleanup(dh.remove_container, con_name)
+        networks = con_name.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_name.name])
+        network = networks[net_name.name]
+        self.assertCountEqual(network['Aliases'], [con_name.id[:12], 'name'])
+
+        with self.assertRaises(ValueError) as cm:
+            dh.create_container('invalid_type', IMG, network=42)
+
+        self.assertEqual(
+            str(cm.exception),
+            "Unexpected type <class 'int'>, expected <class 'str'> or <class "
+            "'docker.models.networks.Network'>")
+
     def test_container_volumes(self):
         dh = self.make_helper()
 
@@ -346,6 +394,37 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(mount['Driver'], vol_test.attrs['Driver'])
         self.assertEqual(mount['Destination'], '/vol')
         self.assertEqual(mount['Mode'], 'rw')
+
+    def test_container_volumes_id_types(self):
+        """
+        When a container is created, volumes can be specified using volume
+        names. Specifying volumes with some other type results in an error.
+        Volumes don't have IDs, only names :-/
+        """
+        dh = self.make_helper()
+
+        # When 'volumes' is provided as a mapping from names, those volumes are
+        # used
+        vol_name = dh.create_volume('name')
+        self.addCleanup(dh.remove_volume, vol_name)
+        con_name = dh.create_container(
+            'name', IMG,
+            volumes={vol_name.name: {'bind': '/vol', 'mode': 'rw'}})
+        self.addCleanup(dh.remove_container, con_name)
+        mounts = con_name.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Name'], vol_name.name)
+
+        with self.assertRaises(ValueError) as cm:
+            dh.create_container(
+                'invalid_type', IMG,
+                volumes={42: {'bind': '/vol', 'mode': 'rw'}})
+
+        self.assertEqual(
+            str(cm.exception),
+            "Unexpected type <class 'int'>, expected <class 'str'> or <class "
+            "'docker.models.volumes.Volume'>")
 
     def test_start_container(self):
         """

@@ -26,16 +26,24 @@ def fetch_image(client, name):
     return image
 
 
-def _get_id(resource):
+def _get_id_and_model(id_or_model, model_collection):
     """
-    Get the ID of the given resource if it is a Docker Model object. If the
-    given object is a string, assume it is the ID. Else, return None.
+    Get both the model and ID of an object that could be an ID or a model.
+    :param id_or_model:
+        The object that could be an ID string or a model object.
+    :param model_collection:
+        The collection to which the model belongs.
     """
-    if isinstance(resource, docker.models.resource.Model):
-        return resource.id
-    if isinstance(resource, str):
-        return resource
-    return None
+    if isinstance(id_or_model, model_collection.model):
+        model = id_or_model
+    elif isinstance(id_or_model, str):
+        # Assume we have an ID string
+        model = model_collection.get(id_or_model)
+    else:
+        raise ValueError('Unexpected type {}, expected {} or {}'.format(
+            type(id_or_model), str, model_collection.model))
+
+    return model.id, model
 
 
 class DockerHelper:
@@ -147,25 +155,41 @@ class DockerHelper:
             namespace.
         :param image:
             The image tag or image object to create the container from.
-        :param docker.models.networks.Network network:
+        :param network:
             The network to connect the container to. The container will be
             given an alias with the ``name`` parameter. Note that, unlike the
-            Docker Python client, this parameter should be a ``Network`` model
-            object, and not just a network ID.
+            Docker Python client, this parameter can be a ``Network`` model
+            object, and not just a network ID or name.
         :param volumes:
-            A mapping of Volume model objects or volume IDs to bind parameters.
+            A mapping of volumes to bind parameters. Note that, unlike the
+            Docker Python client, the volumes in the mapping can be specified
+            using ``Volume`` model objects, and not just volume names.
         :param kwargs:
             Other parameters to create the container with.
         """
         container_name = self._resource_name(name)
         log.info("Creating container '{}'...".format(container_name))
 
-        network = self._get_container_network(network, kwargs)
-        volumes = self._get_container_volumes(volumes, kwargs)
+        create_kwargs = {
+            'name': container_name,
+            'detach': True,
+        }
 
-        container = self._client.containers.create(
-            image, name=container_name, detach=True, network=_get_id(network),
-            volumes=volumes, **kwargs)
+        # Convert network & volume models to IDs
+        network = self._get_container_network(network, kwargs)
+        if network is not None:
+            network_id, network = _get_id_and_model(
+                network, self._client.networks)
+            create_kwargs['network'] = network_id
+
+        if volumes:
+            create_kwargs['volumes'] = {
+                _get_id_and_model(vol, self._client.volumes)[0]: opts
+                for vol, opts in volumes.items()}
+
+        create_kwargs.update(kwargs)
+
+        container = self._client.containers.create(image, **create_kwargs)
 
         if network is not None:
             self._connect_container_network(container, network, aliases=[name])
@@ -205,12 +229,6 @@ class DockerHelper:
         # We could also reload the network data to update the containers that
         # are connected to it but that listing doesn't include containers that
         # have been created and connected but not yet started. :-/
-
-    def _get_container_volumes(self, volumes, create_kwargs):
-        # If there are volumes, map the Volume models to IDs
-        if volumes:
-            return {_get_id(vol): opts for vol, opts in volumes.items()}
-        return None
 
     def container_status(self, container):
         container.reload()
