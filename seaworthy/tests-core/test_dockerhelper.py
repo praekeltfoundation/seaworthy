@@ -47,6 +47,10 @@ class TestDockerHelper(unittest.TestCase):
         return filter_by_name(
             self.client.containers.list(*args, **kw), '{}_'.format(namespace))
 
+    def list_volumes(self, *args, namespace='test', **kw):
+        return filter_by_name(
+            self.client.volumes.list(*args, **kw), '{}_'.format(namespace))
+
     def test_default_network_lifecycle(self):
         """
         The default network can only be created once and is removed during
@@ -178,6 +182,35 @@ class TestDockerHelper(unittest.TestCase):
         ])
         self.assertEqual([], self.list_networks())
 
+    def test_teardown_volumes(self):
+        """
+        DockerHelper.teardown() will remove any volumes that were created,
+        even if they no longer exist.
+        """
+        dh = self.make_helper()
+        self.assertEqual([], self.list_networks())
+        vol_local1 = dh.create_volume('local1', driver='local')
+        vol_local2 = dh.create_volume('local2', driver='local')
+
+        vol_removed = dh.create_volume('removed')
+        # We remove this behind the helper's back so the helper thinks it still
+        # exists at teardown time.
+        vol_removed.remove()
+        with self.assertRaises(docker.errors.NotFound):
+            vol_removed.reload()
+
+        self.assertEqual(
+            set([vol_local1, vol_local2]),
+            set(self.list_volumes()))
+
+        with self.assertLogs('seaworthy', level='WARNING') as cm:
+            dh.teardown()
+        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
+            "Volume 'test_local1' still existed during teardown",
+            "Volume 'test_local2' still existed during teardown",
+        ])
+        self.assertEqual([], self.list_volumes())
+
     def test_create_container(self):
         """
         We can create a container with various parameters without starting it.
@@ -228,6 +261,33 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(config['Subnet'], '192.168.52.0/24')
         self.assertEqual(config['Gateway'], '192.168.52.254')
 
+    def test_create_volume(self):
+        """
+        We can create a volume with various parameters.
+        """
+        dh = self.make_helper()
+
+        vol_simple = dh.create_volume('simple')
+        self.addCleanup(dh.remove_volume, vol_simple)
+        self.assertEqual(vol_simple.name, 'test_simple')
+        self.assertEqual(vol_simple.attrs['Driver'], 'local')
+
+        vol_labels = dh.create_volume('labels', labels={'foo': 'bar'})
+        self.addCleanup(dh.remove_volume, vol_labels)
+        self.assertEqual(vol_labels.name, 'test_labels')
+        self.assertEqual(vol_labels.attrs['Labels'], {'foo': 'bar'})
+
+        # Copy tmpfs example from Docker docs:
+        # https://docs.docker.com/engine/reference/commandline/volume_create/#driver-specific-options
+        # This won't work on Windows
+        driver_opts = {
+            'type': 'tmpfs', 'device': 'tmpfs', 'o': 'size=100m,uid=1000'}
+        vol_opts = dh.create_volume(
+            'opts', driver='local', driver_opts=driver_opts)
+        self.addCleanup(dh.remove_volume, vol_opts)
+        self.assertEqual(vol_opts.name, 'test_opts')
+        self.assertEqual(vol_opts.attrs['Options'], driver_opts)
+
     def test_container_networks(self):
         """
         When a container is created, the network settings are respected, and if
@@ -268,6 +328,24 @@ class TestDockerHelper(unittest.TestCase):
         network = networks[default_network_name]
         self.assertCountEqual(
             network['Aliases'], [con_default.id[:12], 'default'])
+
+    def test_container_volumes(self):
+        dh = self.make_helper()
+
+        vol_test = dh.create_volume('test')
+        self.addCleanup(dh.remove_volume, vol_test)
+        con_volumes = dh.create_container(
+            'volumes', IMG, volumes={vol_test: {'bind': '/vol', 'mode': 'rw'}})
+        self.addCleanup(dh.remove_container, con_volumes)
+        mounts = con_volumes.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'volume')
+        self.assertEqual(mount['Name'], vol_test.name)
+        self.assertEqual(mount['Source'], vol_test.attrs['Mountpoint'])
+        self.assertEqual(mount['Driver'], vol_test.attrs['Driver'])
+        self.assertEqual(mount['Destination'], '/vol')
+        self.assertEqual(mount['Mode'], 'rw')
 
     def test_start_container(self):
         """
@@ -444,6 +522,104 @@ class TestDockerHelper(unittest.TestCase):
 
         with self.assertRaises(docker.errors.NotFound):
             net_test.reload()
+
+    def test_remove_volume(self):
+        """
+        We can remove a volume.
+        """
+        dh = self.make_helper()
+
+        vol_test = dh.create_volume('test')
+        dh.remove_volume(vol_test)
+        with self.assertRaises(docker.errors.NotFound):
+            vol_test.reload()
+
+    def test_remove_mounted_volume(self):
+        """
+        We can't remove a volume mounted to a container no matter what state
+        the container is in. Once the container has been removed, we can remove
+        the volume.
+        """
+        dh = self.make_helper()
+
+        vol_created = dh.create_volume('created')
+        con_created = dh.create_container(
+            'created', IMG,
+            volumes={vol_created: {'bind': '/vol', 'mode': 'rw'}})
+        self.assertEqual(con_created.status, 'created')
+
+        # Try remove the volume... we can't
+        with self.assertRaises(docker.errors.APIError) as cm:
+            dh.remove_volume(vol_created)
+        self.assertIn('volume is in use', str(cm.exception))
+
+        # Remove the container and then the volume
+        dh.remove_container(con_created)
+        dh.remove_volume(vol_created)
+
+        vol_running = dh.create_volume('running')
+        con_running = dh.create_container(
+            'running', IMG,
+            volumes={vol_running: {'bind': '/vol', 'mode': 'rw'}})
+
+        dh.start_container(con_running)
+        self.assertEqual(con_running.status, 'running')
+
+        # Try remove the volume... we can't
+        with self.assertRaises(docker.errors.APIError) as cm:
+            dh.remove_volume(vol_running)
+        self.assertIn('volume is in use', str(cm.exception))
+
+        # Remove the container and then the volume
+        dh.remove_container(con_running)
+        dh.remove_volume(vol_running)
+
+        vol_stopped = dh.create_volume('stopped')
+        con_stopped = dh.create_container(
+            'stopped', IMG,
+            volumes={vol_stopped: {'bind': '/vol', 'mode': 'rw'}})
+
+        dh.start_container(con_stopped)
+        dh.stop_container(con_stopped)
+        self.assertEqual(con_stopped.status, 'exited')
+
+        # Try remove the volume... we can't
+        with self.assertRaises(docker.errors.APIError) as cm:
+            dh.remove_volume(vol_stopped)
+        self.assertIn('volume is in use', str(cm.exception))
+
+        # Remove the container and then the volume
+        dh.remove_container(con_stopped)
+        dh.remove_volume(vol_stopped)
+
+    def test_remove_mounted_volume_force(self):
+        """
+        We can't remove a volume mounted to a container even if we use
+        ``force=True``.
+
+        The Docker Engine API reference doesn't describe the force flag in much
+        detail:
+        "Force the removal of the volume"
+        https://docs.docker.com/engine/api/v1.32/#operation/VolumeDelete
+
+        The Docker Python client docs describe the force flag as:
+        "Force removal of volumes that were already removed out of band by the
+        volume driver plugin."
+        https://docker-py.readthedocs.io/en/2.5.1/volumes.html#docker.models.volumes.Volume.remove
+        """
+        dh = self.make_helper()
+
+        vol_test = dh.create_volume('test')
+        self.addCleanup(dh.remove_volume, vol_test)
+        con_created = dh.create_container(
+            'created', IMG, volumes={vol_test: {'bind': '/vol', 'mode': 'rw'}})
+        self.addCleanup(dh.remove_container, con_created)
+        self.assertEqual(con_created.status, 'created')
+
+        # Try remove the volume... we can't
+        with self.assertRaises(docker.errors.APIError) as cm:
+            dh.remove_volume(vol_test, force=True)
+        self.assertIn('volume is in use', str(cm.exception))
 
     def test_pull_image_if_not_found(self):
         """
