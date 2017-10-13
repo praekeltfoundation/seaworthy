@@ -28,7 +28,8 @@ class PostgreSQLContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_patterns, create_kwargs)
+        super().__init__(name, image, wait_patterns=wait_patterns,
+                         create_kwargs=create_kwargs)
 
         self.database = database
         self.user = user
@@ -127,7 +128,8 @@ class RabbitMQContainer(ContainerBase):
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_patterns, create_kwargs)
+        super().__init__(name, image, wait_patterns=wait_patterns,
+                         create_kwargs=create_kwargs)
 
         self.vhost = vhost
         self.user = user
