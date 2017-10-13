@@ -20,7 +20,8 @@ def deep_merge(*dicts):
 
 
 class ContainerBase:
-    def __init__(self, name, image, wait_patterns=None, create_kwargs=None):
+    def __init__(self, name, image, wait_patterns=None, wait_timeout=10,
+                 create_kwargs=None):
         """
         :param name:
             The name for the container. The actual name of the container is
@@ -30,6 +31,8 @@ class ContainerBase:
         :param list wait_patterns:
             Regex patterns to use when checking that the container has started
             successfully.
+        :param wait_timeout:
+            Number of seconds to wait for the ``wait_patterns``.
         """
         self.name = name
         self.image = image
@@ -37,6 +40,7 @@ class ContainerBase:
             self.wait_matchers = [RegexMatcher(p) for p in wait_patterns]
         else:
             self.wait_matchers = None
+        self.wait_timeout = wait_timeout
 
         self._create_kwargs = {} if create_kwargs is None else create_kwargs
 
@@ -75,8 +79,8 @@ class ContainerBase:
         this method should be overridden.
         """
         if self.wait_matchers:
-            self.wait_for_logs_matching(
-                UnorderedLinesMatcher(*self.wait_matchers))
+            matcher = UnorderedLinesMatcher(*self.wait_matchers)
+            self.wait_for_logs_matching(matcher, timeout=self.wait_timeout)
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """
