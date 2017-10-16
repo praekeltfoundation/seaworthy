@@ -36,6 +36,23 @@ class TestContainerBase(unittest.TestCase):
         if container._container is not None:
             container.stop_and_remove(self.dh)
 
+    def test_wait_timeout_default(self):
+        """
+        When wait_timeout isn't passed to the constructor, the default timeout
+        is used.
+        """
+        container = ContainerBase('timeout', IMG_WAIT)
+        self.assertEqual(container.wait_timeout, ContainerBase.WAIT_TIMEOUT)
+
+    def test_wait_timeout_override(self):
+        """
+        When wait_timeout is passed to the constructor, it is used in place of
+        the default.
+        """
+        timeout = ContainerBase.WAIT_TIMEOUT + 10.0
+        container = ContainerBase('timeout', IMG_WAIT, wait_timeout=timeout)
+        self.assertEqual(container.wait_timeout, timeout)
+
     def test_create_only_if_not_created(self):
         """The container cannot be created more than once."""
         self.base.create_and_start(self.dh, pull=False)
