@@ -2,6 +2,8 @@
 Contains a number of pytest fixtures or factories for fixtures.
 """
 
+import os
+
 import pytest
 
 from seaworthy.dockerhelper import DockerHelper
@@ -19,7 +21,10 @@ def docker_helper_fixture(name='docker_helper', scope='module'):
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture():
-        docker_helper = DockerHelper()
+        prefix = 'test'
+        if 'PYTEST_XDIST_WORKER' in os.environ:
+            prefix = '{}_{}'.format(prefix, os.environ['PYTEST_XDIST_WORKER'])
+        docker_helper = DockerHelper(prefix)
         docker_helper.setup()
         yield docker_helper
         docker_helper.teardown()
@@ -40,6 +45,12 @@ def image_pull_fixture(image, name, scope='module'):
     def fixture(docker_helper):
         return docker_helper.pull_image_if_not_found(image)
     return fixture
+
+
+def wrap_container_fixture(container, docker_helper):
+    container.create_and_start(docker_helper)
+    yield container
+    container.stop_and_remove(docker_helper)
 
 
 def container_fixture(container, name, scope='function'):
@@ -64,10 +75,7 @@ def container_fixture(container, name, scope='function'):
     """
     @pytest.fixture(name=name, scope=scope)
     def raw_fixture(docker_helper):
-        container.create_and_start(docker_helper)
-        yield container
-        container.stop_and_remove(docker_helper)
-
+        yield from wrap_container_fixture(container, docker_helper)
     return raw_fixture
 
 
