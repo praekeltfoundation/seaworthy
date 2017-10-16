@@ -79,8 +79,9 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
             if matcher(line):
                 return line
     except TimeoutError:
-        raise TimeoutError('Timeout waiting for logs matching {}.{}'.format(
-            matcher, _last_few_log_lines(container)))
+        raise TimeoutError(
+            'Timeout ({}s) waiting for logs matching {}.{}'.format(
+                timeout, matcher, _last_few_log_lines(container)))
 
     raise RuntimeError('Logs matching {} not found.{}'.format(
         matcher, _last_few_log_lines(container)))
