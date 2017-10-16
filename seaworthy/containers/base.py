@@ -20,7 +20,9 @@ def deep_merge(*dicts):
 
 
 class ContainerBase:
-    def __init__(self, name, image, wait_patterns=None, wait_timeout=10,
+    WAIT_TIMEOUT = 10.0
+
+    def __init__(self, name, image, wait_patterns=None, wait_timeout=None,
                  create_kwargs=None):
         """
         :param name:
@@ -32,7 +34,8 @@ class ContainerBase:
             Regex patterns to use when checking that the container has started
             successfully.
         :param wait_timeout:
-            Number of seconds to wait for the ``wait_patterns``.
+            Number of seconds to wait for the ``wait_patterns``. Defaults to
+            ``self.WAIT_TIMEOUT``.
         """
         self.name = name
         self.image = image
@@ -40,7 +43,10 @@ class ContainerBase:
             self.wait_matchers = [RegexMatcher(p) for p in wait_patterns]
         else:
             self.wait_matchers = None
-        self.wait_timeout = wait_timeout
+        if wait_timeout is not None:
+            self.wait_timeout = wait_timeout
+        else:
+            self.wait_timeout = self.WAIT_TIMEOUT
 
         self._create_kwargs = {} if create_kwargs is None else create_kwargs
 
