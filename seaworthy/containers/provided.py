@@ -19,17 +19,16 @@ class PostgreSQLContainer(ContainerBase):
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
                  wait_patterns=DEFAULT_WAIT_PATTERNS,
-                 create_kwargs=None,
                  database=DEFAULT_DATABASE,
                  user=DEFAULT_USER,
-                 password=DEFAULT_PASSWORD):
+                 password=DEFAULT_PASSWORD,
+                 **kwargs):
         """
         :param database: the name of a database to create at startup
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_patterns=wait_patterns,
-                         create_kwargs=create_kwargs)
+        super().__init__(name, image, wait_patterns, **kwargs)
 
         self.database = database
         self.user = user
@@ -119,17 +118,16 @@ class RabbitMQContainer(ContainerBase):
                  name=DEFAULT_NAME,
                  image=DEFAULT_IMAGE,
                  wait_patterns=DEFAULT_WAIT_PATTERNS,
-                 create_kwargs=None,
                  vhost=DEFAULT_VHOST,
                  user=DEFAULT_USER,
-                 password=DEFAULT_PASSWORD):
+                 password=DEFAULT_PASSWORD,
+                 **kwargs):
         """
         :param vhost: the name of a vhost to create at startup
         :param user: the name of a user to create at startup
         :param password: the password for the user
         """
-        super().__init__(name, image, wait_patterns=wait_patterns,
-                         create_kwargs=create_kwargs)
+        super().__init__(name, image, wait_patterns, **kwargs)
 
         self.vhost = vhost
         self.user = user
