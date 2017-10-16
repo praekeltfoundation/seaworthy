@@ -329,11 +329,10 @@ class TestDockerHelper(unittest.TestCase):
         self.assertCountEqual(
             network['Aliases'], [con_default.id[:12], 'default'])
 
-    def test_container_network_id_types(self):
+    def test_container_network_by_id(self):
         """
-        When a container is created, a network can be specified using a network
-        ID, short ID, or name. Specifying a network with some other type
-        results in an error.
+        When a container is created, a network can be specified using the ID
+        string for a network.
         """
         dh = self.make_helper()
 
@@ -347,6 +346,13 @@ class TestDockerHelper(unittest.TestCase):
         network = networks[net_id.name]
         self.assertCountEqual(network['Aliases'], [con_id.id[:12], 'id'])
 
+    def test_container_network_by_short_id(self):
+        """
+        When a container is created, a network can be specified using the short
+        ID string for a network.
+        """
+        dh = self.make_helper()
+
         # When 'network' is provided as a short ID, that network is used
         net_short_id = dh.create_network('short_id')
         self.addCleanup(dh.remove_network, net_short_id)
@@ -359,6 +365,13 @@ class TestDockerHelper(unittest.TestCase):
         self.assertCountEqual(
             network['Aliases'], [con_short_id.id[:12], 'short_id'])
 
+    def test_container_network_by_name(self):
+        """
+        When a container is created, a network can be specified using the name
+        of a network.
+        """
+        dh = self.make_helper()
+
         # When 'network' is provided as a name, that network is used
         net_name = dh.create_network('name')
         self.addCleanup(dh.remove_network, net_name)
@@ -368,6 +381,13 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(list(networks.keys()), [net_name.name])
         network = networks[net_name.name]
         self.assertCountEqual(network['Aliases'], [con_name.id[:12], 'name'])
+
+    def test_container_network_by_invalid_type(self):
+        """
+        When a container is created, an error is raised if a network is
+        specified using an invalid type.
+        """
+        dh = self.make_helper()
 
         with self.assertRaises(ValueError) as cm:
             dh.create_container('invalid_type', IMG, network=42)
