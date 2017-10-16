@@ -215,7 +215,12 @@ class DockerHelper:
     def _get_container_volumes(self, volumes):
         create_volumes = {}
         for vol, opts in volumes.items():
-            vol_id, _ = _get_id_and_model(vol, self._client.volumes)
+            try:
+                vol_id, _ = _get_id_and_model(vol, self._client.volumes)
+            except docker.errors.NotFound:
+                # Assume this is a bind if we can't find the ID
+                vol_id = vol
+
             if vol_id in create_volumes:
                 raise ValueError(
                     "Volume '{}' specified more than once".format(vol_id))

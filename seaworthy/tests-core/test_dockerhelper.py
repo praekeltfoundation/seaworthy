@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 
 import docker
@@ -419,6 +420,27 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(mount['Driver'], vol_test.attrs['Driver'])
         self.assertEqual(mount['Destination'], '/vol')
         self.assertEqual(mount['Mode'], 'rw')
+
+    def test_container_volumes_bind(self):
+        """
+        When a container is created, a bind mount can be specified in the
+        ``volumes`` hash. The container metadata should correctly describe the
+        bind mount.
+        """
+        dh = self.make_helper()
+
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+        con_bind = dh.create_container(
+            'bind', IMG, volumes={tmpdir.name: {'bind': '/vol', 'mode': 'rw'}})
+        self.addCleanup(dh.remove_container, con_bind)
+        mounts = con_bind.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'bind')
+        self.assertEqual(mount['Source'], tmpdir.name)
+        self.assertEqual(mount['Destination'], '/vol')
+        self.assertTrue(mount['RW'])
 
     def test_container_volumes_by_name(self):
         """
