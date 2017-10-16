@@ -776,6 +776,26 @@ class TestDockerHelper(unittest.TestCase):
             dh.remove_volume(vol_test, force=True)
         self.assertIn('volume is in use', str(cm.exception))
 
+    def test_remove_container_with_volume(self):
+        """
+        When a volume is mounted to a container, and the container is removed,
+        the volume itself is not removed.
+        """
+        dh = self.make_helper()
+
+        vol_removed = dh.create_volume('removed')
+        dh.addCleanup(dh.remove_volume, vol_removed)
+        con_removed = dh.create_container(
+            'removed', IMG,
+            volumes={vol_removed: {'bind': '/vol', 'mode': 'rw'}})
+
+        dh.remove_container(con_removed)
+        with self.assertRaises(docker.errors.NotFound):
+            con_removed.reload()
+
+        # The volume still exists: we can fetch it
+        vol_removed.reload()
+
     def test_pull_image_if_not_found(self):
         """
         We check if the image is already present and pull it if necessary.

@@ -263,9 +263,25 @@ class DockerHelper:
         container.stop(timeout=timeout)
         assert self.container_status(container) != 'running'
 
-    def remove_container(self, container, force=True):
+    def remove_container(self, container, force=True, volumes=True):
+        """
+        Remove a container.
+
+        :param container: The container to remove.
+        :param force:
+            Whether to force the removal of the container, even if it is
+            running. Note that this defaults to True, unlike the Docker
+            default.
+        :param volumes:
+            Whether to remove any volumes that were created implicitly with
+            this container, i.e. any volumes that were created due to
+            ``VOLUME`` directives in the Dockerfile. External volumes that were
+            manually created will not be removed. Note that this defaults to
+            True, unlike the Docker default (where the equivalent parameter,
+            ``v``, defaults to False).
+        """
         log.info("Removing container '{}'...".format(container.name))
-        container.remove(force=force)
+        container.remove(force=force, v=volumes)
 
         self._container_ids.remove(container.id)
 
