@@ -398,6 +398,11 @@ class TestDockerHelper(unittest.TestCase):
             "'docker.models.networks.Network'>")
 
     def test_container_volumes(self):
+        """
+        When a container is created, a volume can be specified to be mounted.
+        The container metadata should correctly identify the volumes and its
+        mountpoint.
+        """
         dh = self.make_helper()
 
         vol_test = dh.create_volume('test')
