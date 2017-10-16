@@ -256,8 +256,8 @@ class TestDockerHelper(unittest.TestCase):
             subnet='192.168.52.0/24', gateway='192.168.52.254')
         ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
         net_subnet = dh.create_network('subnet', ipam=ipam_config)
-        self.assertEqual(net_subnet.name, 'test_subnet')
         self.addCleanup(dh.remove_network, net_subnet)
+        self.assertEqual(net_subnet.name, 'test_subnet')
         config = net_subnet.attrs['IPAM']['Config'][0]
         self.assertEqual(config['Subnet'], '192.168.52.0/24')
         self.assertEqual(config['Gateway'], '192.168.52.254')
@@ -632,6 +632,7 @@ class TestDockerHelper(unittest.TestCase):
         # Create a network and connect it to a container
         net_test = dh.create_network('test')
         con_running = dh.create_container('running', IMG, network=net_test)
+        self.addCleanup(dh.remove_container, con_running)
         networks = con_running.attrs['NetworkSettings']['Networks']
         self.assertEqual(list(networks.keys()), [net_test.name])
 
@@ -663,6 +664,7 @@ class TestDockerHelper(unittest.TestCase):
         # Create a network and connect it to a container
         net_test = dh.create_network('test')
         con_stopped = dh.create_container('stopped', IMG, network=net_test)
+        self.addCleanup(dh.remove_container, con_stopped)
         networks = con_stopped.attrs['NetworkSettings']['Networks']
         self.assertEqual(list(networks.keys()), [net_test.name])
 
@@ -784,7 +786,7 @@ class TestDockerHelper(unittest.TestCase):
         dh = self.make_helper()
 
         vol_removed = dh.create_volume('removed')
-        dh.addCleanup(dh.remove_volume, vol_removed)
+        self.addCleanup(dh.remove_volume, vol_removed)
         con_removed = dh.create_container(
             'removed', IMG,
             volumes={vol_removed: {'bind': '/vol', 'mode': 'rw'}})
