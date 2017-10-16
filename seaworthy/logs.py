@@ -12,9 +12,8 @@ def output_lines(raw_output, encoding='utf-8'):
     return raw_output.decode(encoding).splitlines()
 
 
-def _last_few_log_lines(container, max_lines=100):
-    logs = container.logs(tail=max_lines).decode('utf-8')
-    return '\nLast few log lines:\n{}'.format(logs)
+def _last_few_log_lines(container):
+    return container.logs(tail=100).decode('utf-8')
 
 
 def stream_with_history(container, timeout=10, **logs_kwargs):
@@ -79,11 +78,18 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
             if matcher(line):
                 return line
     except TimeoutError:
-        raise TimeoutError('Timeout waiting for logs matching {}.{}'.format(
-            matcher, _last_few_log_lines(container)))
+        raise TimeoutError('\n'.join([
+            ('Timeout ({}s) waiting for logs matching {}.'.format(
+                timeout, matcher)),
+            'Last few log lines:',
+            _last_few_log_lines(container),
+        ]))
 
-    raise RuntimeError('Logs matching {} not found.{}'.format(
-        matcher, _last_few_log_lines(container)))
+    raise RuntimeError('\n'.join([
+        'Logs matching {} not found.'.format(matcher),
+        'Last few log lines:',
+        _last_few_log_lines(container),
+    ]))
 
 
 class LogMatcher(ABC):
