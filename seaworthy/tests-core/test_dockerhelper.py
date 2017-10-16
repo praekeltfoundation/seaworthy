@@ -539,7 +539,7 @@ class TestDockerHelper(unittest.TestCase):
         with self.assertRaises(docker.errors.NotFound):
             net_test.reload()
 
-    def test_remove_connected_network_created_container(self):
+    def test_remove_network_connected_to_created_container(self):
         """
         We can remove a network when it is connected to a container if the
         container hasn't been started yet.
@@ -570,7 +570,7 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(list(networks.keys()), [net_test.name])
         # But... we can't disconnect it from the old one
 
-    def test_remove_connected_network_running_container(self):
+    def test_cannot_remove_network_connected_to_running_container(self):
         """
         We cannot remove a network when it is connected to a container if the
         container has been started. Once the container is disconnected, the
@@ -602,7 +602,7 @@ class TestDockerHelper(unittest.TestCase):
         with self.assertRaises(docker.errors.NotFound):
             net_test.reload()
 
-    def test_remove_connected_network_stopped_container(self):
+    def test_remove_network_connected_to_stopped_container(self):
         """
         We can remove a network when it is connected to a container if the
         container has been stopped.
@@ -638,7 +638,7 @@ class TestDockerHelper(unittest.TestCase):
         with self.assertRaises(docker.errors.NotFound):
             vol_test.reload()
 
-    def test_remove_mounted_volume(self):
+    def test_cannot_remove_mounted_volume(self):
         """
         We can't remove a volume mounted to a container no matter what state
         the container is in. Once the container has been removed, we can remove
@@ -696,7 +696,7 @@ class TestDockerHelper(unittest.TestCase):
         dh.remove_container(con_stopped)
         dh.remove_volume(vol_stopped)
 
-    def test_remove_mounted_volume_force(self):
+    def test_cannot_force_remove_mounted_volume(self):
         """
         We can't remove a volume mounted to a container even if we use
         ``force=True``.
