@@ -463,7 +463,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         with self.assertRaises(TimeoutError) as cm:
             self.wflm(con, EqualsMatcher('hello'), timeout=0.1)
         self.assertIn(
-            "Timeout waiting for logs matching EqualsMatcher('hello').",
+            "Timeout (0.1s) waiting for logs matching EqualsMatcher('hello').",
             str(cm.exception))
         self.assertNotIn('hello\n', str(cm.exception))
 
@@ -478,7 +478,7 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
         with self.assertRaises(TimeoutError) as cm:
             self.wflm(con, EqualsMatcher('hello'), timeout=0.1)
         self.assertIn(
-            "Timeout waiting for logs matching EqualsMatcher('hello').",
+            "Timeout (0.1s) waiting for logs matching EqualsMatcher('hello').",
             str(cm.exception))
         self.assertIn('hi\n', str(cm.exception))
         self.assertNotIn('hello\n', str(cm.exception))
