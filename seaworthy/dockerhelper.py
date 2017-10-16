@@ -161,9 +161,11 @@ class DockerHelper:
             Docker Python client, this parameter can be a ``Network`` model
             object, and not just a network ID or name.
         :param volumes:
-            A mapping of volumes to bind parameters. Note that, unlike the
-            Docker Python client, the volumes in the mapping can be specified
-            using ``Volume`` model objects, and not just volume names.
+            A mapping of volumes to bind parameters. The keys to this mapping
+            can be any of three types of objects:
+            - A ``Volume`` model object
+            - The name of a volume (str)
+            - A path on the host to bind mount into the container (str)
         :param kwargs:
             Other parameters to create the container with.
         """
