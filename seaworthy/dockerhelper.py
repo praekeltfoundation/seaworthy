@@ -183,9 +183,7 @@ class DockerHelper:
             create_kwargs['network'] = network_id
 
         if volumes:
-            create_kwargs['volumes'] = {
-                _get_id_and_model(vol, self._client.volumes)[0]: opts
-                for vol, opts in volumes.items()}
+            volumes = self._get_container_volumes(volumes)
 
         create_kwargs.update(kwargs)
 
@@ -213,6 +211,16 @@ class DockerHelper:
 
         # Else, use the default network
         return self.get_default_network()
+
+    def _get_container_volumes(self, volumes):
+        create_volumes = {}
+        for vol, opts in volumes.items():
+            vol_id, _ = _get_id_and_model(vol, self._client.volumes)
+            if vol_id in create_volumes:
+                raise ValueError(
+                    "Volume '{}' specified more than once".format(vol_id))
+            create_volumes[vol_id] = opts
+        return create_volumes
 
     def _connect_container_network(self, container, network, **connect_kwargs):
         # FIXME: Hack to make sure the container has the right network aliases.

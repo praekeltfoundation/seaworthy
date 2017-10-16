@@ -442,7 +442,7 @@ class TestDockerHelper(unittest.TestCase):
 
     def test_container_volumes_by_invalid_type(self):
         """
-        When a container is created, an error is raised if a network is
+        When a container is created, an error is raised if a volume is
         specified using an invalid type.
         """
         dh = self.make_helper()
@@ -456,6 +456,29 @@ class TestDockerHelper(unittest.TestCase):
             str(cm.exception),
             "Unexpected type <class 'int'>, expected <class 'str'> or <class "
             "'docker.models.volumes.Volume'>")
+
+    def test_container_volumes_specified_twice(self):
+        """
+        When a container is created, an error is raised if the same volume is
+        specified twice: once using its string ID, and once using its model
+        object.
+        """
+        dh = self.make_helper()
+
+        # When 'volumes' is provided as a mapping from names, those volumes are
+        # used
+        vol_duplicate = dh.create_volume('duplicate')
+        self.addCleanup(dh.remove_volume, vol_duplicate)
+        with self.assertRaises(ValueError) as cm:
+            dh.create_container(
+                'duplicate', IMG,
+                volumes={
+                    vol_duplicate.name: {'bind': '/vol', 'mode': 'rw'},
+                    vol_duplicate: {'bind': '/vol2', 'mode': 'ro'},
+                })
+
+        self.assertEqual(str(cm.exception),
+                         "Volume 'test_duplicate' specified more than once")
 
     def test_start_container(self):
         """
