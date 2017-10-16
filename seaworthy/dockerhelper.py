@@ -183,7 +183,7 @@ class DockerHelper:
             create_kwargs['network'] = network_id
 
         if volumes:
-            volumes = self._get_container_volumes(volumes)
+            create_kwargs['volumes'] = self._get_container_volumes(volumes)
 
         create_kwargs.update(kwargs)
 
