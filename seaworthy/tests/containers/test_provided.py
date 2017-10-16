@@ -132,7 +132,7 @@ class TestRabbitMQContainer:
         assert rabbitmq.list_vhosts() == ['/vhost']
         assert rabbitmq.list_users() == [('user', ['administrator'])]
         assert rabbitmq.list_policies() == []
-        assert rabbitmq.list_queues('/vhost') == []
+        assert rabbitmq.list_queues() == []
 
     def test_broker_url(self):
         """

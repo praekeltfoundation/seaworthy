@@ -167,17 +167,17 @@ class RabbitMQContainer(ContainerBase):
         """
         return output_lines(self.exec_rabbitmqctl('list_vhosts'))
 
-    def list_queues(self, vhost):
+    def list_queues(self):
         """
-        Run the ``list_queues`` command for the given vhost and return a list
-        of tuples describing the queues.
+        Run the ``list_queues`` command (for the default vhost) and return a
+        list of tuples describing the queues.
 
         :return:
             A list of 2-element tuples. The first element is the queue name,
             the second is the current queue size.
         """
         lines = output_lines(
-            self.exec_rabbitmqctl('list_queues', ['-p', vhost]))
+            self.exec_rabbitmqctl('list_queues', ['-p', self.vhost]))
         return [tuple(line.split(None, 1)) for line in lines]
 
     def list_users(self):
