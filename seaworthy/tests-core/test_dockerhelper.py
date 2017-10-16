@@ -420,11 +420,10 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(mount['Destination'], '/vol')
         self.assertEqual(mount['Mode'], 'rw')
 
-    def test_container_volumes_id_types(self):
+    def test_container_volumes_by_name(self):
         """
         When a container is created, volumes can be specified using volume
-        names. Specifying volumes with some other type results in an error.
-        Volumes don't have IDs, only names :-/
+        names. Volumes don't have IDs, only names :-/
         """
         dh = self.make_helper()
 
@@ -440,6 +439,13 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(len(mounts), 1)
         [mount] = mounts
         self.assertEqual(mount['Name'], vol_name.name)
+
+    def test_container_volumes_by_invalid_type(self):
+        """
+        When a container is created, an error is raised if a network is
+        specified using an invalid type.
+        """
+        dh = self.make_helper()
 
         with self.assertRaises(ValueError) as cm:
             dh.create_container(
