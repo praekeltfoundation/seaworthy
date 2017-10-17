@@ -69,9 +69,9 @@ class ContainerBase:
         kwargs = {} if kwargs is None else kwargs
         kwargs = self.merge_kwargs(self._create_kwargs, kwargs)
 
-        self._container = docker_helper.create_container(
+        self._container = docker_helper.containers.create(
             self.name, self.image, **kwargs)
-        docker_helper.start_container(self._container)
+        docker_helper.containers.start(self._container)
 
         self.wait_for_start()
 
@@ -90,7 +90,7 @@ class ContainerBase:
 
     def stop_and_remove(self, docker_helper):
         """ Stop the container and remove it. """
-        docker_helper.stop_and_remove_container(self.inner())
+        docker_helper.containers.stop_and_remove(self.inner())
         self._container = None
 
     def inner(self):
