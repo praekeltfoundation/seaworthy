@@ -23,7 +23,7 @@ class ContainerBase:
     WAIT_TIMEOUT = 10.0
 
     def __init__(self, name, image, wait_patterns=None, wait_timeout=None,
-                 create_kwargs=None):
+                 create_kwargs=None, docker_helper=None):
         """
         :param name:
             The name for the container. The actual name of the container is
@@ -50,10 +50,26 @@ class ContainerBase:
 
         self._create_kwargs = {} if create_kwargs is None else create_kwargs
 
+        self._docker_helper = docker_helper
         self._container = None
-        self._docker_helper = None
 
-    def create_and_start(self, docker_helper, pull=True, kwargs=None):
+    @property
+    def docker_helper(self):
+        if self._docker_helper is None:
+            raise RuntimeError('No docker_helper set.')
+        return self._docker_helper
+
+    def set_docker_helper(self, docker_helper):
+        if docker_helper is None:  # We don't want to "unset" in this method.
+            return
+        if docker_helper is self._docker_helper:  # We already have this one.
+            return
+        if self._docker_helper is None:
+            self._docker_helper = docker_helper
+        else:
+            raise RuntimeError('Cannot replace existing docker_helper.')
+
+    def create_and_start(self, docker_helper=None, pull=True, kwargs=None):
         """
         Create the container and start it, waiting for the expected log lines.
 
@@ -61,19 +77,19 @@ class ContainerBase:
             Whether or not to attempt to pull the image if the image tag is not
             known.
         """
+        self.set_docker_helper(docker_helper)
         if self._container is not None:
             raise RuntimeError('Container already created.')
 
         if pull:
-            docker_helper.pull_image_if_not_found(self.image)
+            self.docker_helper.pull_image_if_not_found(self.image)
 
         kwargs = {} if kwargs is None else kwargs
         kwargs = self.merge_kwargs(self._create_kwargs, kwargs)
 
-        self._container = docker_helper.containers.create(
+        self._container = self.docker_helper.containers.create(
             self.name, self.image, **kwargs)
-        self._docker_helper = docker_helper
-        docker_helper.containers.start(self._container)
+        self.docker_helper.containers.start(self._container)
 
         self.wait_for_start()
 
@@ -92,10 +108,8 @@ class ContainerBase:
 
     def stop_and_remove(self):
         """ Stop the container and remove it. """
-        c = self.inner()  # This will fail politely.
-        self._docker_helper.containers.stop_and_remove(c)
+        self.docker_helper.containers.stop_and_remove(self.inner())
         self._container = None
-        self._docker_helper = None
 
     def inner(self):
         """

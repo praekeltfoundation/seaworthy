@@ -53,6 +53,60 @@ class TestContainerBase(unittest.TestCase):
         container = ContainerBase('timeout', IMG_WAIT, wait_timeout=timeout)
         self.assertEqual(container.wait_timeout, timeout)
 
+    def test_docker_helper_not_set(self):
+        """
+        By default, we have no docker_helper.
+        """
+        nodh = ContainerBase('dh', IMG_WAIT)
+        self.assertIsNone(nodh._docker_helper)
+        with self.assertRaises(RuntimeError) as cm:
+            nodh.docker_helper
+        self.assertEqual(str(cm.exception), 'No docker_helper set.')
+
+    def test_docker_helper_set_in_constructor(self):
+        """
+        We can set a docker helper in the constructor.
+        """
+        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
+        self.assertIs(withdh._docker_helper, self.dh)
+        self.assertIs(withdh.docker_helper, self.dh)
+
+    def test_docker_helper_set_to_none(self):
+        """
+        Setting docker_helper to None has no effect even if we already have
+        one.
+        """
+        nodh = ContainerBase('nodh', IMG_WAIT)
+        self.assertIsNone(nodh._docker_helper)
+        nodh.set_docker_helper(None)
+        self.assertIsNone(nodh._docker_helper)
+
+        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
+        self.assertIs(withdh._docker_helper, self.dh)
+        withdh.set_docker_helper(None)
+        self.assertIs(withdh._docker_helper, self.dh)
+
+    def test_docker_helper_set_to_current(self):
+        """
+        Setting docker_helper to the one we already have has no effect.
+        """
+        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
+        self.assertIs(withdh._docker_helper, self.dh)
+        withdh.set_docker_helper(self.dh)
+        self.assertIs(withdh._docker_helper, self.dh)
+
+    def test_cannot_replace_docker_helper(self):
+        """
+        If we already have a docker_helper, we can't set a different one.
+        """
+        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
+        self.assertIs(withdh.docker_helper, self.dh)
+        with self.assertRaises(RuntimeError) as cm:
+            withdh.set_docker_helper(DockerHelper())
+        self.assertEqual(
+            str(cm.exception), 'Cannot replace existing docker_helper.')
+        self.assertIs(withdh.docker_helper, self.dh)
+
     def test_create_only_if_not_created(self):
         """The container cannot be created more than once."""
         self.base.create_and_start(self.dh, pull=False)
