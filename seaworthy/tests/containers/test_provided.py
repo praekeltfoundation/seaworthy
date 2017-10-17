@@ -105,7 +105,7 @@ class TestRabbitMQContainer:
             ['rabbitmq-plugins', 'enable', 'rabbitmq_management'])
         c._management_available = True
 
-    def _management_curl(self, c, method, path_parts, data=None):
+    def _management_curl(self, c, method, path_parts, data):
         """
         Use curl inside the container to call the management API.
 
@@ -116,9 +116,8 @@ class TestRabbitMQContainer:
         cmd = [
             'curl', '-i', '-u', '{}:{}'.format(c.user, c.password),
             '-H', 'content-type:application/json', '-X{}'.format(method),
+            '-d{}'.format(json.dumps(data)),
             'http://localhost:15672/api/{}'.format('/'.join(path_parts))]
-        if data is not None:
-            cmd.append('-d{}'.format(json.dumps(data)))
         return c.inner().exec_run(cmd)
 
     def declare_queue(self, c, queue_name):
