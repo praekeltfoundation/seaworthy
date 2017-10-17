@@ -134,6 +134,37 @@ class TestRabbitMQContainer:
         assert rabbitmq.list_policies() == []
         assert rabbitmq.list_queues() == []
 
+    def test_list_vhosts(self, rabbitmq):
+        """
+        We can list vhosts.
+        """
+        assert rabbitmq.list_vhosts() == ['/vhost']
+        rabbitmq.exec_rabbitmqctl('add_vhost', ['/new_vhost'])
+        assert sorted(rabbitmq.list_vhosts()) == ['/new_vhost', '/vhost']
+
+    def test_list_queues(self, rabbitmq):
+        """
+        We can list queues.
+
+        NOTE: This test also tests the management API machinery, because
+        testing that directly would be very similar and far more annoying.
+        """
+        assert rabbitmq.list_queues() == []
+        rabbitmq.declare_queue("q1")
+        rabbitmq.declare_queue("q2")
+        assert sorted(rabbitmq.list_queues()) == [('q1', '0'), ('q2', '0')]
+
+    def test_list_users(self, rabbitmq):
+        """
+        We can list users.
+        """
+        assert rabbitmq.list_users() == [('user', ['administrator'])]
+        rabbitmq.exec_rabbitmqctl('add_user', ['new_user', 'new_pass'])
+        assert rabbitmq.list_users() == [
+            ('new_user', []),
+            ('user', ['administrator']),
+        ]
+
     def test_broker_url(self):
         """
         The ``broker_url`` method should return a single string with all the
