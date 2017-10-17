@@ -192,14 +192,6 @@ class RabbitMQContainer(ContainerBase):
         lines = output_lines(self.exec_rabbitmqctl('list_users'))
         return [_parse_rabbitmq_user(line) for line in lines]
 
-    def list_policies(self):
-        """
-        Run the ``list_policies`` command and return a list of policies for the
-        vhost.
-        """
-        return output_lines(
-            self.exec_rabbitmqctl('list_policies', ['-p', self.vhost]))
-
     def broker_url(self):
         """ Returns a "broker URL" for use with Celery. """
         return 'amqp://{}:{}@{}/{}'.format(
