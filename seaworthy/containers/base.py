@@ -20,6 +20,16 @@ def deep_merge(*dicts):
 
 
 class ContainerBase:
+    """
+    This is the base class for container definitions. Instances (and instances
+    of subclasses) are intended to be used both as test fixtures and as
+    convenient objects for operating on containers being tested.
+
+    TODO: Document this properly.
+     * basic usage
+     * context manager
+    """
+
     WAIT_TIMEOUT = 10.0
 
     def __init__(self, name, image, wait_patterns=None, wait_timeout=None,
@@ -59,6 +69,14 @@ class ContainerBase:
             raise RuntimeError('No docker_helper set.')
         return self._docker_helper
 
+    def __enter__(self):
+        self.create_and_start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._container is not None:
+            self.stop_and_remove()
+
     def set_docker_helper(self, docker_helper):
         if docker_helper is None:  # We don't want to "unset" in this method.
             return
@@ -68,6 +86,15 @@ class ContainerBase:
             self._docker_helper = docker_helper
         else:
             raise RuntimeError('Cannot replace existing docker_helper.')
+
+    def status(self):
+        """
+        Get the container's status. If the container does not exist (before
+        creation and after removal), the status is ``None``.
+        """
+        if self._container is None:
+            return None
+        return self.docker_helper.containers.status(self.inner())
 
     def create_and_start(self, docker_helper=None, pull=True, kwargs=None):
         """

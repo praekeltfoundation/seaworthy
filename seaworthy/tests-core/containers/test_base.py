@@ -399,3 +399,15 @@ class TestContainerBase(unittest.TestCase):
         ], delay=0.2, wait=False)
         with self.assertRaises(TimeoutError):
             script.wait_for_logs_matching(EqualsMatcher('hello'), timeout=0.1)
+
+    def test_context_manager(self):
+        """
+        We can use a container object as a context manager (which returns
+        itself) to create/start and stop/remove it.
+        """
+        self.base.set_docker_helper(self.dh)
+        self.assertEqual(self.base.status(), None)
+        with self.base as base:
+            self.assertIs(base, self.base)
+            self.assertEqual(base.status(), 'running')
+        self.assertEqual(self.base.status(), None)
