@@ -167,6 +167,19 @@ class RabbitMQContainer(ContainerBase):
         """
         return output_lines(self.exec_rabbitmqctl('list_vhosts'))
 
+    def list_queues(self):
+        """
+        Run the ``list_queues`` command (for the default vhost) and return a
+        list of tuples describing the queues.
+
+        :return:
+            A list of 2-element tuples. The first element is the queue name,
+            the second is the current queue size.
+        """
+        lines = output_lines(
+            self.exec_rabbitmqctl('list_queues', ['-p', self.vhost]))
+        return [tuple(line.split(None, 1)) for line in lines]
+
     def list_users(self):
         """
         Run the ``list_users`` command and return a list of tuples describing
@@ -178,14 +191,6 @@ class RabbitMQContainer(ContainerBase):
         """
         lines = output_lines(self.exec_rabbitmqctl('list_users'))
         return [_parse_rabbitmq_user(line) for line in lines]
-
-    def list_policies(self):
-        """
-        Run the ``list_policies`` command and return a list of policies for the
-        vhost.
-        """
-        return output_lines(
-            self.exec_rabbitmqctl('list_policies', ['-p', self.vhost]))
 
     def broker_url(self):
         """ Returns a "broker URL" for use with Celery. """
