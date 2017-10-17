@@ -26,6 +26,26 @@ def fetch_image(client, name):
     return image
 
 
+def _get_id_and_model(id_or_model, model_collection):
+    """
+    Get both the model and ID of an object that could be an ID or a model.
+    :param id_or_model:
+        The object that could be an ID string or a model object.
+    :param model_collection:
+        The collection to which the model belongs.
+    """
+    if isinstance(id_or_model, model_collection.model):
+        model = id_or_model
+    elif isinstance(id_or_model, str):
+        # Assume we have an ID string
+        model = model_collection.get(id_or_model)
+    else:
+        raise ValueError('Unexpected type {}, expected {} or {}'.format(
+            type(id_or_model), str, model_collection.model))
+
+    return model.id, model
+
+
 class DockerHelper:
     def __init__(self, namespace='test'):
         self._namespace = namespace
@@ -33,6 +53,7 @@ class DockerHelper:
         self._client = None
         self._container_ids = None
         self._network_ids = None
+        self._volume_ids = None
         self._default_network = None
 
     def _resource_name(self, name):
@@ -42,6 +63,7 @@ class DockerHelper:
         self._client = docker.client.from_env()
         self._container_ids = set()
         self._network_ids = set()
+        self._volume_ids = set()
 
     def teardown(self):
         if self._client is None:
@@ -49,6 +71,7 @@ class DockerHelper:
 
         self._teardown_containers()
         self._teardown_networks()
+        self._teardown_volumes()
 
         # We need to close the underlying APIClient explicitly to avoid
         # ResourceWarnings from unclosed HTTP connections.
@@ -92,6 +115,21 @@ class DockerHelper:
             self.remove_network(network)
         self._network_ids = None
 
+    def _teardown_volumes(self):
+        # Remove all volumes
+        for volume_id in self._volume_ids.copy():
+            # Check if the volume exists before trying to remove it
+            try:
+                volume = self._client.volumes.get(volume_id)
+            except docker.errors.NotFound:
+                continue
+
+            log.warning("Volume '{}' still existed during teardown".format(
+                volume.name))
+
+            self.remove_volume(volume)
+        self._volume_ids = None
+
     def get_default_network(self, create=True):
         """
         Get the default bridge network that containers are connected to if no
@@ -107,7 +145,8 @@ class DockerHelper:
 
         return self._default_network
 
-    def create_container(self, name, image, network=None, **kwargs):
+    def create_container(
+            self, name, image, network=None, volumes={}, **kwargs):
         """
         Create a new container.
 
@@ -116,23 +155,41 @@ class DockerHelper:
             namespace.
         :param image:
             The image tag or image object to create the container from.
-        :param docker.models.networks.Network network:
+        :param network:
             The network to connect the container to. The container will be
             given an alias with the ``name`` parameter. Note that, unlike the
-            Docker Python client, this parameter should be a ``Network`` model
-            object, and not just a network ID.
+            Docker Python client, this parameter can be a ``Network`` model
+            object, and not just a network ID or name.
+        :param volumes:
+            A mapping of volumes to bind parameters. The keys to this mapping
+            can be any of three types of objects:
+            - A ``Volume`` model object
+            - The name of a volume (str)
+            - A path on the host to bind mount into the container (str)
         :param kwargs:
             Other parameters to create the container with.
         """
         container_name = self._resource_name(name)
         log.info("Creating container '{}'...".format(container_name))
 
-        network = self._get_container_network(network, kwargs)
-        network_id = network.id if network is not None else None
+        create_kwargs = {
+            'name': container_name,
+            'detach': True,
+        }
 
-        container = self._client.containers.create(
-            image, name=container_name, detach=True, network=network_id,
-            **kwargs)
+        # Convert network & volume models to IDs
+        network = self._get_container_network(network, kwargs)
+        if network is not None:
+            network_id, network = _get_id_and_model(
+                network, self._client.networks)
+            create_kwargs['network'] = network_id
+
+        if volumes:
+            create_kwargs['volumes'] = self._get_container_volumes(volumes)
+
+        create_kwargs.update(kwargs)
+
+        container = self._client.containers.create(image, **create_kwargs)
 
         if network is not None:
             self._connect_container_network(container, network, aliases=[name])
@@ -156,6 +213,21 @@ class DockerHelper:
 
         # Else, use the default network
         return self.get_default_network()
+
+    def _get_container_volumes(self, volumes):
+        create_volumes = {}
+        for vol, opts in volumes.items():
+            try:
+                vol_id, _ = _get_id_and_model(vol, self._client.volumes)
+            except docker.errors.NotFound:
+                # Assume this is a bind if we can't find the ID
+                vol_id = vol
+
+            if vol_id in create_volumes:
+                raise ValueError(
+                    "Volume '{}' specified more than once".format(vol_id))
+            create_volumes[vol_id] = opts
+        return create_volumes
 
     def _connect_container_network(self, container, network, **connect_kwargs):
         # FIXME: Hack to make sure the container has the right network aliases.
@@ -191,9 +263,25 @@ class DockerHelper:
         container.stop(timeout=timeout)
         assert self.container_status(container) != 'running'
 
-    def remove_container(self, container, force=True):
+    def remove_container(self, container, force=True, volumes=True):
+        """
+        Remove a container.
+
+        :param container: The container to remove.
+        :param force:
+            Whether to force the removal of the container, even if it is
+            running. Note that this defaults to True, unlike the Docker
+            default.
+        :param volumes:
+            Whether to remove any volumes that were created implicitly with
+            this container, i.e. any volumes that were created due to
+            ``VOLUME`` directives in the Dockerfile. External volumes that were
+            manually created will not be removed. Note that this defaults to
+            True, unlike the Docker default (where the equivalent parameter,
+            ``v``, defaults to False).
+        """
         log.info("Removing container '{}'...".format(container.name))
-        container.remove(force=force)
+        container.remove(force=force, v=volumes)
 
         self._container_ids.remove(container.id)
 
@@ -234,3 +322,25 @@ class DockerHelper:
         network.remove()
 
         self._network_ids.remove(network.id)
+
+    def create_volume(self, name, **kwargs):
+        """
+        Create a new volume.
+
+        :param name:
+            The name for the volume. This will be prefixed with the namespace.
+        :param kwargs:
+            Other parameters to create the volume with.
+        """
+        volume_name = self._resource_name(name)
+        log.info("Creating volume '{}'...".format(volume_name))
+
+        volume = self._client.volumes.create(name=volume_name, **kwargs)
+        self._volume_ids.add(volume.id)
+        return volume
+
+    def remove_volume(self, volume, force=False):
+        log.info("Removing volume '{}'...".format(volume.name))
+        volume.remove(force=force)
+
+        self._volume_ids.remove(volume.id)
