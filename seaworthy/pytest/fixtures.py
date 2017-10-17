@@ -50,7 +50,7 @@ def image_pull_fixture(image, name, scope='module'):
 def wrap_container_fixture(container, docker_helper):
     container.create_and_start(docker_helper)
     yield container
-    container.stop_and_remove(docker_helper)
+    container.stop_and_remove()
 
 
 def container_fixture(container, name, scope='function'):

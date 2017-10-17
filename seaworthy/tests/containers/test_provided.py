@@ -25,7 +25,7 @@ class TestPostgreSQLContainer:
         container = PostgreSQLContainer()
         container.create_and_start(docker_helper)
         yield container
-        container.stop_and_remove(docker_helper)
+        container.stop_and_remove()
 
     def test_inspection(self, postgresql):
         """
@@ -95,7 +95,7 @@ class TestRabbitMQContainer:
         container._management_available = False
         container.create_and_start(docker_helper)
         yield container
-        container.stop_and_remove(docker_helper)
+        container.stop_and_remove()
 
     def _setup_management(self, c):
         if c._management_available:

@@ -34,7 +34,7 @@ class TestContainerBase(unittest.TestCase):
 
     def _cleanup_container(self, container):
         if container._container is not None:
-            container.stop_and_remove(self.dh)
+            container.stop_and_remove()
 
     def test_wait_timeout_default(self):
         """
@@ -62,17 +62,17 @@ class TestContainerBase(unittest.TestCase):
             self.base.create_and_start(self.dh, pull=False)
         self.assertEqual(str(cm.exception), 'Container already created.')
 
-        self.base.stop_and_remove(self.dh)
+        self.base.stop_and_remove()
 
     def test_remove_only_if_created(self):
         """The container can only be removed if it has been created."""
         self.base.create_and_start(self.dh, pull=False)
 
         # We can remove the container if it's created
-        self.base.stop_and_remove(self.dh)
+        self.base.stop_and_remove()
 
         with self.assertRaises(RuntimeError) as cm:
-            self.base.stop_and_remove(self.dh)
+            self.base.stop_and_remove()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
     def test_container_only_if_created(self):
@@ -91,7 +91,7 @@ class TestContainerBase(unittest.TestCase):
         container = self.base.inner()
         self.assertIsInstance(container, Container)
 
-        self.base.stop_and_remove(self.dh)
+        self.base.stop_and_remove()
         with self.assertRaises(RuntimeError) as cm:
             self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')

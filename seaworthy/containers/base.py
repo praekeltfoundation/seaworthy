@@ -51,6 +51,7 @@ class ContainerBase:
         self._create_kwargs = {} if create_kwargs is None else create_kwargs
 
         self._container = None
+        self._docker_helper = None
 
     def create_and_start(self, docker_helper, pull=True, kwargs=None):
         """
@@ -71,6 +72,7 @@ class ContainerBase:
 
         self._container = docker_helper.containers.create(
             self.name, self.image, **kwargs)
+        self._docker_helper = docker_helper
         docker_helper.containers.start(self._container)
 
         self.wait_for_start()
@@ -88,10 +90,12 @@ class ContainerBase:
             matcher = UnorderedLinesMatcher(*self.wait_matchers)
             self.wait_for_logs_matching(matcher, timeout=self.wait_timeout)
 
-    def stop_and_remove(self, docker_helper):
+    def stop_and_remove(self):
         """ Stop the container and remove it. """
-        docker_helper.containers.stop_and_remove(self.inner())
+        c = self.inner()  # This will fail politely.
+        self._docker_helper.containers.stop_and_remove(c)
         self._container = None
+        self._docker_helper = None
 
     def inner(self):
         """
