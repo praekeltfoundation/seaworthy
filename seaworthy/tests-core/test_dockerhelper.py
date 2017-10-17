@@ -421,6 +421,42 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(mount['Destination'], '/vol')
         self.assertEqual(mount['Mode'], 'rw')
 
+    def test_container_volumes_short_form(self):
+        """
+        When a container is created, a volume can be specified to be mounted
+        using a short-form bind specfier. The mode can be specified, but if not
+        it defaults to read/write.
+        """
+        dh = self.make_helper()
+
+        # Default mode: rw
+        vol_default = dh.create_volume('default')
+        self.addCleanup(dh.remove_volume, vol_default)
+        con_default = dh.create_container(
+            'default', IMG, volumes={vol_default: '/vol'})
+        self.addCleanup(dh.remove_container, con_default)
+        mounts = con_default.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'volume')
+        self.assertEqual(mount['Name'], vol_default.name)
+        self.assertEqual(mount['Destination'], '/vol')
+        self.assertEqual(mount['Mode'], 'rw')
+
+        # Specific mode: ro
+        vol_mode = dh.create_volume('mode')
+        self.addCleanup(dh.remove_volume, vol_mode)
+        con_mode = dh.create_container(
+            'mode', IMG, volumes={vol_mode: '/mnt:ro'})
+        self.addCleanup(dh.remove_container, con_mode)
+        mounts = con_mode.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'volume')
+        self.assertEqual(mount['Name'], vol_mode.name)
+        self.assertEqual(mount['Destination'], '/mnt')
+        self.assertEqual(mount['Mode'], 'ro')
+
     def test_container_volumes_bind(self):
         """
         When a container is created, a bind mount can be specified in the
