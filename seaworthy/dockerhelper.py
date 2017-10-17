@@ -46,6 +46,13 @@ def _get_id_and_model(id_or_model, model_collection):
     return model.id, model
 
 
+def _parse_volume_short_form(short_form):
+    parts = short_form.split(':', 1)
+    bind = parts[0]
+    mode = parts[1] if len(parts) == 2 else 'rw'
+    return {'bind': bind, 'mode': mode}
+
+
 class DockerHelper:
     def __init__(self, namespace='test'):
         self._namespace = namespace
@@ -166,6 +173,12 @@ class DockerHelper:
             - A ``Volume`` model object
             - The name of a volume (str)
             - A path on the host to bind mount into the container (str)
+
+            The bind parameters, i.e. the values in the mapping, can be of
+            two types:
+            - A full bind specifier (dict), for example
+              ``{'bind': '/mnt', 'mode': 'rw'}``
+            - A "short-form" bind specifier (str), for example ``/mnt:rw``
         :param kwargs:
             Other parameters to create the container with.
         """
@@ -226,6 +239,12 @@ class DockerHelper:
             if vol_id in create_volumes:
                 raise ValueError(
                     "Volume '{}' specified more than once".format(vol_id))
+
+            # Short form of opts
+            if isinstance(opts, str):
+                opts = _parse_volume_short_form(opts)
+            # Else assume long form
+
             create_volumes[vol_id] = opts
         return create_volumes
 
