@@ -1,6 +1,3 @@
-import json
-from urllib.parse import quote as urlquote
-
 from seaworthy.logs import output_lines
 from .base import ContainerBase, deep_merge
 
@@ -132,8 +129,6 @@ class RabbitMQContainer(ContainerBase):
         """
         super().__init__(name, image, wait_patterns, **kwargs)
 
-        self._management_available = False
-
         self.vhost = vhost
         self.user = user
         self.password = password
@@ -209,39 +204,3 @@ class RabbitMQContainer(ContainerBase):
         """ Returns a "broker URL" for use with Celery. """
         return 'amqp://{}:{}@{}/{}'.format(
             self.user, self.password, self.name, self.vhost)
-
-    def _setup_management(self):
-        """
-        Enable the management API plugin and install curl.
-        """
-        if self._management_available:
-            return
-        self.inner().exec_run(['apk', 'add', '--update', 'curl'])
-        self.inner().exec_run(
-            ['rabbitmq-plugins', 'enable', 'rabbitmq_management'])
-        self._management_available = True
-
-    def _management_curl(self, method, path_parts, data=None):
-        """
-        Use curl inside the container to call the management API.
-
-        This is a nasty hack around not having rabbitmqadmin available to us,
-        because the container doesn't have Python installed.
-        """
-        self._setup_management()
-        cmd = [
-            'curl', '-i', '-u', '{}:{}'.format(self.user, self.password),
-            '-H', 'content-type:application/json', '-X{}'.format(method),
-            'http://localhost:15672/api/{}'.format('/'.join(path_parts))]
-        if data is not None:
-            cmd.append('-d{}'.format(json.dumps(data)))
-        return self.inner().exec_run(cmd)
-
-    def declare_queue(self, queue_name):
-        """
-        Use the management API to declare a queue.
-        """
-        return self._management_curl(
-            'PUT',
-            ['queues', urlquote(self.vhost, safe=''), queue_name],
-            {"auto_delete": False, "durable": False, "arguments": {}})

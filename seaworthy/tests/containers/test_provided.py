@@ -1,3 +1,6 @@
+import json
+from urllib.parse import quote as urlquote
+
 import pytest
 
 from seaworthy.containers.provided import (
@@ -89,9 +92,43 @@ class TestRabbitMQContainer:
     @pytest.fixture(scope='class')
     def rabbitmq(cls, docker_helper):
         container = RabbitMQContainer()
+        container._management_available = False
         container.create_and_start(docker_helper)
         yield container
         container.stop_and_remove(docker_helper)
+
+    def _setup_management(self, c):
+        if c._management_available:
+            return
+        c.inner().exec_run(['apk', 'add', '--no-cache', 'curl'])
+        c.inner().exec_run(
+            ['rabbitmq-plugins', 'enable', 'rabbitmq_management'])
+        c._management_available = True
+
+    def _management_curl(self, c, method, path_parts, data=None):
+        """
+        Use curl inside the container to call the management API.
+
+        This is a nasty hack around not having rabbitmqadmin available to us,
+        because the container doesn't have Python installed.
+        """
+        self._setup_management(c)
+        cmd = [
+            'curl', '-i', '-u', '{}:{}'.format(c.user, c.password),
+            '-H', 'content-type:application/json', '-X{}'.format(method),
+            'http://localhost:15672/api/{}'.format('/'.join(path_parts))]
+        if data is not None:
+            cmd.append('-d{}'.format(json.dumps(data)))
+        return c.inner().exec_run(cmd)
+
+    def declare_queue(self, c, queue_name):
+        """
+        Use the management API to declare a queue.
+        """
+        return self._management_curl(
+            c, 'PUT',
+            ['queues', urlquote(c.vhost, safe=''), queue_name],
+            {"auto_delete": False, "durable": False, "arguments": {}})
 
     def test_inspection(self, rabbitmq):
         """
@@ -150,8 +187,8 @@ class TestRabbitMQContainer:
         testing that directly would be very similar and far more annoying.
         """
         assert rabbitmq.list_queues() == []
-        rabbitmq.declare_queue("q1")
-        rabbitmq.declare_queue("q2")
+        self.declare_queue(rabbitmq, "q1")
+        self.declare_queue(rabbitmq, "q2")
         assert sorted(rabbitmq.list_queues()) == [('q1', '0'), ('q2', '0')]
 
     def test_list_users(self, rabbitmq):
@@ -161,7 +198,7 @@ class TestRabbitMQContainer:
         assert rabbitmq.list_users() == [('user', ['administrator'])]
         rabbitmq.exec_rabbitmqctl('add_user', ['new_user', 'new_pass'])
         assert rabbitmq.list_users() == [
-            ('new_user', []),
+            ('new_user', ['']),
             ('user', ['administrator']),
         ]
 
