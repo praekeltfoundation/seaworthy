@@ -137,8 +137,10 @@ class ContainerBase:
 
     def status(self):
         """
-        Get the container's status. If the container does not exist (before
-        creation and after removal), the status is ``None``.
+        Get the container's current status from docker.
+
+        If the container does not exist (before creation and after removal),
+        the status is ``None``.
         """
         if self._container is None:
             return None
