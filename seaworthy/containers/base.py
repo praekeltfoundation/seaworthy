@@ -1,3 +1,5 @@
+import functools
+
 from seaworthy.logs import (
     RegexMatcher, UnorderedLinesMatcher, stream_logs, stream_with_history,
     wait_for_logs_matching)
@@ -74,8 +76,27 @@ class ContainerBase:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._teardown()
+
+    def _teardown(self):
+        """
+        Stop and remove the container if it exists.
+        """
         if self._container is not None:
             self.stop_and_remove()
+
+    def as_fixture(self, name=None):
+        if name is None:
+            name = self.name
+
+        def deco(f):
+            @functools.wraps(f)
+            def wrapper(*args, **kw):
+                with self:
+                    kw[name] = self
+                    return f(*args, **kw)
+            return wrapper
+        return deco
 
     def set_docker_helper(self, docker_helper):
         if docker_helper is None:  # We don't want to "unset" in this method.

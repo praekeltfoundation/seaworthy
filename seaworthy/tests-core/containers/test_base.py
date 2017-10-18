@@ -26,15 +26,12 @@ class TestContainerBase(unittest.TestCase):
         self.addCleanup(self.dh.teardown)
         self.dh.setup()
 
-        self.base = self.with_cleanup(ContainerBase('wait', IMG_WAIT))
+        self.base = self.with_cleanup(ContainerBase(
+            'wait', IMG_WAIT, docker_helper=self.dh))
 
     def with_cleanup(self, container):
-        self.addCleanup(self._cleanup_container, container)
+        self.addCleanup(container._teardown)
         return container
-
-    def _cleanup_container(self, container):
-        if container._container is not None:
-            container.stop_and_remove()
 
     def test_wait_timeout_default(self):
         """
@@ -109,18 +106,18 @@ class TestContainerBase(unittest.TestCase):
 
     def test_create_only_if_not_created(self):
         """The container cannot be created more than once."""
-        self.base.create_and_start(self.dh, pull=False)
+        self.base.create_and_start(pull=False)
 
         # We can't create the container when it's already created
         with self.assertRaises(RuntimeError) as cm:
-            self.base.create_and_start(self.dh, pull=False)
+            self.base.create_and_start(pull=False)
         self.assertEqual(str(cm.exception), 'Container already created.')
 
         self.base.stop_and_remove()
 
     def test_remove_only_if_created(self):
         """The container can only be removed if it has been created."""
-        self.base.create_and_start(self.dh, pull=False)
+        self.base.create_and_start(pull=False)
 
         # We can remove the container if it's created
         self.base.stop_and_remove()
@@ -139,7 +136,7 @@ class TestContainerBase(unittest.TestCase):
             self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
-        self.base.create_and_start(self.dh, pull=False)
+        self.base.create_and_start(pull=False)
 
         # We can get the container once it's created
         container = self.base.inner()
@@ -208,7 +205,7 @@ class TestContainerBase(unittest.TestCase):
         """
         We can get the host port mapping of a container.
         """
-        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
+        self.base.create_and_start(pull=False, kwargs={'ports': {
             '8080/tcp': ('127.0.0.1',),
             '9090/tcp': ('127.0.0.1', '10701'),
         }})
@@ -233,7 +230,8 @@ class TestContainerBase(unittest.TestCase):
         })
         # Wait for the output to arrive.
         if wait:
-            time.sleep(len(logs) * delay)
+            # Wait a minimum of 100ms to avoid jitter with small intervals.
+            time.sleep(max(0.1, len(logs) * delay))
         return script_con
 
     def test_get_logs_out_err(self):
@@ -405,9 +403,70 @@ class TestContainerBase(unittest.TestCase):
         We can use a container object as a context manager (which returns
         itself) to create/start and stop/remove it.
         """
-        self.base.set_docker_helper(self.dh)
         self.assertEqual(self.base.status(), None)
         with self.base as base:
             self.assertIs(base, self.base)
             self.assertEqual(base.status(), 'running')
         self.assertEqual(self.base.status(), None)
+
+    def test_fixture_on_function(self):
+        """
+        We can make a function decorator fixture for our container.
+        """
+        self.assertEqual(self.base.status(), None)
+        closure_state = []
+
+        @self.base.as_fixture()
+        def foo(wait):
+            self.assertIs(wait, self.base)
+            self.assertEqual(wait.status(), 'running')
+            closure_state.append(1)
+
+        self.assertEqual(closure_state, [])
+        self.assertEqual(self.base.status(), None)
+        foo()
+        self.assertEqual(self.base.status(), None)
+        self.assertEqual(closure_state, [1])
+
+    def test_fixture_on_method(self):
+        """
+        The fixture decorator works on methods too.
+        """
+        self.assertEqual(self.base.status(), None)
+        closure_state = []
+
+        class Foo:
+            def __init__(self, value, tc):
+                self.value = value
+                self.tc = tc
+
+            @self.base.as_fixture()
+            def foo(self, wait):
+                self.tc.assertIs(wait, self.tc.base)
+                self.tc.assertEqual(wait.status(), 'running')
+                closure_state.append(self.value)
+
+        self.assertEqual(closure_state, [])
+        self.assertEqual(self.base.status(), None)
+        Foo(3, self).foo()
+        self.assertEqual(self.base.status(), None)
+        self.assertEqual(closure_state, [3])
+
+    def test_fixture_with_name(self):
+        """
+        The fixture decorator can override the parameter name used.
+        """
+        self.assertEqual(self.base.status(), None)
+        closure_state = []
+
+        @self.base.as_fixture(name='something_more_sensible')
+        def foo(something_more_sensible):
+            self.assertIs(something_more_sensible, self.base)
+            self.assertEqual(something_more_sensible.status(), 'running')
+            closure_state.append(1)
+
+        self.assertEqual(closure_state, [])
+        self.assertEqual(self.base.status(), None)
+        foo()
+        self.assertEqual(self.base.status(), None)
+        self.assertEqual(closure_state, [1])
