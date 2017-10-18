@@ -28,8 +28,15 @@ class ContainerBase:
     convenient objects for operating on containers being tested.
 
     TODO: Document this properly.
-     * basic usage
-     * context manager
+
+    A container object may be used as a context manager to ensure proper setup
+    and teardown of the container around the code that uses it::
+
+        with ContainerBase('my_container', IMAGE, docker_helper=dh) as c:
+            assert c.status() == 'running'
+
+    (Note that this only works if the container has a docker_helper set and
+    does not have a container created.)
     """
 
     WAIT_TIMEOUT = 10.0
@@ -86,6 +93,26 @@ class ContainerBase:
             self.stop_and_remove()
 
     def as_fixture(self, name=None):
+        """
+        A decorator to inject this container into a function as a test fixture.
+
+        The decorated function (or method) is wrapped in a helper that manages
+        the container's lifecycle and adds the container as a keyword argument
+        to the function when it's called.
+
+        The container must have a docker_helper set.
+
+        :param name: (optional) Set the name of the keyword argument used to
+            pass the container to the decorated function. By default, the
+            container's ``name`` attribute is used.
+
+        Example usage::
+
+            container = ContainerBase('container_name', IMAGE, docker_helper)
+            @container.as_fixture()
+            def test_something(container_name):
+                assert container_name.status() == 'running'
+        """
         if name is None:
             name = self.name
 
