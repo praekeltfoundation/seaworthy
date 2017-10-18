@@ -115,15 +115,54 @@ class ContainerBase:
         """
         raise NotImplementedError()
 
-    def get_host_port(self, port_spec, index=0):
+    @property
+    def ports(self):
         """
-        :param port_spec: A container port mapping specifier.
+        The ports (exposed and published) of the container.
+        """
+        return self.inner().attrs['NetworkSettings']['Ports']
+
+    def _host_port(self, port_spec, index):
+        if port_spec not in self.ports:
+            raise ValueError("Port '{}' is not exposed".format(port_spec))
+
+        mappings = self.ports[port_spec]
+        if mappings is None:
+            raise ValueError(
+                "Port '{}' is not published to the host".format(port_spec))
+
+        mapping = mappings[index]
+        return mapping['HostIp'], mapping['HostPort']
+
+    def get_host_port(self, container_port, proto='tcp', index=0):
+        """
+        :param container_port: The container port.
+        :param proto: The protocol ('tcp' or 'udp').
         :param index: The index of the mapping entry to return.
-        :returns: The host port the container is mapped to.
+        :returns: A tuple of the interface IP and port on the host.
         """
-        # FIXME: The mapping entries are not necessarily in a sensible order.
-        ports = self.inner().attrs['NetworkSettings']['Ports']
-        return ports[port_spec][index]['HostPort']
+        port_spec = '{}/{}'.format(container_port, proto)
+        return self._host_port(port_spec, index)
+
+    def get_first_host_port(self):
+        """
+        Get the first mapping of the first (lowest) container port that has a
+        mapping. Useful when a container publishes only one port.
+
+        Note that unlike the Docker API, which sorts ports alphabetically (e.g.
+        ``90/tcp`` > ``8000/tcp``), we sort ports numerically so that the
+        lowest port is always chosen.
+        """
+        mapped_ports = {p: m for p, m in self.ports.items() if m is not None}
+        if not mapped_ports:
+            raise RuntimeError('Container has no published ports')
+
+        def sort_key(port_string):
+            port, proto = port_string.split('/', 1)
+            return int(port), proto
+        firt_port_spec = sorted(mapped_ports.keys(), key=sort_key)[0]
+
+        return self._host_port(firt_port_spec, 0)
 
     def get_logs(self, stdout=True, stderr=True, timestamps=False, tail='all',
                  since=None):

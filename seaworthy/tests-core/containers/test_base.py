@@ -150,6 +150,20 @@ class TestContainerBase(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.base.clean()
 
+    def test_ports(self):
+        """
+        We can get the ports exposed or published on a container.
+        """
+        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
+            '8000/tcp': ('127.0.0.1', '10701'),
+        }})
+
+        # We're not interested in the order of the ports
+        self.assertCountEqual(self.base.ports.items(), [
+            ('80/tcp', None),
+            ('8000/tcp', [{'HostIp': '127.0.0.1', 'HostPort': '10701'}]),
+        ])
+
     def test_get_host_port(self):
         """
         We can get the host port mapping of a container.
@@ -157,15 +171,93 @@ class TestContainerBase(unittest.TestCase):
         self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
             '8080/tcp': ('127.0.0.1',),
             '9090/tcp': ('127.0.0.1', '10701'),
+            '9191/udp': '10702',
         }})
 
         # We get a random high port number here.
-        random_host_port = self.base.get_host_port('8080/tcp')
+        host_iface, random_host_port = self.base.get_host_port('8080')
+        self.assertEqual(host_iface, '127.0.0.1')
         self.assertGreater(int(random_host_port), 1024)
         self.assertLess(int(random_host_port), 65536)
 
         # We get the specific port we defined here.
-        self.assertEqual(self.base.get_host_port('9090/tcp', 0), '10701')
+        host_iface, specific_host_port = self.base.get_host_port('9090')
+        self.assertEqual(host_iface, '127.0.0.1')
+        self.assertEqual(specific_host_port, '10701')
+
+        # We get a UDP port we defined.
+        _, udp_host_port = self.base.get_host_port('9191', proto='udp')
+        self.assertEqual(udp_host_port, '10702')
+
+        # FIXME: Don't bother testing index != 0, the port order is
+        # unpredictable :-(
+
+    def test_get_host_port_not_exposed(self):
+        """
+        When we try to get the host port for a container port that hasn't been
+        exposed, an error is raised.
+        """
+        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
+            '8000/tcp': ('127.0.0.1', '10701'),
+        }})
+
+        self.assertNotIn('90/tcp', self.base.ports)
+
+        with self.assertRaises(ValueError) as cm:
+            self.base.get_host_port('90')
+        self.assertEqual(str(cm.exception), "Port '90/tcp' is not exposed")
+
+    def test_get_host_port_not_published(self):
+        """
+        When we try to get the host port for a container port that hasn't been
+        published to the host, an error is raised.
+        """
+        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
+            '8000/tcp': ('127.0.0.1', '10701'),
+        }})
+
+        # The Nginx image EXPOSEs port 80, but we don't publish it
+        self.assertIn('80/tcp', self.base.ports)
+
+        with self.assertRaises(ValueError) as cm:
+            self.base.get_host_port('80')
+        self.assertEqual(
+            str(cm.exception), "Port '80/tcp' is not published to the host")
+
+    def test_get_first_host_port(self):
+        """
+        When we get the first host port for the container, the host port mapped
+        to the lowest container port is returned.
+        """
+        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
+            '8000/tcp': ('127.0.0.1',),
+            '90/tcp': ('127.0.0.1', '10701'),
+            '90/udp': ('127.0.0.1', '10702'),
+        }})
+
+        # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
+        # be considered by ``get_first_host_port()``
+        self.assertIn('80/tcp', self.base.ports)
+
+        host_iface, host_port = self.base.get_first_host_port()
+        self.assertEqual(host_iface, '127.0.0.1')
+        self.assertEqual(host_port, '10701')
+
+    def test_get_first_host_port_no_mappings(self):
+        """
+        When we try to get the first host port, but the container has no
+        published ports, an error is raised.
+        """
+        self.base.create_and_start(self.dh, pull=False)
+
+        # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
+        # be considered by ``get_first_host_port()``
+        self.assertIn('80/tcp', self.base.ports)
+
+        with self.assertRaises(RuntimeError) as cm:
+            self.base.get_first_host_port()
+
+        self.assertEqual(str(cm.exception), 'Container has no published ports')
 
     def run_logs_container(self, logs, wait=True, delay=0.01):
         # Sleep some amount between lines to ensure ordering across stdout and
