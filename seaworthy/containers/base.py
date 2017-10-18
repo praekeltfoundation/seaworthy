@@ -149,8 +149,8 @@ class ContainerBase:
         Get the first mapping of the first (lowest) container port that has a
         mapping. Useful when a container publishes only one port.
 
-        Note that unlike the Docker API, which sorts ports alphabetically (e.g.
-        ``90/tcp`` > ``8000/tcp``), we sort ports numerically so that the
+        Note that unlike the Docker API, which sorts ports lexicographically
+        (e.g. ``90/tcp`` > ``8000/tcp``), we sort ports numerically so that the
         lowest port is always chosen.
         """
         mapped_ports = {p: m for p, m in self.ports.items() if m is not None}
