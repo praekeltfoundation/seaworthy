@@ -21,23 +21,17 @@ def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
 class DummySession:
     def __init__(self):
         self.requests = []
-        self.closes = 0
+        self.was_closed = False
 
     def request(self, *args, **kwargs):
         self.requests.append((args, kwargs))
 
     def close(self):
-        self.closes += 1
+        self.was_closed = True
 
-
-class DummySessionFactory:
-    def __init__(self):
-        self.sessions = []
-
-    def __call__(self):
-        session = DummySession()
-        self.sessions.append(session)
-        return session
+    def check_was_closed(self):
+        was_closed, self.was_closed = self.was_closed, False
+        return was_closed
 
 
 class TestContainerClient(unittest.TestCase):
@@ -88,83 +82,40 @@ class TestContainerClient(unittest.TestCase):
         self.assertEqual(
             call.request.url, 'https://127.0.0.1:12345/baz?foo=bar#test')
 
-    def test_session_factory(self):
+    def test_session(self):
         """
-        The session factory is used to create sessions when a request is made.
-        Calling close on the client results in the session being closed.
-        Requests made after the session is closed result in a new session being
-        created.
+        When a custom session object is given, that object is used to make
+        requests and is closed when ``close()`` is called.
         """
-        session_factory = DummySessionFactory()
-        client = ContainerClient(
-            '127.0.0.1', '12345', session_factory=session_factory)
+        session = DummySession()
+        client = ContainerClient('127.0.0.1', '12345', session=session)
 
-        self.assertEqual(len(session_factory.sessions), 0)
-
-        # Making a request creates a session
         client.request('GET', ['foo'])
         client.request('POST', ['bar'])
-        self.assertEqual(len(session_factory.sessions), 1)
-        [session] = session_factory.sessions
         self.assertEqual(session.requests, [
             (('GET', 'http://127.0.0.1:12345/foo'), {}),
             (('POST', 'http://127.0.0.1:12345/bar'), {}),
         ])
 
-        self.assertEqual(session.closes, 0)
         client.close()
-        self.assertEqual(session.closes, 1)
+        self.assertTrue(session.check_was_closed())
 
-        client.request('PUT', ['baz'])
-        self.assertEqual(len(session_factory.sessions), 2)
-        session2 = session_factory.sessions[1]
-        self.assertEqual(session2.requests, [
-            (('PUT', 'http://127.0.0.1:12345/baz'), {}),
-        ])
-
-        client.close()
-        self.assertEqual(session2.closes, 1)
-
-    def test_session_factory_context_manager(self):
+    def test_session_context_manager(self):
         """
-        The container client can be used as a context manager. In this case,
-        the session is created when the context is entered, and closed when the
-        context is exited.
+        When a custom session object is given, that object is used to make
+        requests and is closed when the context is exited when the container
+        client is used as a context manager.
         """
-        session_factory = DummySessionFactory()
-        client = ContainerClient(
-            '127.0.0.1', '12345', session_factory=session_factory)
+        session = DummySession()
+        client = ContainerClient('127.0.0.1', '12345', session=session)
 
         with client:
-            self.assertEqual(len(session_factory.sessions), 1)
-            [session] = session_factory.sessions
-
             client.request('GET', ['foo'])
             self.assertEqual(session.requests, [
                 (('GET', 'http://127.0.0.1:12345/foo'), {}),
             ])
 
-        self.assertEqual(session.closes, 1)
-
-    def test_session_close_multiple_times(self):
-        """
-        The ``close()`` method can be called multiple times with no effect
-        after it has been called once.
-        """
-        session_factory = DummySessionFactory()
-        client = ContainerClient(
-            '127.0.0.1', '12345', session_factory=session_factory)
-
-        client.request('GET', [])
-        self.assertEqual(len(session_factory.sessions), 1)
-
-        client.close()
-        self.assertEqual(session_factory.sessions[0].closes, 1)
-
-        # We can call close lots of times and nothing happens
-        client.close()
-        client.close()
-        self.assertEqual(session_factory.sessions[0].closes, 1)
+        self.assertTrue(session.check_was_closed())
 
     @dockertest()
     def test_for_container_first_port(self):
