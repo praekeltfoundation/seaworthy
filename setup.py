@@ -23,6 +23,8 @@ setup(
     install_requires=[
         'attrs',
         'docker >= 2.4.0',
+        'hyperlink',
+        'requests',
     ],
     extras_require={
         'pytest': [
@@ -32,8 +34,12 @@ setup(
             'testtools',
         ],
         'test': [
-            'testtools',
             'pytest>=3.0.0',
+            'responses',
+            'testtools',
+        ],
+        'test-core': [
+            'responses',
         ],
         'docstest': [
             'doc8',
