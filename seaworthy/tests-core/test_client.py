@@ -45,7 +45,7 @@ class TestContainerClient(unittest.TestCase):
     def test_defaults(self):
         """
         When the container client is configured with a host address and port,
-        requests are made against that address and port.
+        requests are made to that address and port.
         """
         client = ContainerClient('127.0.0.1', '12345')
 
@@ -62,8 +62,8 @@ class TestContainerClient(unittest.TestCase):
     def test_url_defaults(self):
         """
         When the container client is configured with a host address and port,
-        and some URL defaults are set, requests are made agains that address
-        and port with the expected URL.
+        and some URL defaults are set, requests are made to that address and
+        port with the expected URL.
         """
         client = ContainerClient('127.0.0.1', '12345', url_defaults={
             'scheme': 'https',
@@ -77,7 +77,6 @@ class TestContainerClient(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(len(responses.calls), 1)
         [call] = responses.calls
         self.assertEqual(
             call.request.url, 'https://127.0.0.1:12345/baz?foo=bar#test')
