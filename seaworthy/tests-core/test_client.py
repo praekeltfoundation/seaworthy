@@ -54,7 +54,6 @@ class TestContainerClient(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(len(responses.calls), 1)
         [call] = responses.calls
         self.assertEqual(call.request.url, 'http://127.0.0.1:12345/')
 
