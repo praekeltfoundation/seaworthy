@@ -2,7 +2,7 @@ import hyperlink
 import requests
 
 
-class ContainerClient:
+class ContainerHttpClient:
     URL_DEFAULTS = {'scheme': 'http'}
 
     def __init__(self, host, port, url_defaults=None, session=None):

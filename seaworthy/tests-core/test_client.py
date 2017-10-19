@@ -3,7 +3,7 @@ import unittest
 import responses
 
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.client import ContainerClient
+from seaworthy.client import ContainerHttpClient
 from seaworthy.containers.base import ContainerBase
 from seaworthy.dockerhelper import DockerHelper, fetch_images
 
@@ -34,7 +34,7 @@ class DummySession:
         return was_closed
 
 
-class TestContainerClient(unittest.TestCase):
+class TestContainerHttpClient(unittest.TestCase):
     def make_helper(self):
         dh = DockerHelper()
         self.addCleanup(dh.teardown)
@@ -47,7 +47,7 @@ class TestContainerClient(unittest.TestCase):
         When the container client is configured with a host address and port,
         requests are made to that address and port.
         """
-        client = ContainerClient('127.0.0.1', '12345')
+        client = ContainerHttpClient('127.0.0.1', '12345')
 
         responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
         response = client.request('GET')
@@ -64,7 +64,7 @@ class TestContainerClient(unittest.TestCase):
         and some URL defaults are set, requests are made to that address and
         port with the expected URL.
         """
-        client = ContainerClient('127.0.0.1', '12345', url_defaults={
+        client = ContainerHttpClient('127.0.0.1', '12345', url_defaults={
             'scheme': 'https',
             'fragment': 'test',
         })
@@ -86,7 +86,7 @@ class TestContainerClient(unittest.TestCase):
         When the HTTP method-specific methods are called, the correct request
         method is used.
         """
-        client = ContainerClient('127.0.0.1', '45678')
+        client = ContainerHttpClient('127.0.0.1', '45678')
 
         responses.add(responses.GET, 'http://127.0.0.1:45678/', status=200)
         responses.add(
@@ -123,7 +123,7 @@ class TestContainerClient(unittest.TestCase):
         requests and is closed when ``close()`` is called.
         """
         session = DummySession()
-        client = ContainerClient('127.0.0.1', '12345', session=session)
+        client = ContainerHttpClient('127.0.0.1', '12345', session=session)
 
         client.request('GET', ['foo'])
         client.request('POST', ['bar'])
@@ -142,7 +142,7 @@ class TestContainerClient(unittest.TestCase):
         client is used as a context manager.
         """
         session = DummySession()
-        client = ContainerClient('127.0.0.1', '12345', session=session)
+        client = ContainerHttpClient('127.0.0.1', '12345', session=session)
 
         with client:
             client.request('GET', ['foo'])
@@ -166,7 +166,7 @@ class TestContainerClient(unittest.TestCase):
         container.create_and_start(dh)
         self.addCleanup(container.stop_and_remove, dh)
 
-        client = ContainerClient.for_container(container)
+        client = ContainerHttpClient.for_container(container)
 
         response = client.request('GET', ['foo'])
 
@@ -193,7 +193,7 @@ class TestContainerClient(unittest.TestCase):
         container.create_and_start(dh)
         self.addCleanup(container.stop_and_remove, dh)
 
-        client = ContainerClient.for_container(
+        client = ContainerHttpClient.for_container(
             container, container_port='8080')
 
         response = client.request('GET', ['foo'])
