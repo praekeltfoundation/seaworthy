@@ -58,11 +58,13 @@ class ContainerClient:
 
         return cls(host, port)
 
-    def _url(self, path, kwargs=None):
+    def _url(self, path, kwargs):
         kwargs = kwargs if kwargs is not None else {}
-        return self._base_url.replace(path=path, **kwargs).to_text()
+        if path is not None:
+            kwargs['path'] = path
+        return self._base_url.replace(**kwargs).to_text()
 
-    def request(self, method, path, url_kwargs=None, **kwargs):
+    def request(self, method, path=None, url_kwargs=None, **kwargs):
         """
         Make a request against a container.
 
@@ -77,3 +79,101 @@ class ContainerClient:
         """
         return self._session.request(
             method, self._url(path, url_kwargs), **kwargs)
+
+    def get(self, path=None, url_kwargs=None, **kwargs):
+        """
+        Sends a GET request.
+
+        :param path:
+            A list of segments of the HTTP path.
+        :param url_kwargs:
+            Parameters to override in the generated URL. See `~hyperlink.URL`.
+        :param \*\*kwargs:
+            Optional arguments that ``request`` takes.
+        :return: response object
+        """
+        return self._session.get(self._url(path, url_kwargs), **kwargs)
+
+    def options(self, path=None, url_kwargs=None, **kwargs):
+        """
+        Sends an OPTIONS request.
+
+        :param path:
+            A list of segments of the HTTP path.
+        :param url_kwargs:
+            Parameters to override in the generated URL. See `~hyperlink.URL`.
+        :param \*\*kwargs:
+            Optional arguments that ``request`` takes.
+        :return: response object
+        """
+        return self._session.options(self._url(path, url_kwargs), **kwargs)
+
+    def head(self, path=None, url_kwargs=None, **kwargs):
+        """
+        Sends a HEAD request.
+
+        :param path:
+            A list of segments of the HTTP path.
+        :param url_kwargs:
+            Parameters to override in the generated URL. See `~hyperlink.URL`.
+        :param \*\*kwargs:
+            Optional arguments that ``request`` takes.
+        :return: response object
+        """
+        return self._session.head(self._url(path, url_kwargs), **kwargs)
+
+    def post(self, path=None, url_kwargs=None, **kwargs):
+        """
+        Sends a POST request.
+
+        :param path:
+            A list of segments of the HTTP path.
+        :param url_kwargs:
+            Parameters to override in the generated URL. See `~hyperlink.URL`.
+        :param \*\*kwargs:
+            Optional arguments that ``request`` takes.
+        :return: response object
+        """
+        return self._session.post(self._url(path, url_kwargs), **kwargs)
+
+    def put(self, path=None, url_kwargs=None, **kwargs):
+        """
+        Sends a PUT request.
+
+        :param path:
+            A list of segments of the HTTP path.
+        :param url_kwargs:
+            Parameters to override in the generated URL. See `~hyperlink.URL`.
+        :param \*\*kwargs:
+            Optional arguments that ``request`` takes.
+        :return: response object
+        """
+        return self._session.put(self._url(path, url_kwargs), **kwargs)
+
+    def patch(self, path=None, url_kwargs=None, **kwargs):
+        """
+        Sends a PUT request.
+
+        :param path:
+            A list of segments of the HTTP path.
+        :param url_kwargs:
+            Parameters to override in the generated URL. See `~hyperlink.URL`.
+        :param \*\*kwargs:
+            Optional arguments that ``request`` takes.
+        :return: response object
+        """
+        return self._session.patch(self._url(path, url_kwargs), **kwargs)
+
+    def delete(self, path=None, url_kwargs=None, **kwargs):
+        """
+        Sends a PUT request.
+
+        :param path:
+            A list of segments of the HTTP path.
+        :param url_kwargs:
+            Parameters to override in the generated URL. See `~hyperlink.URL`.
+        :param \*\*kwargs:
+            Optional arguments that ``request`` takes.
+        :return: response object
+        """
+        return self._session.delete(self._url(path, url_kwargs), **kwargs)

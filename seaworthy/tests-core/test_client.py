@@ -50,7 +50,7 @@ class TestContainerClient(unittest.TestCase):
         client = ContainerClient('127.0.0.1', '12345')
 
         responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
-        response = client.request('GET', [])
+        response = client.request('GET')
 
         self.assertEqual(response.status_code, 200)
 
@@ -81,6 +81,43 @@ class TestContainerClient(unittest.TestCase):
         [call] = responses.calls
         self.assertEqual(
             call.request.url, 'https://127.0.0.1:12345/baz?foo=bar#test')
+
+    @responses.activate
+    def test_methods(self):
+        """
+        When the HTTP method-specific methods are called, the correct request
+        method is used.
+        """
+        client = ContainerClient('127.0.0.1', '45678')
+
+        responses.add(responses.GET, 'http://127.0.0.1:45678/', status=200)
+        responses.add(
+            responses.OPTIONS, 'http://127.0.0.1:45678/foo', status=201)
+        responses.add(responses.HEAD, 'http://127.0.0.1:45678/bar', status=403)
+        responses.add(responses.POST, 'http://127.0.0.1:45678/baz', status=404)
+        responses.add(responses.PUT, 'http://127.0.0.1:45678/test', status=418)
+        responses.add(
+            responses.PATCH, 'http://127.0.0.1:45678/a/b/c', status=501)
+        responses.add(
+            responses.DELETE, 'http://127.0.0.1:45678/d/e/f', status=503)
+
+        get_response = client.get()
+        options_response = client.options(['foo'])
+        head_response = client.head(['bar'])
+        post_response = client.post(['baz'])
+        put_response = client.put(['test'])
+        patch_response = client.patch(['a', 'b', 'c'])
+        delete_response = client.delete(['d', 'e', 'f'])
+
+        self.assertEqual(get_response.status_code, 200)
+        self.assertEqual(options_response.status_code, 201)
+        self.assertEqual(head_response.status_code, 403)
+        self.assertEqual(post_response.status_code, 404)
+        self.assertEqual(put_response.status_code, 418)
+        self.assertEqual(patch_response.status_code, 501)
+        self.assertEqual(delete_response.status_code, 503)
+
+        self.assertEqual(len(responses.calls), 7)
 
     def test_session(self):
         """
