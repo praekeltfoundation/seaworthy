@@ -581,10 +581,10 @@ class TestWithRealContainer(unittest.TestCase, FakeAndRealContainerMixin):
             '    echo "Log entry ${n}"',
             'done',
         ])
-        logger = self.dh.create_container(
+        logger = self.dh.containers.create(
             'logger', IMG, command=['sh', '-c', script])
-        self.addCleanup(self.dh.stop_and_remove_container, logger)
-        self.dh.start_container(logger)
+        self.addCleanup(self.dh.containers.stop_and_remove, logger)
+        self.dh.containers.start(logger)
         return logger
 
     def wflm(self, con, matcher, timeout=0.5, **kw):

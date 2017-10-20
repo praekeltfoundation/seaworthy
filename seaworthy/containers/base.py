@@ -1,3 +1,5 @@
+import functools
+
 from seaworthy.logs import (
     RegexMatcher, UnorderedLinesMatcher, stream_logs, stream_with_history,
     wait_for_logs_matching)
@@ -20,10 +22,27 @@ def deep_merge(*dicts):
 
 
 class ContainerBase:
+    """
+    This is the base class for container definitions. Instances (and instances
+    of subclasses) are intended to be used both as test fixtures and as
+    convenient objects for operating on containers being tested.
+
+    TODO: Document this properly.
+
+    A container object may be used as a context manager to ensure proper setup
+    and teardown of the container around the code that uses it::
+
+        with ContainerBase('my_container', IMAGE, docker_helper=dh) as c:
+            assert c.status() == 'running'
+
+    (Note that this only works if the container has a docker_helper set and
+    does not have a container created.)
+    """
+
     WAIT_TIMEOUT = 10.0
 
     def __init__(self, name, image, wait_patterns=None, wait_timeout=None,
-                 create_kwargs=None):
+                 create_kwargs=None, docker_helper=None):
         """
         :param name:
             The name for the container. The actual name of the container is
@@ -50,9 +69,85 @@ class ContainerBase:
 
         self._create_kwargs = {} if create_kwargs is None else create_kwargs
 
+        self._docker_helper = docker_helper
         self._container = None
 
-    def create_and_start(self, docker_helper, pull=True, kwargs=None):
+    @property
+    def docker_helper(self):
+        if self._docker_helper is None:
+            raise RuntimeError('No docker_helper set.')
+        return self._docker_helper
+
+    def __enter__(self):
+        self.create_and_start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._teardown()
+
+    def _teardown(self):
+        """
+        Stop and remove the container if it exists.
+        """
+        if self._container is not None:
+            self.stop_and_remove()
+
+    def as_fixture(self, name=None):
+        """
+        A decorator to inject this container into a function as a test fixture.
+
+        The decorated function (or method) is wrapped in a helper that manages
+        the container's lifecycle and adds the container as a keyword argument
+        to the function when it's called.
+
+        The container must have a docker_helper set.
+
+        :param name: (optional) Set the name of the keyword argument used to
+            pass the container to the decorated function. By default, the
+            container's ``name`` attribute is used.
+
+        Example usage::
+
+            container = ContainerBase('container_name', IMAGE, docker_helper)
+            @container.as_fixture()
+            def test_something(container_name):
+                assert container_name.status() == 'running'
+        """
+        if name is None:
+            name = self.name
+
+        def deco(f):
+            @functools.wraps(f)
+            def wrapper(*args, **kw):
+                with self:
+                    kw[name] = self
+                    return f(*args, **kw)
+            return wrapper
+        return deco
+
+    def set_docker_helper(self, docker_helper):
+        if docker_helper is None:  # We don't want to "unset" in this method.
+            return
+        if docker_helper is self._docker_helper:  # We already have this one.
+            return
+        if self._docker_helper is None:
+            self._docker_helper = docker_helper
+        else:
+            raise RuntimeError('Cannot replace existing docker_helper.')
+
+    def status(self):
+        """
+        Get the container's current status from docker.
+
+        If the container does not exist (before creation and after removal),
+        the status is ``None``.
+        """
+        if self._container is None:
+            return None
+        self.inner().reload()
+        return self.inner().status
+
+    def create_and_start(self, docker_helper=None, pull=True, kwargs=None):
         """
         Create the container and start it, waiting for the expected log lines.
 
@@ -60,18 +155,19 @@ class ContainerBase:
             Whether or not to attempt to pull the image if the image tag is not
             known.
         """
+        self.set_docker_helper(docker_helper)
         if self._container is not None:
             raise RuntimeError('Container already created.')
 
         if pull:
-            docker_helper.pull_image_if_not_found(self.image)
+            self.docker_helper.pull_image_if_not_found(self.image)
 
         kwargs = {} if kwargs is None else kwargs
         kwargs = self.merge_kwargs(self._create_kwargs, kwargs)
 
-        self._container = docker_helper.create_container(
+        self._container = self.docker_helper.containers.create(
             self.name, self.image, **kwargs)
-        docker_helper.start_container(self._container)
+        self.docker_helper.containers.start(self._container)
 
         self.wait_for_start()
 
@@ -88,9 +184,9 @@ class ContainerBase:
             matcher = UnorderedLinesMatcher(*self.wait_matchers)
             self.wait_for_logs_matching(matcher, timeout=self.wait_timeout)
 
-    def stop_and_remove(self, docker_helper):
+    def stop_and_remove(self):
         """ Stop the container and remove it. """
-        docker_helper.stop_and_remove_container(self.inner())
+        self.docker_helper.containers.stop_and_remove(self.inner())
         self._container = None
 
     def inner(self):

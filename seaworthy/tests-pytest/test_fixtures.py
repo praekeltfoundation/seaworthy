@@ -36,7 +36,7 @@ class TestDockerHelperFixture:
 
         # Test we can create a container; if we can the helper must be set
         # up
-        container = helper.create_container('test', IMG)
+        container = helper.containers.create('test', IMG)
 
         # Test things are torn down
         with pytest.raises(StopIteration):

@@ -32,12 +32,12 @@ class TestDockerHelperFixture:
             import pytest
 
             def test_container_basics(docker_helper):
-                container = docker_helper.create_container('test', '{}')
-                docker_helper.start_container(container)
+                container = docker_helper.containers.create('test', '{}')
+                docker_helper.containers.start(container)
 
                 assert container.status == 'running'
 
-                docker_helper.stop_and_remove_container(container)
+                docker_helper.containers.stop_and_remove(container)
 
                 with pytest.raises(NotFound):
                     container.reload()
