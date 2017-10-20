@@ -2,6 +2,14 @@ import hyperlink
 import requests
 
 
+def _path_segments(path_str):
+    if path_str.startswith('/'):
+        path_str = path_str[1:]
+    if path_str.endswith('/'):
+        path_str = path_str[:-1]
+    return path_str.split('/')
+
+
 class ContainerHttpClient:
     URL_DEFAULTS = {'scheme': 'http'}
 
@@ -61,6 +69,8 @@ class ContainerHttpClient:
     def _url(self, path, kwargs):
         kwargs = kwargs if kwargs is not None else {}
         if path is not None:
+            if isinstance(path, str):
+                path = _path_segments(path)
             kwargs['path'] = path
         return self._base_url.replace(**kwargs).to_text()
 
@@ -71,7 +81,7 @@ class ContainerHttpClient:
         :param method:
             The HTTP method to use.
         :param list path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param dict url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param kwargs:
@@ -85,7 +95,7 @@ class ContainerHttpClient:
         Sends a GET request.
 
         :param path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param \*\*kwargs:
@@ -99,7 +109,7 @@ class ContainerHttpClient:
         Sends an OPTIONS request.
 
         :param path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param \*\*kwargs:
@@ -113,7 +123,7 @@ class ContainerHttpClient:
         Sends a HEAD request.
 
         :param path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param \*\*kwargs:
@@ -127,7 +137,7 @@ class ContainerHttpClient:
         Sends a POST request.
 
         :param path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param \*\*kwargs:
@@ -141,7 +151,7 @@ class ContainerHttpClient:
         Sends a PUT request.
 
         :param path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param \*\*kwargs:
@@ -155,7 +165,7 @@ class ContainerHttpClient:
         Sends a PUT request.
 
         :param path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param \*\*kwargs:
@@ -169,7 +179,7 @@ class ContainerHttpClient:
         Sends a PUT request.
 
         :param path:
-            A list of segments of the HTTP path.
+            The HTTP path as a string or list of path segments.
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
         :param \*\*kwargs:

@@ -81,6 +81,41 @@ class TestContainerHttpClient(unittest.TestCase):
             call.request.url, 'https://127.0.0.1:12345/baz?foo=bar#test')
 
     @responses.activate
+    def test_string_path(self):
+        """
+        When the request path is supplied as a string, the path is appended to
+        the URL correctly.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+
+        # Empty strings result in the root path
+        responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
+        client.request('GET', '')
+
+        [call] = responses.calls
+        self.assertEqual(call.request.url, 'http://127.0.0.1:12345/')
+
+        # Leading and trailing ``/``s are ignored
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/a/b/c', status=200)
+        client.request('GET', '/a/b/c/')
+        client.request('GET', '/a/b/c/')
+        client.request('GET', 'a/b/c/')
+        client.request('GET', 'a/b/c')
+
+        self.assertEqual(len(responses.calls[1:]), 4)
+        for call in responses.calls[1:]:
+            self.assertEqual(call.request.url, 'http://127.0.0.1:12345/a/b/c')
+
+        # Double ``/``s are not ignored
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345//a//b', status=200)
+        client.request('GET', '//a//b')
+
+        [call] = responses.calls[5:]
+        self.assertEqual(call.request.url, 'http://127.0.0.1:12345//a//b')
+
+    @responses.activate
     def test_methods(self):
         """
         When the HTTP method-specific methods are called, the correct request
