@@ -144,7 +144,8 @@ class ContainerBase:
         """
         if self._container is None:
             return None
-        return self.docker_helper.containers.status(self.inner())
+        self.inner().reload()
+        return self.inner().status
 
     def create_and_start(self, docker_helper=None, pull=True, kwargs=None):
         """
