@@ -29,15 +29,13 @@ class TestDockerHelper(unittest.TestCase):
         self.client = docker.client.from_env()
         self.addCleanup(self.client.api.close)
 
-    def make_helper(self, *args, setup=True, **kwargs):
+    def make_helper(self, *args, **kwargs):
         """
         Create and return a DockerHelper instance that will be cleaned up after
         the test.
         """
         dh = DockerHelper(*args, **kwargs)
         self.addCleanup(dh.teardown)
-        if setup:
-            dh.setup()
         return dh
 
     def list_networks(self, *args, namespace='test', **kw):
@@ -97,8 +95,7 @@ class TestDockerHelper(unittest.TestCase):
 
     def test_teardown_safe(self):
         """
-        DockerHelper.teardown() is safe to call multiple times, both before and
-        after setup.
+        DockerHelper.teardown() is safe to call multiple times.
 
         There are no assertions here. We only care that calling teardown never
         raises any exceptions.
@@ -106,12 +103,6 @@ class TestDockerHelper(unittest.TestCase):
         dh = self.make_helper(setup=False)
         # These should silently do nothing.
         dh.teardown()
-        dh.teardown()
-        # Run setup so we have something to tear down.
-        dh.setup()
-        # This should do the teardown.
-        dh.teardown()
-        # This should silently do nothing.
         dh.teardown()
 
     def test_teardown_containers(self):

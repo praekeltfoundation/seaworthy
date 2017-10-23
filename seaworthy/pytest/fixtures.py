@@ -25,7 +25,6 @@ def docker_helper_fixture(name='docker_helper', scope='module'):
         if 'PYTEST_XDIST_WORKER' in os.environ:
             prefix = '{}_{}'.format(prefix, os.environ['PYTEST_XDIST_WORKER'])
         docker_helper = DockerHelper(prefix)
-        docker_helper.setup()
         yield docker_helper
         docker_helper.teardown()
     return fixture

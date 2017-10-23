@@ -38,7 +38,6 @@ class TestContainerHttpClient(unittest.TestCase):
     def make_helper(self):
         dh = DockerHelper()
         self.addCleanup(dh.teardown)
-        dh.setup()
         return dh
 
     @responses.activate

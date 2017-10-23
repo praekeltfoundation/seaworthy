@@ -12,7 +12,6 @@ from seaworthy.pytest import dockertest
 @pytest.fixture(scope='class')
 def docker_helper():
     docker_helper = DockerHelper()
-    docker_helper.setup()
     yield docker_helper
     docker_helper.teardown()
 

@@ -326,9 +326,6 @@ class DockerHelper:
         self.containers = ContainerHelper(
             client, namespace, self.networks, self.volumes)
 
-    def setup(self):
-        pass
-
     def teardown(self):
         self.containers._teardown()
         self.networks._teardown()
