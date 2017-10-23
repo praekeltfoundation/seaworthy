@@ -326,9 +326,6 @@ class DockerHelper:
         self.containers = ContainerHelper(
             client, namespace, self.networks, self.volumes)
 
-    def _resource_name(self, name):
-        return '{}_{}'.format(self._namespace, name)
-
     def setup(self):
         pass
 
