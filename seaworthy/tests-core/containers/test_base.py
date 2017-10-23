@@ -378,8 +378,8 @@ class TestContainerBase(unittest.TestCase):
 
         earlier = before
         for line, expected in zip(raw_lines, [b'o0', b'e0', b'o1', b'e1']):
-            ts, l = line.split(b' ', 1)
-            self.assertEqual(l, expected)
+            ts, ln = line.split(b' ', 1)
+            self.assertEqual(ln, expected)
             # Truncate the nanoseconds, because we can't parse them.
             ts = (ts[:26] + ts[-1:]).decode('utf8')
             ts = datetime.strptime(ts, '%Y-%m-%dT%H:%M:%S.%fZ')
