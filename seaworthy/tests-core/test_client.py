@@ -70,7 +70,7 @@ class TestContainerHttpClient(unittest.TestCase):
         })
 
         responses.add(responses.GET, 'https://127.0.0.1:12345/baz', status=200)
-        response = client.request('GET', ['baz'], url_kwargs={
+        response = client.request('GET', '/baz', url_kwargs={
             'query': (('foo', 'bar'),),
         })
 
@@ -79,6 +79,73 @@ class TestContainerHttpClient(unittest.TestCase):
         [call] = responses.calls
         self.assertEqual(
             call.request.url, 'https://127.0.0.1:12345/baz?foo=bar#test')
+
+    @responses.activate
+    def test_paths(self):
+        """
+        The path is appended to the URL correctly with various leading or
+        trailing ``/`` characters.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+
+        # Root path
+        responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
+        client.request('GET', '')  # Requests adds a trailing /
+        client.request('GET', '/')
+
+        self.assertEqual(
+            responses.calls[0].request.url, 'http://127.0.0.1:12345/')
+        self.assertEqual(
+            responses.calls[1].request.url, 'http://127.0.0.1:12345/')
+
+        # Leading slashes are ignored
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/a/b/c', status=200)
+        client.request('GET', '/a/b/c')
+        client.request('GET', 'a/b/c')
+
+        self.assertEqual(
+            responses.calls[2].request.url, 'http://127.0.0.1:12345/a/b/c')
+        self.assertEqual(
+            responses.calls[3].request.url, 'http://127.0.0.1:12345/a/b/c')
+
+        # Trailing slashes are respected
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/a/b/c/', status=200)
+        client.request('GET', '/a/b/c/')
+
+        self.assertEqual(
+            responses.calls[4].request.url, 'http://127.0.0.1:12345/a/b/c/')
+
+        # Double slashes are not ignored
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345//a//b', status=200)
+        client.request('GET', '//a//b')
+
+        self.assertEqual(
+            responses.calls[5].request.url, 'http://127.0.0.1:12345//a//b')
+
+    @responses.activate
+    def test_relative_paths(self):
+        """
+        The path can be specified as a relative or absolute path.
+        """
+        client = ContainerHttpClient(
+            '127.0.0.1', '12345', url_defaults={'path': ['foo']})
+
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/foo/bar/baz', status=200)
+        client.request('GET', 'bar/baz')
+
+        self.assertEqual(responses.calls[0].request.url,
+                         'http://127.0.0.1:12345/foo/bar/baz')
+
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/foobar', status=200)
+        client.request('GET', '/foobar')
+
+        self.assertEqual(responses.calls[1].request.url,
+                         'http://127.0.0.1:12345/foobar')
 
     @responses.activate
     def test_methods(self):
@@ -100,12 +167,12 @@ class TestContainerHttpClient(unittest.TestCase):
             responses.DELETE, 'http://127.0.0.1:45678/d/e/f', status=503)
 
         get_response = client.get()
-        options_response = client.options(['foo'])
-        head_response = client.head(['bar'])
-        post_response = client.post(['baz'])
-        put_response = client.put(['test'])
-        patch_response = client.patch(['a', 'b', 'c'])
-        delete_response = client.delete(['d', 'e', 'f'])
+        options_response = client.options('/foo')
+        head_response = client.head('/bar')
+        post_response = client.post('/baz')
+        put_response = client.put('/test')
+        patch_response = client.patch('/a/b/c')
+        delete_response = client.delete('/d/e/f')
 
         self.assertEqual(get_response.status_code, 200)
         self.assertEqual(options_response.status_code, 201)
@@ -125,8 +192,8 @@ class TestContainerHttpClient(unittest.TestCase):
         session = DummySession()
         client = ContainerHttpClient('127.0.0.1', '12345', session=session)
 
-        client.request('GET', ['foo'])
-        client.request('POST', ['bar'])
+        client.request('GET', '/foo')
+        client.request('POST', '/bar')
         self.assertEqual(session.requests, [
             (('GET', 'http://127.0.0.1:12345/foo'), {}),
             (('POST', 'http://127.0.0.1:12345/bar'), {}),
@@ -145,7 +212,7 @@ class TestContainerHttpClient(unittest.TestCase):
         client = ContainerHttpClient('127.0.0.1', '12345', session=session)
 
         with client:
-            client.request('GET', ['foo'])
+            client.request('GET', '/foo')
             self.assertEqual(session.requests, [
                 (('GET', 'http://127.0.0.1:12345/foo'), {}),
             ])
@@ -169,7 +236,7 @@ class TestContainerHttpClient(unittest.TestCase):
         client = ContainerHttpClient.for_container(container)
         self.addCleanup(client.close)
 
-        response = client.request('GET', ['foo'])
+        response = client.request('GET', '/foo')
 
         self.assertEqual(response.status_code, 200)
         response_lines = response.text.splitlines()
@@ -198,7 +265,7 @@ class TestContainerHttpClient(unittest.TestCase):
             container, container_port='8080')
         self.addCleanup(client.close)
 
-        response = client.request('GET', ['foo'])
+        response = client.request('GET', '/foo')
 
         self.assertEqual(response.status_code, 200)
         response_lines = response.text.splitlines()
