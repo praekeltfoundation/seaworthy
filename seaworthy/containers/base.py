@@ -71,6 +71,7 @@ class ContainerBase:
 
         self._docker_helper = docker_helper
         self._container = None
+        self._http_clients = []
 
     @property
     def docker_helper(self):
@@ -89,6 +90,8 @@ class ContainerBase:
         """
         Stop and remove the container if it exists.
         """
+        while self._http_clients:
+            self._http_clients.pop().close()
         if self._container is not None:
             self.stop_and_remove()
 
@@ -289,3 +292,13 @@ class ContainerBase:
         wait_for_logs_matching(
             self.inner(), matcher, timeout=timeout, encoding=encoding,
             **logs_kwargs)
+
+    def http_client(self, port=None):
+        """
+        Construct an HTTP client for this container.
+        """
+        # Local import to avoid potential circularity.
+        from seaworthy.client import ContainerHttpClient
+        client = ContainerHttpClient.for_container(self, container_port=port)
+        self._http_clients.append(client)
+        return client
