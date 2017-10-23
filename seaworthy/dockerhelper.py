@@ -315,11 +315,11 @@ class VolumesHelper(HelperBase):
 
 
 class DockerHelper:
-    def __init__(self, client=None, namespace='test'):
+    def __init__(self, namespace='test', client=None):
+        self._namespace = namespace
         if client is None:
             client = docker.client.from_env()
         self._client = client
-        self._namespace = namespace
 
         self.networks = NetworksHelper(client, namespace)
         self.volumes = VolumesHelper(client, namespace)
