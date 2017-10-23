@@ -321,10 +321,10 @@ class DockerHelper:
             client = docker.client.from_env()
         self._client = client
 
-        self.networks = NetworksHelper(client, namespace)
-        self.volumes = VolumesHelper(client, namespace)
+        self.networks = NetworksHelper(self._client, namespace)
+        self.volumes = VolumesHelper(self._client, namespace)
         self.containers = ContainerHelper(
-            client, namespace, self.networks, self.volumes)
+            self._client, namespace, self.networks, self.volumes)
 
     def teardown(self):
         self.containers._teardown()

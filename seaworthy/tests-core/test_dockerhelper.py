@@ -50,6 +50,16 @@ class TestDockerHelper(unittest.TestCase):
         return filter_by_name(
             self.client.volumes.list(*args, **kw), '{}_'.format(namespace))
 
+    def test_custom_client(self):
+        """
+        When the DockerHelper is created with a custom client, that client is
+        used.
+        """
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+        dh = self.make_helper(client=client)
+
+        self.assertIs(dh._client, client)
+
     def test_default_network_lifecycle(self):
         """
         The default network can only be created once and is removed during
