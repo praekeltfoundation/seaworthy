@@ -135,14 +135,14 @@ class ContainerHelper(HelperBase):
         }
 
         # Convert network & volume models to IDs
-        network = self._get_container_network(network, kwargs)
+        network = self._network_for_container(network, kwargs)
         if network is not None:
             network_id, network = (
                 self._networks_helper._get_id_and_model(network))
             create_kwargs['network'] = network_id
 
         if volumes:
-            create_kwargs['volumes'] = self._get_container_volumes(volumes)
+            create_kwargs['volumes'] = self._volumes_for_container(volumes)
 
         create_kwargs.update(kwargs)
 
@@ -153,7 +153,7 @@ class ContainerHelper(HelperBase):
 
         return container
 
-    def _get_container_network(self, network, create_kwargs):
+    def _network_for_container(self, network, create_kwargs):
         # If a network is specified use that
         if network is not None:
             return network
@@ -167,7 +167,7 @@ class ContainerHelper(HelperBase):
         # Else, use the default network
         return self._networks_helper.get_default()
 
-    def _get_container_volumes(self, volumes):
+    def _volumes_for_container(self, volumes):
         create_volumes = {}
         for vol, opts in volumes.items():
             try:
