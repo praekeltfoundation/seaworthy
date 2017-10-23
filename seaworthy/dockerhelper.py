@@ -26,26 +26,6 @@ def fetch_image(client, name):
     return image
 
 
-def _get_id_and_model(id_or_model, model_collection):
-    """
-    Get both the model and ID of an object that could be an ID or a model.
-    :param id_or_model:
-        The object that could be an ID string or a model object.
-    :param model_collection:
-        The collection to which the model belongs.
-    """
-    if isinstance(id_or_model, model_collection.model):
-        model = id_or_model
-    elif isinstance(id_or_model, str):
-        # Assume we have an ID string
-        model = model_collection.get(id_or_model)
-    else:
-        raise ValueError('Unexpected type {}, expected {} or {}'.format(
-            type(id_or_model), str, model_collection.model))
-
-    return model.id, model
-
-
 def _parse_volume_short_form(short_form):
     parts = short_form.split(':', 1)
     bind = parts[0]
@@ -53,26 +33,73 @@ def _parse_volume_short_form(short_form):
     return {'bind': bind, 'mode': mode}
 
 
-class DockerHelperContainers:
-    def __init__(self, docker_helper):
-        self.dh = docker_helper
+class HelperBase:
+    def __init__(self, collection, namespace):
+        self.collection = collection
+        self.namespace = namespace
+
+        self._resource_type = self.collection.model.__name__.lower()
         self._ids = set()
 
+    def _resource_name(self, name):
+        return '{}_{}'.format(self.namespace, name)
+
+    def _get_id_and_model(self, id_or_model):
+        """
+        Get both the model and ID of an object that could be an ID or a model.
+        :param id_or_model:
+            The object that could be an ID string or a model object.
+        :param model_collection:
+            The collection to which the model belongs.
+        """
+        if isinstance(id_or_model, self.collection.model):
+            model = id_or_model
+        elif isinstance(id_or_model, str):
+            # Assume we have an ID string
+            model = self.collection.get(id_or_model)
+        else:
+            raise ValueError('Unexpected type {}, expected {} or {}'.format(
+                type(id_or_model), str, self.collection.model))
+
+        return model.id, model
+
+    def create(self, name, *args, **kwargs):
+        resource_name = self._resource_name(name)
+        log.info(
+            "Creating {} '{}'...".format(self._resource_type, resource_name))
+        resource = self.collection.create(*args, name=resource_name, **kwargs)
+        self._ids.add(resource.id)
+        return resource
+
+    def remove(self, resource, **kwargs):
+        log.info(
+            "Removing {} '{}'...".format(self._resource_type, resource.name))
+        resource.remove(**kwargs)
+        self._ids.remove(resource.id)
+
     def _teardown(self):
-        # Remove all containers
-        for container_id in self._ids.copy():
-            # Check if the container exists before trying to remove it
+        for resource_id in self._ids.copy():
+            # Check if the network exists before trying to remove it
             try:
-                container = self.dh._client.containers.get(container_id)
+                resource = self.collection.get(resource_id)
             except docker.errors.NotFound:
                 continue
 
-            log.warning("Container '{}' still existed during teardown".format(
-                container.name))
+            log.warning("{} '{}' still existed during teardown".format(
+                self._resource_type.title(), resource.name))
 
-            if container.status == 'running':
-                self.stop(container)
-            self.remove(container)
+            self._teardown_remove(resource)
+
+    def _teardown_remove(self, resource):
+        # Override in subclass for different removal behaviour on teardown
+        self.remove(resource)
+
+
+class ContainerHelper(HelperBase):
+    def __init__(self, client, namespace, networks_helper, volumes_helper):
+        super().__init__(client.containers, namespace)
+        self._networks_helper = networks_helper
+        self._volumes_helper = volumes_helper
 
     def create(self, name, image, network=None, volumes={}, **kwargs):
         """
@@ -103,37 +130,79 @@ class DockerHelperContainers:
         :param kwargs:
             Other parameters to create the container with.
         """
-        container_name = self.dh._resource_name(name)
-        log.info("Creating container '{}'...".format(container_name))
-
         create_kwargs = {
-            'name': container_name,
             'detach': True,
         }
 
         # Convert network & volume models to IDs
-        network = self.dh._get_container_network(network, kwargs)
+        network = self._get_container_network(network, kwargs)
         if network is not None:
-            network_id, network = _get_id_and_model(
-                network, self.dh._client.networks)
+            network_id, network = (
+                self._networks_helper._get_id_and_model(network))
             create_kwargs['network'] = network_id
 
         if volumes:
-            create_kwargs['volumes'] = self.dh._get_container_volumes(volumes)
+            create_kwargs['volumes'] = self._get_container_volumes(volumes)
 
         create_kwargs.update(kwargs)
 
-        container = self.dh._client.containers.create(image, **create_kwargs)
+        container = super().create(name, image, **create_kwargs)
 
         if network is not None:
-            self.dh._connect_container_network(
-                container, network, aliases=[name])
-
-        # Keep a reference to created containers to make sure they are cleaned
-        # up
-        self._ids.add(container.id)
+            self._connect_container_network(container, network, aliases=[name])
 
         return container
+
+    def _get_container_network(self, network, create_kwargs):
+        # If a network is specified use that
+        if network is not None:
+            return network
+
+        # If 'network_mode' is used or networking is disabled, don't handle
+        # networking.
+        if (create_kwargs.get('network_mode') is not None or
+                create_kwargs.get('network_disabled', False)):
+            return None
+
+        # Else, use the default network
+        return self._networks_helper.get_default()
+
+    def _get_container_volumes(self, volumes):
+        create_volumes = {}
+        for vol, opts in volumes.items():
+            try:
+                vol_id, _ = self._volumes_helper._get_id_and_model(vol)
+            except docker.errors.NotFound:
+                # Assume this is a bind if we can't find the ID
+                vol_id = vol
+
+            if vol_id in create_volumes:
+                raise ValueError(
+                    "Volume '{}' specified more than once".format(vol_id))
+
+            # Short form of opts
+            if isinstance(opts, str):
+                opts = _parse_volume_short_form(opts)
+            # Else assume long form
+
+            create_volumes[vol_id] = opts
+        return create_volumes
+
+    def _connect_container_network(self, container, network, **connect_kwargs):
+        # FIXME: Hack to make sure the container has the right network aliases.
+        # Only the low-level Docker client API allows us to specify endpoint
+        # aliases at container creation time:
+        # https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_container
+        # If we don't specify a network when the container is created then the
+        # default bridge network is attached which we don't want, so we
+        # reattach our custom network as that allows specifying aliases.
+        network.disconnect(container)
+        network.connect(container, **connect_kwargs)
+        # Reload the container data to get the new network setup
+        container.reload()
+        # We could also reload the network data to update the containers that
+        # are connected to it but that listing doesn't include containers that
+        # have been created and connected but not yet started. :-/
 
     def status(self, container):
         container.reload()
@@ -170,40 +239,31 @@ class DockerHelperContainers:
             True, unlike the Docker default (where the equivalent parameter,
             ``v``, defaults to False).
         """
-        log.info("Removing container '{}'...".format(container.name))
-        container.remove(force=force, v=volumes)
-
-        self._ids.remove(container.id)
+        super().remove(container, force=force, v=volumes)
 
     def stop_and_remove(self, container, stop_timeout=5, remove_force=True):
         self.stop(container, timeout=stop_timeout)
         self.remove(container, force=remove_force)
 
+    def _teardown_remove(self, container):
+        if container.status == 'running':
+            self.stop(container)
+        self.remove(container)
 
-class DockerHelperNetworks:
-    def __init__(self, docker_helper):
-        self.dh = docker_helper
-        self._ids = set()
+
+class NetworksHelper(HelperBase):
+    def __init__(self, client, namespace):
+        super().__init__(client.networks, namespace)
         self._default_network = None
 
     def _teardown(self):
         # Remove the default network
         if self._default_network is not None:
-            self._default_network.remove()
+            self.remove(self._default_network)
             self._default_network = None
 
         # Remove all other networks
-        for network_id in self._ids.copy():
-            # Check if the network exists before trying to remove it
-            try:
-                network = self.dh._client.networks.get(network_id)
-            except docker.errors.NotFound:
-                continue
-
-            log.warning("Network '{}' still existed during teardown".format(
-                network.name))
-
-            self.remove(network)
+        super()._teardown()
 
     def get_default(self, create=True):
         """
@@ -235,39 +295,12 @@ class DockerHelperNetworks:
         :param kwargs:
             Other parameters to create the network with.
         """
-        network_name = self.dh._resource_name(name)
-        log.info("Creating network '{}'...".format(network_name))
-
-        network = self.dh._client.networks.create(
-            name=network_name, check_duplicate=check_duplicate, **kwargs)
-        self._ids.add(network.id)
-        return network
-
-    def remove(self, network):
-        log.info("Removing network '{}'...".format(network.name))
-        network.remove()
-
-        self._ids.remove(network.id)
+        return super().create(name, check_duplicate=check_duplicate, **kwargs)
 
 
-class DockerHelperVolumes:
-    def __init__(self, docker_helper):
-        self.dh = docker_helper
-        self._ids = set()
-
-    def _teardown(self):
-        # Remove all volumes
-        for volume_id in self._ids.copy():
-            # Check if the volume exists before trying to remove it
-            try:
-                volume = self.dh._client.volumes.get(volume_id)
-            except docker.errors.NotFound:
-                continue
-
-            log.warning("Volume '{}' still existed during teardown".format(
-                volume.name))
-
-            self.remove(volume)
+class VolumesHelper(HelperBase):
+    def __init__(self, client, namespace):
+        super().__init__(client.volumes, namespace)
 
     def create(self, name, **kwargs):
         """
@@ -278,39 +311,28 @@ class DockerHelperVolumes:
         :param kwargs:
             Other parameters to create the volume with.
         """
-        volume_name = self.dh._resource_name(name)
-        log.info("Creating volume '{}'...".format(volume_name))
-
-        volume = self.dh._client.volumes.create(name=volume_name, **kwargs)
-        self._ids.add(volume.id)
-        return volume
-
-    def remove(self, volume, force=False):
-        log.info("Removing volume '{}'...".format(volume.name))
-        volume.remove(force=force)
-
-        self._ids.remove(volume.id)
+        return super().create(name, **kwargs)
 
 
 class DockerHelper:
-    def __init__(self, namespace='test'):
+    def __init__(self, client=None, namespace='test'):
+        if client is None:
+            client = docker.client.from_env()
+        self._client = client
         self._namespace = namespace
-        self._client = None
 
-        self.containers = DockerHelperContainers(self)
-        self.networks = DockerHelperNetworks(self)
-        self.volumes = DockerHelperVolumes(self)
+        self.networks = NetworksHelper(client, namespace)
+        self.volumes = VolumesHelper(client, namespace)
+        self.containers = ContainerHelper(
+            client, namespace, self.networks, self.volumes)
 
     def _resource_name(self, name):
         return '{}_{}'.format(self._namespace, name)
 
     def setup(self):
-        self._client = docker.client.from_env()
+        pass
 
     def teardown(self):
-        if self._client is None:
-            return
-
         self.containers._teardown()
         self.networks._teardown()
         self.volumes._teardown()
@@ -318,58 +340,6 @@ class DockerHelper:
         # We need to close the underlying APIClient explicitly to avoid
         # ResourceWarnings from unclosed HTTP connections.
         self._client.api.close()
-        self._client = None
-
-    def _get_container_network(self, network, create_kwargs):
-        # If a network is specified use that
-        if network is not None:
-            return network
-
-        # If 'network_mode' is used or networking is disabled, don't handle
-        # networking.
-        if (create_kwargs.get('network_mode') is not None or
-                create_kwargs.get('network_disabled', False)):
-            return None
-
-        # Else, use the default network
-        return self.networks.get_default()
-
-    def _get_container_volumes(self, volumes):
-        create_volumes = {}
-        for vol, opts in volumes.items():
-            try:
-                vol_id, _ = _get_id_and_model(vol, self._client.volumes)
-            except docker.errors.NotFound:
-                # Assume this is a bind if we can't find the ID
-                vol_id = vol
-
-            if vol_id in create_volumes:
-                raise ValueError(
-                    "Volume '{}' specified more than once".format(vol_id))
-
-            # Short form of opts
-            if isinstance(opts, str):
-                opts = _parse_volume_short_form(opts)
-            # Else assume long form
-
-            create_volumes[vol_id] = opts
-        return create_volumes
-
-    def _connect_container_network(self, container, network, **connect_kwargs):
-        # FIXME: Hack to make sure the container has the right network aliases.
-        # Only the low-level Docker client API allows us to specify endpoint
-        # aliases at container creation time:
-        # https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_container
-        # If we don't specify a network when the container is created then the
-        # default bridge network is attached which we don't want, so we
-        # reattach our custom network as that allows specifying aliases.
-        network.disconnect(container)
-        network.connect(container, **connect_kwargs)
-        # Reload the container data to get the new network setup
-        container.reload()
-        # We could also reload the network data to update the containers that
-        # are connected to it but that listing doesn't include containers that
-        # have been created and connected but not yet started. :-/
 
     def pull_image_if_not_found(self, image):
         return fetch_image(self._client, image)
