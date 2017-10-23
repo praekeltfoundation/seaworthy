@@ -79,7 +79,7 @@ class HelperBase:
 
     def _teardown(self):
         for resource_id in self._ids.copy():
-            # Check if the network exists before trying to remove it
+            # Check if the resource exists before trying to remove it
             try:
                 resource = self.collection.get(resource_id)
             except docker.errors.NotFound:
