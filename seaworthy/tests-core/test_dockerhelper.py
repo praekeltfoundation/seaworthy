@@ -110,7 +110,7 @@ class TestDockerHelper(unittest.TestCase):
         There are no assertions here. We only care that calling teardown never
         raises any exceptions.
         """
-        dh = self.make_helper(setup=False)
+        dh = self.make_helper()
         # These should silently do nothing.
         dh.teardown()
         dh.teardown()
