@@ -562,3 +562,20 @@ class TestContainerBase(unittest.TestCase):
         foo()
         self.assertEqual(self.base.status(), None)
         self.assertEqual(closure_state, [1])
+
+    def test_http_client(self):
+        """
+        We can get an HTTP client from the container object.
+        """
+        self.assertEqual(self.base._http_clients, [])
+        self.base._create_kwargs = {
+            'ports': {'8000/tcp': ('127.0.0.1', '10701')},
+        }
+        with self.base as base:
+            client = base.http_client()
+            self.assertEqual(
+                client._base_url.to_text(), 'http://127.0.0.1:10701')
+            # Client is stashed for cleanup.
+            self.assertEqual(self.base._http_clients, [client])
+        # Client is cleaned up at the end.
+        self.assertEqual(self.base._http_clients, [])
