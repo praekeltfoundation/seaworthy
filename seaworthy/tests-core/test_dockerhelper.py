@@ -391,7 +391,7 @@ class TestDockerHelper(unittest.TestCase):
         """
         dh = self.make_helper()
 
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
             dh.containers.create('invalid_type', IMG, network=42)
 
         self.assertEqual(
@@ -506,7 +506,7 @@ class TestDockerHelper(unittest.TestCase):
         """
         dh = self.make_helper()
 
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
             dh.containers.create(
                 'invalid_type', IMG,
                 volumes={42: {'bind': '/vol', 'mode': 'rw'}})

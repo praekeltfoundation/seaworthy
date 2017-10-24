@@ -58,7 +58,7 @@ class HelperBase:
             # Assume we have an ID string
             model = self.collection.get(id_or_model)
         else:
-            raise ValueError('Unexpected type {}, expected {} or {}'.format(
+            raise TypeError('Unexpected type {}, expected {} or {}'.format(
                 type(id_or_model), str, self.collection.model))
 
         return model.id, model
