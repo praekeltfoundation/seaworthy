@@ -274,7 +274,7 @@ class ImageHelper:
         return image
 
 
-class NetworksHelper(HelperBase):
+class NetworkHelper(HelperBase):
     def __init__(self, client, namespace):
         super().__init__(client.networks, namespace)
         self._default_network = None
@@ -321,7 +321,7 @@ class NetworksHelper(HelperBase):
         return super().create(name, check_duplicate=check_duplicate, **kwargs)
 
 
-class VolumesHelper(HelperBase):
+class VolumeHelper(HelperBase):
     def __init__(self, client, namespace):
         super().__init__(client.volumes, namespace)
 
@@ -345,8 +345,8 @@ class DockerHelper:
         self._client = client
 
         self.images = ImageHelper(self._client)
-        self.networks = NetworksHelper(self._client, namespace)
-        self.volumes = VolumesHelper(self._client, namespace)
+        self.networks = NetworkHelper(self._client, namespace)
+        self.volumes = VolumeHelper(self._client, namespace)
         self.containers = ContainerHelper(
             self._client, namespace, self.images, self.networks, self.volumes)
 
