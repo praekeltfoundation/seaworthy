@@ -160,6 +160,22 @@ class TestContainerBase(unittest.TestCase):
             't': 'baz',
         })
 
+    def test_merge_kwargs_with_base(self):
+        """
+        The default merge_kwargs() method deep-merges the two kwargs dicts
+        passed to it on top of the output of base_kwargs().
+        """
+        self.base.base_kwargs = lambda: {'a': {'aa': 0, 'bb': 6}, 'b': 'base'}
+        create_kwargs = {'a': {'aa': 1, 'ab': 2}, 's': 'foo', 't': 'bar'}
+        kwargs = {'a': {'ba': 3, 'ab': 4}, 'r': 'arr', 't': 'baz'}
+        self.assertEqual(self.base.merge_kwargs(create_kwargs, kwargs), {
+            'a': {'aa': 1, 'ab': 4, 'ba': 3, 'bb': 6},
+            'b': 'base',
+            'r': 'arr',
+            's': 'foo',
+            't': 'baz',
+        })
+
     def test_merge_kwargs_dicts_only(self):
         """
         The kwargs we merge must be dicts.

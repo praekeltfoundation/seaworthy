@@ -1,5 +1,5 @@
 from seaworthy.logs import output_lines
-from .base import ContainerBase, deep_merge
+from .base import ContainerBase
 
 
 class PostgreSQLContainer(ContainerBase):
@@ -34,8 +34,8 @@ class PostgreSQLContainer(ContainerBase):
         self.user = user
         self.password = password
 
-    def merge_kwargs(self, default_kwargs, kwargs):
-        base_kwargs = {
+    def base_kwargs(self):
+        return {
             'environment': {
                 'POSTGRES_DB': self.database,
                 'POSTGRES_USER': self.user,
@@ -43,7 +43,6 @@ class PostgreSQLContainer(ContainerBase):
             },
             'tmpfs': {'/var/lib/postgresql/data': 'uid=70,gid=70'},
         }
-        return deep_merge(base_kwargs, default_kwargs, kwargs)
 
     def clean(self):
         container = self.inner()

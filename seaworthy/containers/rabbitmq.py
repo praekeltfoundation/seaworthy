@@ -1,5 +1,5 @@
 from seaworthy.logs import output_lines
-from .base import ContainerBase, deep_merge
+from .base import ContainerBase
 
 
 def _parse_rabbitmq_user(user_line):
@@ -40,8 +40,8 @@ class RabbitMQContainer(ContainerBase):
         self.user = user
         self.password = password
 
-    def merge_kwargs(self, default_kwargs, kwargs):
-        base_kwargs = {
+    def base_kwargs(self):
+        return {
             'environment': {
                 'RABBITMQ_DEFAULT_VHOST': self.vhost,
                 'RABBITMQ_DEFAULT_USER': self.user,
@@ -49,7 +49,6 @@ class RabbitMQContainer(ContainerBase):
             },
             'tmpfs': {'/var/lib/rabbitmq': 'uid=100,gid=101'},
         }
-        return deep_merge(base_kwargs, default_kwargs, kwargs)
 
     def clean(self):
         reset_erl = 'rabbit:stop(), rabbit_mnesia:reset(), rabbit:start().'
