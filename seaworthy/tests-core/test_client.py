@@ -38,7 +38,7 @@ class TestContainerHttpClient(unittest.TestCase):
     def make_helper(self):
         dh = DockerHelper()
         self.addCleanup(dh.teardown)
-        return dh
+        return dh.containers
 
     @responses.activate
     def test_defaults(self):
@@ -225,10 +225,10 @@ class TestContainerHttpClient(unittest.TestCase):
         connects to the container's first port when a specific port is not
         specified.
         """
-        dh = self.make_helper()
+        ch = self.make_helper()
         container = ContainerBase('first_port', IMG, create_kwargs={
             'ports': {'8080/tcp': ('127.0.0.1', None)}
-        }, docker_helper=dh)
+        }, container_helper=ch)
         container.create_and_start()
         self.addCleanup(container.stop_and_remove)
 
@@ -250,13 +250,13 @@ class TestContainerHttpClient(unittest.TestCase):
         The ``for_container()`` class method returns a container client that
         connects to the container port specified.
         """
-        dh = self.make_helper()
+        ch = self.make_helper()
         container = ContainerBase('first_port', IMG, create_kwargs={
             'ports': {
                 '8080/tcp': ('127.0.0.1', None),
                 '5353/udp': ('127.0.0.1', None),
             }
-        }, docker_helper=dh)
+        }, container_helper=ch)
         container.create_and_start()
         self.addCleanup(container.stop_and_remove)
 

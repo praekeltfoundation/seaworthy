@@ -835,38 +835,6 @@ class TestDockerHelper(unittest.TestCase):
         # The volume still exists: we can fetch it
         vol_removed.reload()
 
-    def test_pull_image_if_not_found(self):
-        """
-        We check if the image is already present and pull it if necessary.
-        """
-        dh = self.make_helper()
-
-        # First, remove the image if it's already present. (We use the busybox
-        # image for this test because it's the smallest I can find that is
-        # likely to be reliably available.)
-        try:
-            self.client.images.get('busybox:latest')
-        except docker.errors.ImageNotFound:  # pragma: no cover
-            pass
-        else:
-            self.client.images.remove('busybox:latest')  # pragma: no cover
-
-        # Pull the image, which we now know we don't have.
-        with self.assertLogs('seaworthy', level='INFO') as cm:
-            dh.pull_image_if_not_found('busybox:latest')
-        self.assertEqual(
-            [l.getMessage() for l in cm.records],
-            ["Pulling tag 'busybox:latest'..."])
-
-        # Pull the image again, now that we know it's present.
-        with self.assertLogs('seaworthy', level='DEBUG') as cm:
-            dh.pull_image_if_not_found('busybox:latest')
-        logs = [l.getMessage() for l in cm.records]
-        self.assertEqual(len(logs), 1)
-        self.assertRegex(
-            logs[0],
-            r"Found image 'sha256:[a-f0-9]{64}' for tag 'busybox:latest'")
-
     def test_namespace(self):
         """
         When the helper has its default namespace, the default network and all

@@ -10,9 +10,9 @@ from seaworthy.pytest import dockertest
 
 
 @pytest.fixture(scope='class')
-def docker_helper():
+def container_helper():
     docker_helper = DockerHelper()
-    yield docker_helper
+    yield docker_helper.containers
     docker_helper.teardown()
 
 
@@ -20,9 +20,9 @@ def docker_helper():
 class TestPostgreSQLContainer:
     @classmethod
     @pytest.fixture(scope='class')
-    def postgresql(cls, docker_helper):
+    def postgresql(cls, container_helper):
         container = PostgreSQLContainer()
-        container.create_and_start(docker_helper)
+        container.create_and_start(container_helper)
         yield container
         container.stop_and_remove()
 
@@ -89,10 +89,10 @@ class TestPostgreSQLContainer:
 class TestRabbitMQContainer:
     @classmethod
     @pytest.fixture(scope='class')
-    def rabbitmq(cls, docker_helper):
+    def rabbitmq(cls, container_helper):
         container = RabbitMQContainer()
         container._management_available = False
-        container.create_and_start(docker_helper)
+        container.create_and_start(container_helper)
         yield container
         container.stop_and_remove()
 

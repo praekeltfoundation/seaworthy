@@ -42,12 +42,12 @@ def image_pull_fixture(image, name, scope='module'):
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture(docker_helper):
-        return docker_helper.pull_image_if_not_found(image)
+        return docker_helper.images.fetch(image)
     return fixture
 
 
 def wrap_container_fixture(container, docker_helper):
-    container.create_and_start(docker_helper)
+    container.create_and_start(docker_helper.containers)
     yield container
     container.stop_and_remove()
 
