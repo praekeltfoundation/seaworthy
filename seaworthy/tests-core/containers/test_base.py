@@ -24,7 +24,6 @@ class TestContainerBase(unittest.TestCase):
     def setUp(self):
         self.dh = DockerHelper()
         self.addCleanup(self.dh.teardown)
-        self.dh.setup()
 
         self.base = self.with_cleanup(ContainerBase(
             'wait', IMG_WAIT, docker_helper=self.dh))

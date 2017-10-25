@@ -29,15 +29,13 @@ class TestDockerHelper(unittest.TestCase):
         self.client = docker.client.from_env()
         self.addCleanup(self.client.api.close)
 
-    def make_helper(self, *args, setup=True, **kwargs):
+    def make_helper(self, *args, **kwargs):
         """
         Create and return a DockerHelper instance that will be cleaned up after
         the test.
         """
         dh = DockerHelper(*args, **kwargs)
         self.addCleanup(dh.teardown)
-        if setup:
-            dh.setup()
         return dh
 
     def list_networks(self, *args, namespace='test', **kw):
@@ -51,6 +49,16 @@ class TestDockerHelper(unittest.TestCase):
     def list_volumes(self, *args, namespace='test', **kw):
         return filter_by_name(
             self.client.volumes.list(*args, **kw), '{}_'.format(namespace))
+
+    def test_custom_client(self):
+        """
+        When the DockerHelper is created with a custom client, that client is
+        used.
+        """
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+        dh = self.make_helper(client=client)
+
+        self.assertIs(dh._client, client)
 
     def test_default_network_lifecycle(self):
         """
@@ -97,21 +105,14 @@ class TestDockerHelper(unittest.TestCase):
 
     def test_teardown_safe(self):
         """
-        DockerHelper.teardown() is safe to call multiple times, both before and
-        after setup.
+        DockerHelper.teardown() is safe to call multiple times.
 
         There are no assertions here. We only care that calling teardown never
         raises any exceptions.
         """
-        dh = self.make_helper(setup=False)
+        dh = self.make_helper()
         # These should silently do nothing.
         dh.teardown()
-        dh.teardown()
-        # Run setup so we have something to tear down.
-        dh.setup()
-        # This should do the teardown.
-        dh.teardown()
-        # This should silently do nothing.
         dh.teardown()
 
     def test_teardown_containers(self):
@@ -390,7 +391,7 @@ class TestDockerHelper(unittest.TestCase):
         """
         dh = self.make_helper()
 
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
             dh.containers.create('invalid_type', IMG, network=42)
 
         self.assertEqual(
@@ -505,7 +506,7 @@ class TestDockerHelper(unittest.TestCase):
         """
         dh = self.make_helper()
 
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
             dh.containers.create(
                 'invalid_type', IMG,
                 volumes={42: {'bind': '/vol', 'mode': 'rw'}})

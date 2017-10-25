@@ -38,7 +38,6 @@ class TestContainerHttpClient(unittest.TestCase):
     def make_helper(self):
         dh = DockerHelper()
         self.addCleanup(dh.teardown)
-        dh.setup()
         return dh
 
     @responses.activate
@@ -234,6 +233,7 @@ class TestContainerHttpClient(unittest.TestCase):
         self.addCleanup(container.stop_and_remove)
 
         client = ContainerHttpClient.for_container(container)
+        self.addCleanup(client.close)
 
         response = client.request('GET', '/foo')
 
@@ -262,6 +262,7 @@ class TestContainerHttpClient(unittest.TestCase):
 
         client = ContainerHttpClient.for_container(
             container, container_port='8080')
+        self.addCleanup(client.close)
 
         response = client.request('GET', '/foo')
 

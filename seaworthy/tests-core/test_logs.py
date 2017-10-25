@@ -572,7 +572,6 @@ class TestWithRealContainer(unittest.TestCase, FakeAndRealContainerMixin):
     def setUp(self):
         self.dh = DockerHelper()
         self.addCleanup(self.dh.teardown)
-        self.dh.setup()
 
     def start_logging_container(self):
         script = '\n'.join([
