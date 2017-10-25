@@ -95,9 +95,6 @@ class TestRabbitMQContainer:
     def test_list_queues(self, rabbitmq):
         """
         We can list queues.
-
-        NOTE: This test also tests the management API machinery, because
-        testing that directly would be very similar and far more annoying.
         """
         assert rabbitmq.list_queues() == []
         self.declare_queue(rabbitmq, "q1")

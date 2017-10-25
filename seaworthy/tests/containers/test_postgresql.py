@@ -53,6 +53,16 @@ class TestPostgreSQLContainer:
         assert ([r for r in postgresql.list_users() if r[0] == 'user'] ==
                 [['user', 'Superuser', '{}']])
 
+    def test_list_tables(self, postgresql):
+        """
+        We can list tables.
+        """
+        assert postgresql.list_tables() == []
+        postgresql.exec_psql('CREATE TABLE mytable(name varchar(40))')
+        assert postgresql.list_tables() == [
+            ['public', 'mytable', 'table', 'postgres'],
+        ]
+
     def test_database_url(self):
         """
         The ``database_url`` method should return a single string with all the
@@ -69,3 +79,14 @@ class TestPostgreSQLContainer:
             database='db', user='dbuser', password='secret', name='database')
         assert (postgresql.database_url() ==
                 'postgres://dbuser:secret@database/db')
+
+    def test_clean(self, postgresql):
+        """
+        Calling .clean() removes and recreates the default database.
+        """
+        postgresql.exec_psql('CREATE TABLE mytable(name varchar(40))')
+        assert postgresql.list_tables() == [
+            ['public', 'mytable', 'table', 'postgres'],
+        ]
+        postgresql.clean()
+        assert postgresql.list_tables() == []
