@@ -1,4 +1,3 @@
-import json
 from urllib.parse import quote as urlquote
 
 import pytest
@@ -9,42 +8,40 @@ from seaworthy.pytest import dockertest
 
 @pytest.fixture(scope='module')
 def rabbitmq(docker_helper):
-    with RabbitMQContainer(docker_helper=docker_helper) as container:
+    container = RabbitMQContainer(
+        create_kwargs={'ports': {'15672/tcp': ('127.0.0.1',)}},
+        docker_helper=docker_helper)
+    with container:
+        container.inner().exec_run(
+            ['rabbitmq-plugins', 'enable', 'rabbitmq_management'])
         yield container
 
 
 @dockertest()
 class TestRabbitMQContainer:
-    def _setup_management(self, c):
-        if getattr(c, '_management_available', False):
-            return
-        c.inner().exec_run(['apk', 'add', '--no-cache', 'curl'])
-        c.inner().exec_run(
-            ['rabbitmq-plugins', 'enable', 'rabbitmq_management'])
-        c._management_available = True
+    _http_client = None
 
-    def _management_curl(self, c, method, path_parts, data):
+    def _management_req(self, c, method, path_parts, data):
         """
-        Use curl inside the container to call the management API.
+        Make an HTTP call to the management API.
 
-        This is a nasty hack around not having rabbitmqadmin available to us,
-        because the container doesn't have Python installed.
+        This is a hack around not having rabbitmqadmin available to us, because
+        the container doesn't have Python installed.
         """
-        self._setup_management(c)
-        cmd = [
-            'curl', '-i', '-u', '{}:{}'.format(c.user, c.password),
-            '-H', 'content-type:application/json', '-X{}'.format(method),
-            '-d{}'.format(json.dumps(data)),
-            'http://localhost:15672/api/{}'.format('/'.join(path_parts))]
-        return c.inner().exec_run(cmd)
+        if self._http_client is None:
+            self._http_client = c.http_client()
+        path = 'api/{}'.format('/'.join(path_parts))
+        resp = self._http_client.request(
+            method, path, json=data, auth=(c.user, c.password))
+        resp.raise_for_status()
+        return resp
 
     def declare_queue(self, c, queue_name):
         """
         Use the management API to declare a queue.
         """
-        return self._management_curl(
-            c, 'PUT',
-            ['queues', urlquote(c.vhost, safe=''), queue_name],
+        return self._management_req(
+            c, 'PUT', ['queues', urlquote(c.vhost, safe=''), queue_name],
             {"auto_delete": False, "durable": False, "arguments": {}})
 
     def test_inspection(self, rabbitmq):
