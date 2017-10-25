@@ -130,3 +130,20 @@ class TestRabbitMQContainer:
         rabbitmq = RabbitMQContainer(
             vhost='/', user='guest', password='guest', name='amqp')
         assert rabbitmq.broker_url() == 'amqp://guest:guest@amqp//'
+
+    def test_clean(self, rabbitmq):
+        """
+        Calling .clean() removes all stored state.
+        """
+        rabbitmq.exec_rabbitmqctl('add_vhost', ['/new_vhost'])
+        assert '/new_vhost' in rabbitmq.list_vhosts()
+        self.declare_queue(rabbitmq, "q1")
+        assert ('q1', '0') in rabbitmq.list_queues()
+        rabbitmq.exec_rabbitmqctl('add_user', ['new_user', 'new_pass'])
+        assert ('new_user', ['']) in rabbitmq.list_users()
+
+        rabbitmq.clean()
+
+        assert rabbitmq.list_vhosts() == ['/vhost']
+        assert rabbitmq.list_users() == [('user', ['administrator'])]
+        assert rabbitmq.list_queues() == []
