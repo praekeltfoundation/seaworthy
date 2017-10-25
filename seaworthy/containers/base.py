@@ -202,11 +202,18 @@ class ContainerBase:
             raise RuntimeError('Container not created yet.')
         return self._container
 
+    def base_kwargs(self):
+        """
+        Override this method to provide dynamically generated base kwargs for
+        the container.
+        """
+        return {}
+
     def merge_kwargs(self, default_kwargs, kwargs):
         """
         Override this method to merge kwargs differently.
         """
-        return deep_merge(default_kwargs, kwargs)
+        return deep_merge(self.base_kwargs(), default_kwargs, kwargs)
 
     def clean(self):
         """
