@@ -4,7 +4,7 @@ from .base import ContainerBase
 
 def _parse_rabbitmq_user(user_line):
     user_tags = user_line.split('\t', 1)
-    if len(user_tags) != 2:
+    if len(user_tags) != 2:  # pragma: no cover
         raise RuntimeError()
 
     user, tags = user_tags
