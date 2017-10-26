@@ -264,14 +264,7 @@ class ImageHelper:
         self.images = client.images
 
     def fetch(self, tag):
-        try:
-            image = self.images.get(tag)
-        except docker.errors.ImageNotFound:
-            log.info("Pulling tag '{}'...".format(tag))
-            image = self.images.pull(tag)
-
-        log.debug("Found image '{}' for tag '{}'".format(image.id, tag))
-        return image
+        return fetch_image(self.images.client, tag)
 
 
 class NetworkHelper(HelperBase):
