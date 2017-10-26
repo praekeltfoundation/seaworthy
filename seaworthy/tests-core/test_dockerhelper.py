@@ -5,7 +5,8 @@ import docker
 
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.dockerhelper import (
-    DockerHelper, ImageHelper, NetworkHelper, VolumeHelper, fetch_images)
+    ContainerHelper, DockerHelper, ImageHelper, NetworkHelper, VolumeHelper,
+    fetch_images)
 
 
 # We use this image to test with because it is a small (~7MB) image from
@@ -277,6 +278,412 @@ class TestVolumeHelper(unittest.TestCase):
 
 
 @dockertest()
+class TestContainerHelper(unittest.TestCase):
+    def setUp(self):
+        self.client = docker.client.from_env()
+        self.addCleanup(self.client.api.close)
+
+        self.ih = ImageHelper(self.client)
+        self.nh = NetworkHelper(self.client, 'test')
+        self.addCleanup(self.nh._teardown)
+        self.vh = VolumeHelper(self.client, 'test')
+        self.addCleanup(self.vh._teardown)
+
+    def make_helper(self, namespace='test'):
+        ch = ContainerHelper(self.client, namespace, self.ih, self.nh, self.vh)
+        self.addCleanup(ch._teardown)
+        return ch
+
+    def list_containers(self, *args, namespace='test', **kw):
+        return filter_by_name(
+            self.client.containers.list(*args, **kw), '{}_'.format(namespace))
+
+    def test_teardown(self):
+        """
+        ContainerHelper._teardown() will remove any containers that were
+        created, no matter what state they are in or even whether they still
+        exist.
+        """
+        ch = self.make_helper()
+        self.assertEqual([], self.list_containers(all=True))
+        con_created = ch.create('created', IMG)
+        self.assertEqual(con_created.status, 'created')
+
+        con_running = ch.create('running', IMG)
+        ch.start(con_running)
+        self.assertEqual(con_running.status, 'running')
+
+        con_stopped = ch.create('stopped', IMG)
+        ch.start(con_stopped)
+        self.assertEqual(con_stopped.status, 'running')
+        ch.stop(con_stopped)
+        self.assertNotEqual(con_stopped.status, 'running')
+
+        con_removed = ch.create('removed', IMG)
+        # We remove this behind the helper's back so the helper thinks it still
+        # exists at teardown time.
+        con_removed.remove()
+        with self.assertRaises(docker.errors.NotFound):
+            con_removed.reload()
+
+        self.assertEqual(
+            set([con_created, con_running, con_stopped]),
+            set(self.list_containers(all=True)))
+
+        with self.assertLogs('seaworthy', level='WARNING') as cm:
+            ch._teardown()
+        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
+            "Container 'test_created' still existed during teardown",
+            "Container 'test_running' still existed during teardown",
+            "Container 'test_stopped' still existed during teardown",
+        ])
+        self.assertEqual([], self.list_containers(all=True))
+
+    def test_create(self):
+        """
+        We can create a container with various parameters without starting it.
+        """
+        ch = self.make_helper()
+
+        con_simple = ch.create('simple', IMG)
+        self.addCleanup(ch.remove, con_simple)
+        self.assertEqual(con_simple.status, 'created')
+        self.assertEqual(con_simple.attrs['Path'], 'nginx')
+
+        con_cmd = ch.create('cmd', IMG, command='echo hello')
+        self.addCleanup(ch.remove, con_cmd)
+        self.assertEqual(con_cmd.status, 'created')
+        self.assertEqual(con_cmd.attrs['Path'], 'echo')
+
+        con_env = ch.create('env', IMG, environment={'FOO': 'bar'})
+        self.addCleanup(ch.remove, con_env)
+        self.assertEqual(con_env.status, 'created')
+        self.assertIn('FOO=bar', con_env.attrs['Config']['Env'])
+
+    def test_network(self):
+        """
+        When a container is created, the network settings are respected, and if
+        no network settings are specified, the container is connected to a
+        default network.
+        """
+        ch = self.make_helper()
+
+        # When 'network' is provided, that network is used
+        custom_network = self.nh.create('network')
+        self.addCleanup(self.nh.remove, custom_network)
+        con_network = ch.create('network', IMG, network=custom_network)
+        self.addCleanup(ch.remove, con_network)
+        networks = con_network.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [custom_network.name])
+        network = networks[custom_network.name]
+        self.assertCountEqual(
+            network['Aliases'], [con_network.id[:12], 'network'])
+
+        # When 'network_mode' is provided, the default network is not used
+        con_mode = ch.create('mode', IMG, network_mode='none')
+        self.addCleanup(ch.remove, con_mode)
+        networks = con_mode.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), ['none'])
+
+        # When 'network_disabled' is True, the default network is not used
+        con_disabled = ch.create(
+            'disabled', IMG, network_disabled=True)
+        self.addCleanup(ch.remove, con_disabled)
+        self.assertEqual(con_disabled.attrs['NetworkSettings']['Networks'], {})
+
+        con_default = ch.create('default', IMG)
+        self.addCleanup(ch.remove, con_default)
+        default_network_name = self.nh.get_default().name
+        networks = con_default.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [default_network_name])
+        network = networks[default_network_name]
+        self.assertCountEqual(
+            network['Aliases'], [con_default.id[:12], 'default'])
+
+    def test_network_by_id(self):
+        """
+        When a container is created, a network can be specified using the ID
+        string for a network.
+        """
+        ch = self.make_helper()
+
+        # When 'network' is provided as an ID, that network is used
+        net_id = self.nh.create('id')
+        self.addCleanup(self.nh.remove, net_id)
+        con_id = ch.create('id', IMG, network=net_id.id)
+        self.addCleanup(ch.remove, con_id)
+        networks = con_id.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_id.name])
+        network = networks[net_id.name]
+        self.assertCountEqual(network['Aliases'], [con_id.id[:12], 'id'])
+
+    def test_network_by_short_id(self):
+        """
+        When a container is created, a network can be specified using the short
+        ID string for a network.
+        """
+        ch = self.make_helper()
+
+        # When 'network' is provided as a short ID, that network is used
+        net_short_id = self.nh.create('short_id')
+        self.addCleanup(self.nh.remove, net_short_id)
+        con_short_id = ch.create(
+            'short_id', IMG, network=net_short_id.short_id)
+        self.addCleanup(ch.remove, con_short_id)
+        networks = con_short_id.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_short_id.name])
+        network = networks[net_short_id.name]
+        self.assertCountEqual(
+            network['Aliases'], [con_short_id.id[:12], 'short_id'])
+
+    def test_network_by_name(self):
+        """
+        When a container is created, a network can be specified using the name
+        of a network.
+        """
+        ch = self.make_helper()
+
+        # When 'network' is provided as a name, that network is used
+        net_name = self.nh.create('name')
+        self.addCleanup(self.nh.remove, net_name)
+        con_name = ch.create('name', IMG, network=net_name.name)
+        self.addCleanup(ch.remove, con_name)
+        networks = con_name.attrs['NetworkSettings']['Networks']
+        self.assertEqual(list(networks.keys()), [net_name.name])
+        network = networks[net_name.name]
+        self.assertCountEqual(network['Aliases'], [con_name.id[:12], 'name'])
+
+    def test_network_by_invalid_type(self):
+        """
+        When a container is created, an error is raised if a network is
+        specified using an invalid type.
+        """
+        ch = self.make_helper()
+
+        with self.assertRaises(TypeError) as cm:
+            ch.create('invalid_type', IMG, network=42)
+
+        self.assertEqual(
+            str(cm.exception),
+            "Unexpected type <class 'int'>, expected <class 'str'> or <class "
+            "'docker.models.networks.Network'>")
+
+    def test_volumes(self):
+        """
+        When a container is created, a volume can be specified to be mounted.
+        The container metadata should correctly identify the volumes and its
+        mountpoint.
+        """
+        ch = self.make_helper()
+
+        vol_test = self.vh.create('test')
+        self.addCleanup(self.vh.remove, vol_test)
+        con_volumes = ch.create(
+            'volumes', IMG, volumes={vol_test: {'bind': '/vol', 'mode': 'rw'}})
+        self.addCleanup(ch.remove, con_volumes)
+        mounts = con_volumes.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'volume')
+        self.assertEqual(mount['Name'], vol_test.name)
+        self.assertEqual(mount['Source'], vol_test.attrs['Mountpoint'])
+        self.assertEqual(mount['Driver'], vol_test.attrs['Driver'])
+        self.assertEqual(mount['Destination'], '/vol')
+        self.assertEqual(mount['Mode'], 'rw')
+
+    def test_volumes_short_form(self):
+        """
+        When a container is created, a volume can be specified to be mounted
+        using a short-form bind specfier. The mode can be specified, but if not
+        it defaults to read/write.
+        """
+        ch = self.make_helper()
+
+        # Default mode: rw
+        vol_default = self.vh.create('default')
+        self.addCleanup(self.vh.remove, vol_default)
+        con_default = ch.create('default', IMG, volumes={vol_default: '/vol'})
+        self.addCleanup(ch.remove, con_default)
+        mounts = con_default.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'volume')
+        self.assertEqual(mount['Name'], vol_default.name)
+        self.assertEqual(mount['Destination'], '/vol')
+        self.assertEqual(mount['Mode'], 'rw')
+
+        # Specific mode: ro
+        vol_mode = self.vh.create('mode')
+        self.addCleanup(self.vh.remove, vol_mode)
+        con_mode = ch.create('mode', IMG, volumes={vol_mode: '/mnt:ro'})
+        self.addCleanup(ch.remove, con_mode)
+        mounts = con_mode.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'volume')
+        self.assertEqual(mount['Name'], vol_mode.name)
+        self.assertEqual(mount['Destination'], '/mnt')
+        self.assertEqual(mount['Mode'], 'ro')
+
+    def test_volumes_bind(self):
+        """
+        When a container is created, a bind mount can be specified in the
+        ``volumes`` hash. The container metadata should correctly describe the
+        bind mount.
+        """
+        ch = self.make_helper()
+
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+        con_bind = ch.create(
+            'bind', IMG, volumes={tmpdir.name: {'bind': '/vol', 'mode': 'rw'}})
+        self.addCleanup(ch.remove, con_bind)
+        mounts = con_bind.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Type'], 'bind')
+        self.assertEqual(mount['Source'], tmpdir.name)
+        self.assertEqual(mount['Destination'], '/vol')
+        self.assertTrue(mount['RW'])
+
+    def test_volumes_by_name(self):
+        """
+        When a container is created, volumes can be specified using volume
+        names. Volumes don't have IDs, only names :-/
+        """
+        ch = self.make_helper()
+
+        # When 'volumes' is provided as a mapping from names, those volumes are
+        # used
+        vol_name = self.vh.create('name')
+        self.addCleanup(self.vh.remove, vol_name)
+        con_name = ch.create(
+            'name', IMG,
+            volumes={vol_name.name: {'bind': '/vol', 'mode': 'rw'}})
+        self.addCleanup(ch.remove, con_name)
+        mounts = con_name.attrs['Mounts']
+        self.assertEqual(len(mounts), 1)
+        [mount] = mounts
+        self.assertEqual(mount['Name'], vol_name.name)
+
+    def test_volumes_by_invalid_type(self):
+        """
+        When a container is created, an error is raised if a volume is
+        specified using an invalid type.
+        """
+        ch = self.make_helper()
+
+        with self.assertRaises(TypeError) as cm:
+            ch.create('invalid_type', IMG,
+                      volumes={42: {'bind': '/vol', 'mode': 'rw'}})
+
+        self.assertEqual(
+            str(cm.exception),
+            "Unexpected type <class 'int'>, expected <class 'str'> or <class "
+            "'docker.models.volumes.Volume'>")
+
+    def test_volumes_specified_twice(self):
+        """
+        When a container is created, an error is raised if the same volume is
+        specified twice: once using its string ID, and once using its model
+        object.
+        """
+        ch = self.make_helper()
+
+        # When 'volumes' is provided as a mapping from names, those volumes are
+        # used
+        vol_duplicate = self.vh.create('duplicate')
+        self.addCleanup(self.vh.remove, vol_duplicate)
+        with self.assertRaises(ValueError) as cm:
+            ch.create(
+                'duplicate', IMG,
+                volumes={
+                    vol_duplicate.name: {'bind': '/vol', 'mode': 'rw'},
+                    vol_duplicate: {'bind': '/vol2', 'mode': 'ro'},
+                })
+
+        self.assertEqual(str(cm.exception),
+                         "Volume 'test_duplicate' specified more than once")
+
+    def test_start(self):
+        """
+        We can start a container after creating it.
+        """
+        ch = self.make_helper()
+
+        con = ch.create('con', IMG)
+        self.addCleanup(ch.remove, con)
+        self.assertEqual(con.status, 'created')
+        ch.start(con)
+        self.assertEqual(con.status, 'running')
+
+    def test_stop(self):
+        """
+        We can stop a running container.
+        """
+        # We don't test the timeout because that's just passed directly through
+        # to docker and it's nontrivial to construct a container that takes a
+        # specific amount of time to stop.
+        ch = self.make_helper()
+
+        con = ch.create('con', IMG)
+        self.addCleanup(ch.remove, con)
+        ch.start(con)
+        self.assertEqual(con.status, 'running')
+        ch.stop(con)
+        self.assertEqual(con.status, 'exited')
+
+    def test_remove(self):
+        """
+        We can remove a not-running container.
+        """
+        ch = self.make_helper()
+
+        con_created = ch.create('created', IMG)
+        self.assertEqual(con_created.status, 'created')
+        ch.remove(con_created)
+        with self.assertRaises(docker.errors.NotFound):
+            con_created.reload()
+
+        con_stopped = ch.create('stopped', IMG)
+        ch.start(con_stopped)
+        ch.stop(con_stopped)
+        self.assertEqual(con_stopped.status, 'exited')
+        ch.remove(con_stopped)
+        with self.assertRaises(docker.errors.NotFound):
+            con_stopped.reload()
+
+    def test_remove_force(self):
+        """
+        We can't remove a running container without forcing it.
+        """
+        ch = self.make_helper()
+
+        con_running = ch.create('running', IMG)
+        ch.start(con_running)
+        self.assertEqual(con_running.status, 'running')
+        with self.assertRaises(docker.errors.APIError):
+            ch.remove(con_running, force=False)
+        ch.remove(con_running)
+        with self.assertRaises(docker.errors.NotFound):
+            con_running.reload()
+
+    def test_stop_and_remove(self):
+        """
+        This does the stop and remove as separate steps, so we can remove a
+        running container without forcing.
+        """
+        ch = self.make_helper()
+
+        con_running = ch.create('running', IMG)
+        ch.start(con_running)
+        self.assertEqual(con_running.status, 'running')
+        ch.stop_and_remove(con_running, remove_force=False)
+        with self.assertRaises(docker.errors.NotFound):
+            con_running.reload()
+
+
+@dockertest()
 class TestDockerHelper(unittest.TestCase):
     def setUp(self):
         self.client = docker.client.from_env()
@@ -290,10 +697,6 @@ class TestDockerHelper(unittest.TestCase):
         dh = DockerHelper(*args, **kwargs)
         self.addCleanup(dh.teardown)
         return dh
-
-    def list_containers(self, *args, namespace='test', **kw):
-        return filter_by_name(
-            self.client.containers.list(*args, **kw), '{}_'.format(namespace))
 
     def test_custom_client(self):
         """
@@ -316,393 +719,6 @@ class TestDockerHelper(unittest.TestCase):
         # These should silently do nothing.
         dh.teardown()
         dh.teardown()
-
-    def test_teardown_containers(self):
-        """
-        DockerHelper.teardown() will remove any containers that were created,
-        no matter what state they are in or even whether they still exist.
-        """
-        dh = self.make_helper()
-        self.assertEqual([], self.list_containers(all=True))
-        con_created = dh.containers.create('created', IMG)
-        self.assertEqual(con_created.status, 'created')
-
-        con_running = dh.containers.create('running', IMG)
-        dh.containers.start(con_running)
-        self.assertEqual(con_running.status, 'running')
-
-        con_stopped = dh.containers.create('stopped', IMG)
-        dh.containers.start(con_stopped)
-        self.assertEqual(con_stopped.status, 'running')
-        dh.containers.stop(con_stopped)
-        self.assertNotEqual(con_stopped.status, 'running')
-
-        con_removed = dh.containers.create('removed', IMG)
-        # We remove this behind the helper's back so the helper thinks it still
-        # exists at teardown time.
-        con_removed.remove()
-        with self.assertRaises(docker.errors.NotFound):
-            con_removed.reload()
-
-        self.assertEqual(
-            set([con_created, con_running, con_stopped]),
-            set(self.list_containers(all=True)))
-
-        with self.assertLogs('seaworthy', level='WARNING') as cm:
-            dh.teardown()
-        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
-            "Container 'test_created' still existed during teardown",
-            "Container 'test_running' still existed during teardown",
-            "Container 'test_stopped' still existed during teardown",
-        ])
-        self.assertEqual([], self.list_containers(all=True))
-
-    def test_create_container(self):
-        """
-        We can create a container with various parameters without starting it.
-        """
-        dh = self.make_helper()
-
-        con_simple = dh.containers.create('simple', IMG)
-        self.addCleanup(dh.containers.remove, con_simple)
-        self.assertEqual(con_simple.status, 'created')
-        self.assertEqual(con_simple.attrs['Path'], 'nginx')
-
-        con_cmd = dh.containers.create('cmd', IMG, command='echo hello')
-        self.addCleanup(dh.containers.remove, con_cmd)
-        self.assertEqual(con_cmd.status, 'created')
-        self.assertEqual(con_cmd.attrs['Path'], 'echo')
-
-        con_env = dh.containers.create('env', IMG, environment={'FOO': 'bar'})
-        self.addCleanup(dh.containers.remove, con_env)
-        self.assertEqual(con_env.status, 'created')
-        self.assertIn('FOO=bar', con_env.attrs['Config']['Env'])
-
-    def test_container_network(self):
-        """
-        When a container is created, the network settings are respected, and if
-        no network settings are specified, the container is connected to a
-        default network.
-        """
-        dh = self.make_helper()
-
-        # When 'network' is provided, that network is used
-        custom_network = dh.networks.create('network')
-        self.addCleanup(dh.networks.remove, custom_network)
-        con_network = dh.containers.create(
-            'network', IMG, network=custom_network)
-        self.addCleanup(dh.containers.remove, con_network)
-        networks = con_network.attrs['NetworkSettings']['Networks']
-        self.assertEqual(list(networks.keys()), [custom_network.name])
-        network = networks[custom_network.name]
-        self.assertCountEqual(
-            network['Aliases'], [con_network.id[:12], 'network'])
-
-        # When 'network_mode' is provided, the default network is not used
-        con_mode = dh.containers.create('mode', IMG, network_mode='none')
-        self.addCleanup(dh.containers.remove, con_mode)
-        networks = con_mode.attrs['NetworkSettings']['Networks']
-        self.assertEqual(list(networks.keys()), ['none'])
-
-        # When 'network_disabled' is True, the default network is not used
-        con_disabled = dh.containers.create(
-            'disabled', IMG, network_disabled=True)
-        self.addCleanup(dh.containers.remove, con_disabled)
-        self.assertEqual(con_disabled.attrs['NetworkSettings']['Networks'], {})
-
-        con_default = dh.containers.create('default', IMG)
-        self.addCleanup(dh.containers.remove, con_default)
-        default_network_name = dh.networks.get_default().name
-        networks = con_default.attrs['NetworkSettings']['Networks']
-        self.assertEqual(list(networks.keys()), [default_network_name])
-        network = networks[default_network_name]
-        self.assertCountEqual(
-            network['Aliases'], [con_default.id[:12], 'default'])
-
-    def test_container_network_by_id(self):
-        """
-        When a container is created, a network can be specified using the ID
-        string for a network.
-        """
-        dh = self.make_helper()
-
-        # When 'network' is provided as an ID, that network is used
-        net_id = dh.networks.create('id')
-        self.addCleanup(dh.networks.remove, net_id)
-        con_id = dh.containers.create('id', IMG, network=net_id.id)
-        self.addCleanup(dh.containers.remove, con_id)
-        networks = con_id.attrs['NetworkSettings']['Networks']
-        self.assertEqual(list(networks.keys()), [net_id.name])
-        network = networks[net_id.name]
-        self.assertCountEqual(network['Aliases'], [con_id.id[:12], 'id'])
-
-    def test_container_network_by_short_id(self):
-        """
-        When a container is created, a network can be specified using the short
-        ID string for a network.
-        """
-        dh = self.make_helper()
-
-        # When 'network' is provided as a short ID, that network is used
-        net_short_id = dh.networks.create('short_id')
-        self.addCleanup(dh.networks.remove, net_short_id)
-        con_short_id = dh.containers.create(
-            'short_id', IMG, network=net_short_id.short_id)
-        self.addCleanup(dh.containers.remove, con_short_id)
-        networks = con_short_id.attrs['NetworkSettings']['Networks']
-        self.assertEqual(list(networks.keys()), [net_short_id.name])
-        network = networks[net_short_id.name]
-        self.assertCountEqual(
-            network['Aliases'], [con_short_id.id[:12], 'short_id'])
-
-    def test_container_network_by_name(self):
-        """
-        When a container is created, a network can be specified using the name
-        of a network.
-        """
-        dh = self.make_helper()
-
-        # When 'network' is provided as a name, that network is used
-        net_name = dh.networks.create('name')
-        self.addCleanup(dh.networks.remove, net_name)
-        con_name = dh.containers.create('name', IMG, network=net_name.name)
-        self.addCleanup(dh.containers.remove, con_name)
-        networks = con_name.attrs['NetworkSettings']['Networks']
-        self.assertEqual(list(networks.keys()), [net_name.name])
-        network = networks[net_name.name]
-        self.assertCountEqual(network['Aliases'], [con_name.id[:12], 'name'])
-
-    def test_container_network_by_invalid_type(self):
-        """
-        When a container is created, an error is raised if a network is
-        specified using an invalid type.
-        """
-        dh = self.make_helper()
-
-        with self.assertRaises(TypeError) as cm:
-            dh.containers.create('invalid_type', IMG, network=42)
-
-        self.assertEqual(
-            str(cm.exception),
-            "Unexpected type <class 'int'>, expected <class 'str'> or <class "
-            "'docker.models.networks.Network'>")
-
-    def test_container_volumes(self):
-        """
-        When a container is created, a volume can be specified to be mounted.
-        The container metadata should correctly identify the volumes and its
-        mountpoint.
-        """
-        dh = self.make_helper()
-
-        vol_test = dh.volumes.create('test')
-        self.addCleanup(dh.volumes.remove, vol_test)
-        con_volumes = dh.containers.create(
-            'volumes', IMG, volumes={vol_test: {'bind': '/vol', 'mode': 'rw'}})
-        self.addCleanup(dh.containers.remove, con_volumes)
-        mounts = con_volumes.attrs['Mounts']
-        self.assertEqual(len(mounts), 1)
-        [mount] = mounts
-        self.assertEqual(mount['Type'], 'volume')
-        self.assertEqual(mount['Name'], vol_test.name)
-        self.assertEqual(mount['Source'], vol_test.attrs['Mountpoint'])
-        self.assertEqual(mount['Driver'], vol_test.attrs['Driver'])
-        self.assertEqual(mount['Destination'], '/vol')
-        self.assertEqual(mount['Mode'], 'rw')
-
-    def test_container_volumes_short_form(self):
-        """
-        When a container is created, a volume can be specified to be mounted
-        using a short-form bind specfier. The mode can be specified, but if not
-        it defaults to read/write.
-        """
-        dh = self.make_helper()
-
-        # Default mode: rw
-        vol_default = dh.volumes.create('default')
-        self.addCleanup(dh.volumes.remove, vol_default)
-        con_default = dh.containers.create(
-            'default', IMG, volumes={vol_default: '/vol'})
-        self.addCleanup(dh.containers.remove, con_default)
-        mounts = con_default.attrs['Mounts']
-        self.assertEqual(len(mounts), 1)
-        [mount] = mounts
-        self.assertEqual(mount['Type'], 'volume')
-        self.assertEqual(mount['Name'], vol_default.name)
-        self.assertEqual(mount['Destination'], '/vol')
-        self.assertEqual(mount['Mode'], 'rw')
-
-        # Specific mode: ro
-        vol_mode = dh.volumes.create('mode')
-        self.addCleanup(dh.volumes.remove, vol_mode)
-        con_mode = dh.containers.create(
-            'mode', IMG, volumes={vol_mode: '/mnt:ro'})
-        self.addCleanup(dh.containers.remove, con_mode)
-        mounts = con_mode.attrs['Mounts']
-        self.assertEqual(len(mounts), 1)
-        [mount] = mounts
-        self.assertEqual(mount['Type'], 'volume')
-        self.assertEqual(mount['Name'], vol_mode.name)
-        self.assertEqual(mount['Destination'], '/mnt')
-        self.assertEqual(mount['Mode'], 'ro')
-
-    def test_container_volumes_bind(self):
-        """
-        When a container is created, a bind mount can be specified in the
-        ``volumes`` hash. The container metadata should correctly describe the
-        bind mount.
-        """
-        dh = self.make_helper()
-
-        tmpdir = tempfile.TemporaryDirectory()
-        self.addCleanup(tmpdir.cleanup)
-        con_bind = dh.containers.create(
-            'bind', IMG, volumes={tmpdir.name: {'bind': '/vol', 'mode': 'rw'}})
-        self.addCleanup(dh.containers.remove, con_bind)
-        mounts = con_bind.attrs['Mounts']
-        self.assertEqual(len(mounts), 1)
-        [mount] = mounts
-        self.assertEqual(mount['Type'], 'bind')
-        self.assertEqual(mount['Source'], tmpdir.name)
-        self.assertEqual(mount['Destination'], '/vol')
-        self.assertTrue(mount['RW'])
-
-    def test_container_volumes_by_name(self):
-        """
-        When a container is created, volumes can be specified using volume
-        names. Volumes don't have IDs, only names :-/
-        """
-        dh = self.make_helper()
-
-        # When 'volumes' is provided as a mapping from names, those volumes are
-        # used
-        vol_name = dh.volumes.create('name')
-        self.addCleanup(dh.volumes.remove, vol_name)
-        con_name = dh.containers.create(
-            'name', IMG,
-            volumes={vol_name.name: {'bind': '/vol', 'mode': 'rw'}})
-        self.addCleanup(dh.containers.remove, con_name)
-        mounts = con_name.attrs['Mounts']
-        self.assertEqual(len(mounts), 1)
-        [mount] = mounts
-        self.assertEqual(mount['Name'], vol_name.name)
-
-    def test_container_volumes_by_invalid_type(self):
-        """
-        When a container is created, an error is raised if a volume is
-        specified using an invalid type.
-        """
-        dh = self.make_helper()
-
-        with self.assertRaises(TypeError) as cm:
-            dh.containers.create(
-                'invalid_type', IMG,
-                volumes={42: {'bind': '/vol', 'mode': 'rw'}})
-
-        self.assertEqual(
-            str(cm.exception),
-            "Unexpected type <class 'int'>, expected <class 'str'> or <class "
-            "'docker.models.volumes.Volume'>")
-
-    def test_container_volumes_specified_twice(self):
-        """
-        When a container is created, an error is raised if the same volume is
-        specified twice: once using its string ID, and once using its model
-        object.
-        """
-        dh = self.make_helper()
-
-        # When 'volumes' is provided as a mapping from names, those volumes are
-        # used
-        vol_duplicate = dh.volumes.create('duplicate')
-        self.addCleanup(dh.volumes.remove, vol_duplicate)
-        with self.assertRaises(ValueError) as cm:
-            dh.containers.create(
-                'duplicate', IMG,
-                volumes={
-                    vol_duplicate.name: {'bind': '/vol', 'mode': 'rw'},
-                    vol_duplicate: {'bind': '/vol2', 'mode': 'ro'},
-                })
-
-        self.assertEqual(str(cm.exception),
-                         "Volume 'test_duplicate' specified more than once")
-
-    def test_start_container(self):
-        """
-        We can start a container after creating it.
-        """
-        dh = self.make_helper()
-
-        con = dh.containers.create('con', IMG)
-        self.addCleanup(dh.containers.remove, con)
-        self.assertEqual(con.status, 'created')
-        dh.containers.start(con)
-        self.assertEqual(con.status, 'running')
-
-    def test_stop_container(self):
-        """
-        We can stop a running container.
-        """
-        # We don't test the timeout because that's just passed directly through
-        # to docker and it's nontrivial to construct a container that takes a
-        # specific amount of time to stop.
-        dh = self.make_helper()
-
-        con = dh.containers.create('con', IMG)
-        self.addCleanup(dh.containers.remove, con)
-        dh.containers.start(con)
-        self.assertEqual(con.status, 'running')
-        dh.containers.stop(con)
-        self.assertEqual(con.status, 'exited')
-
-    def test_remove_container(self):
-        """
-        We can remove a not-running container.
-        """
-        dh = self.make_helper()
-
-        con_created = dh.containers.create('created', IMG)
-        self.assertEqual(con_created.status, 'created')
-        dh.containers.remove(con_created)
-        with self.assertRaises(docker.errors.NotFound):
-            con_created.reload()
-
-        con_stopped = dh.containers.create('stopped', IMG)
-        dh.containers.start(con_stopped)
-        dh.containers.stop(con_stopped)
-        self.assertEqual(con_stopped.status, 'exited')
-        dh.containers.remove(con_stopped)
-        with self.assertRaises(docker.errors.NotFound):
-            con_stopped.reload()
-
-    def test_remove_container_force(self):
-        """
-        We can't remove a running container without forcing it.
-        """
-        dh = self.make_helper()
-
-        con_running = dh.containers.create('running', IMG)
-        dh.containers.start(con_running)
-        self.assertEqual(con_running.status, 'running')
-        with self.assertRaises(docker.errors.APIError):
-            dh.containers.remove(con_running, force=False)
-        dh.containers.remove(con_running)
-        with self.assertRaises(docker.errors.NotFound):
-            con_running.reload()
-
-    def test_stop_and_remove_container(self):
-        """
-        This does the stop and remove as separate steps, so we can remove a
-        running container without forcing.
-        """
-        dh = self.make_helper()
-
-        con_running = dh.containers.create('running', IMG)
-        dh.containers.start(con_running)
-        self.assertEqual(con_running.status, 'running')
-        dh.containers.stop_and_remove(con_running, remove_force=False)
-        with self.assertRaises(docker.errors.NotFound):
-            con_running.reload()
 
     def test_remove_network_connected_to_created_container(self):
         """
