@@ -6,7 +6,7 @@ from docker.models.containers import Container
 
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.containers.base import ContainerBase
-from seaworthy.dockerhelper import DockerHelper, fetch_images
+from seaworthy.helper import DockerHelper, fetch_images
 from seaworthy.logs import EqualsMatcher
 
 IMG_SCRIPT = 'alpine:latest'

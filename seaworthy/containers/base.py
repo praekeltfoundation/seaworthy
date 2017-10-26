@@ -57,7 +57,7 @@ class ContainerBase:
             ``self.WAIT_TIMEOUT``.
         :param dict create_kwargs:
             Other kwargs to use when creating the container.
-        :param seaworthy.dockerhelper.ContainerHelper helper:
+        :param seaworthy.helper.ContainerHelper helper:
             A ContainerHelper instance used to create containers.
         """
         self.name = name

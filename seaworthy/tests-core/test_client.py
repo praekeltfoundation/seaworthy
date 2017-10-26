@@ -5,7 +5,7 @@ import responses
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.client import ContainerHttpClient
 from seaworthy.containers.base import ContainerBase
-from seaworthy.dockerhelper import DockerHelper, fetch_images
+from seaworthy.helper import DockerHelper, fetch_images
 
 
 # Small (<4MB) image that echoes HTTP requests and runs without configuration
