@@ -194,6 +194,17 @@ class TestNetworkHelper(unittest.TestCase):
         with self.assertRaises(docker.errors.NotFound):
             net_test.reload()
 
+    def test_custom_namespace(self):
+        """
+        When the helper has a custom namespace, the networks created are
+        prefixed with the namespace.
+        """
+        nh = self.make_helper(namespace='integ')
+
+        net = nh.create('net')
+        self.addCleanup(nh.remove, net)
+        self.assertEqual(net.name, 'integ_net')
+
 
 @dockertest()
 class TestVolumeHelper(unittest.TestCase):
@@ -275,6 +286,17 @@ class TestVolumeHelper(unittest.TestCase):
         vh.remove(vol_test)
         with self.assertRaises(docker.errors.NotFound):
             vol_test.reload()
+
+    def test_custom_namespace(self):
+        """
+        When the helper has a custom namespace, the volumes created are
+        prefixed with the namespace.
+        """
+        vh = self.make_helper(namespace='integ')
+
+        vol = vh.create('vol')
+        self.addCleanup(vh.remove, vol)
+        self.assertEqual(vol.name, 'integ_vol')
 
 
 @dockertest()
@@ -681,6 +703,17 @@ class TestContainerHelper(unittest.TestCase):
         ch.stop_and_remove(con_running, remove_force=False)
         with self.assertRaises(docker.errors.NotFound):
             con_running.reload()
+
+    def test_custom_namespace(self):
+        """
+        When the helper has a custom namespace, the containers created are
+        prefixed with the namespace.
+        """
+        ch = self.make_helper(namespace='integ')
+
+        con = ch.create('con', IMG, network_mode='none')
+        self.addCleanup(ch.remove, con)
+        self.assertEqual(con.name, 'integ_con')
 
 
 @dockertest()
