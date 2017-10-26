@@ -4,7 +4,7 @@ import unittest
 import docker
 
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.dockerhelper import DockerHelper, fetch_images
+from seaworthy.dockerhelper import DockerHelper, ImageHelper, fetch_images
 
 
 # We use this image to test with because it is a small (~7MB) image from
@@ -21,6 +21,48 @@ def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
 
 def filter_by_name(things, prefix):
     return [t for t in things if t.name.startswith(prefix)]
+
+
+@dockertest()
+class TestImageHelper(unittest.TestCase):
+    def setUp(self):
+        self.client = docker.client.from_env()
+        self.addCleanup(self.client.api.close)
+
+    def make_helper(self):
+        return ImageHelper(self.client)
+
+    def test_fetch(self):
+        """
+        We check if the image is already present and pull it if necessary.
+        """
+        ih = self.make_helper()
+
+        # First, remove the image if it's already present. (We use the busybox
+        # image for this test because it's the smallest I can find that is
+        # likely to be reliably available.)
+        try:
+            self.client.images.get('busybox:latest')
+        except docker.errors.ImageNotFound:  # pragma: no cover
+            pass
+        else:
+            self.client.images.remove('busybox:latest')  # pragma: no cover
+
+        # Pull the image, which we now know we don't have.
+        with self.assertLogs('seaworthy', level='INFO') as cm:
+            ih.fetch('busybox:latest')
+        self.assertEqual(
+            [l.getMessage() for l in cm.records],
+            ["Pulling tag 'busybox:latest'..."])
+
+        # Pull the image again, now that we know it's present.
+        with self.assertLogs('seaworthy', level='DEBUG') as cm:
+            ih.fetch('busybox:latest')
+        logs = [l.getMessage() for l in cm.records]
+        self.assertEqual(len(logs), 1)
+        self.assertRegex(
+            logs[0],
+            r"Found image 'sha256:[a-f0-9]{64}' for tag 'busybox:latest'")
 
 
 @dockertest()
