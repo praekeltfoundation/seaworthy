@@ -9,6 +9,10 @@ def _parse_rabbitmq_user(user_line):
 
 
 class RabbitMQContainer(ContainerBase):
+    # For some reason this container is slower to start through seaworthy than
+    # with a plain `docker run`, so give it a bit more time to get going. :-(
+    WAIT_TIMEOUT = 20.0
+
     DEFAULT_NAME = 'rabbitmq'
     DEFAULT_IMAGE = 'rabbitmq:alpine'
     DEFAULT_WAIT_PATTERNS = (r'Server startup complete',)
