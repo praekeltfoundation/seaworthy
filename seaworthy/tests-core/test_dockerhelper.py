@@ -950,30 +950,22 @@ class TestDockerHelper(unittest.TestCase):
         # The volume still exists: we can fetch it
         vol_removed.reload()
 
-    def test_namespace(self):
+    def test_default_namespace(self):
         """
-        When the helper has its default namespace, the default network and all
-        created containers should have names prefixed with the namespace.
+        When the Docker helper has the default namespace, all the resource
+        helpers are created with that namespace.
         """
         dh = self.make_helper()
-
-        network = dh.networks.get_default()
-        self.assertEqual(network.name, 'test_default')
-
-        con = dh.containers.create('con', IMG)
-        self.addCleanup(dh.containers.remove, con)
-        self.assertEqual(con.name, 'test_con')
+        self.assertEqual(dh.containers.namespace, 'test')
+        self.assertEqual(dh.networks.namespace, 'test')
+        self.assertEqual(dh.volumes.namespace, 'test')
 
     def test_custom_namespace(self):
         """
-        When the helper has a custom namespace, the default network and all
-        created containers should have names prefixed with the namespace.
+        When the Docker helper has a custom namespace, all the resource helpers
+        are created with that namespace.
         """
         dh = self.make_helper(namespace='integ')
-
-        network = dh.networks.get_default()
-        self.assertEqual(network.name, 'integ_default')
-
-        con = dh.containers.create('con', IMG)
-        self.addCleanup(dh.containers.remove, con)
-        self.assertEqual(con.name, 'integ_con')
+        self.assertEqual(dh.containers.namespace, 'integ')
+        self.assertEqual(dh.networks.namespace, 'integ')
+        self.assertEqual(dh.volumes.namespace, 'integ')
