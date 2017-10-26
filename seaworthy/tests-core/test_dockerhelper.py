@@ -5,7 +5,7 @@ import docker
 
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.dockerhelper import (
-    DockerHelper, ImageHelper, NetworkHelper, fetch_images)
+    DockerHelper, ImageHelper, NetworkHelper, VolumeHelper, fetch_images)
 
 
 # We use this image to test with because it is a small (~7MB) image from
@@ -195,6 +195,88 @@ class TestNetworkHelper(unittest.TestCase):
 
 
 @dockertest()
+class TestVolumeHelper(unittest.TestCase):
+    def setUp(self):
+        self.client = docker.client.from_env()
+        self.addCleanup(self.client.api.close)
+
+    def make_helper(self, namespace='test'):
+        vh = VolumeHelper(self.client, namespace)
+        self.addCleanup(vh._teardown)
+        return vh
+
+    def list_volumes(self, *args, namespace='test', **kw):
+        return filter_by_name(
+            self.client.volumes.list(*args, **kw), '{}_'.format(namespace))
+
+    def test_teardown(self):
+        """
+        VolumeHelper._teardown() will remove any volumes that were created,
+        even if they no longer exist.
+        """
+        vh = self.make_helper()
+        self.assertEqual([], self.list_volumes())
+        vol_local1 = vh.create('local1', driver='local')
+        vol_local2 = vh.create('local2', driver='local')
+
+        vol_removed = vh.create('removed')
+        # We remove this behind the helper's back so the helper thinks it still
+        # exists at teardown time.
+        vol_removed.remove()
+        with self.assertRaises(docker.errors.NotFound):
+            vol_removed.reload()
+
+        self.assertEqual(
+            set([vol_local1, vol_local2]),
+            set(self.list_volumes()))
+
+        with self.assertLogs('seaworthy', level='WARNING') as cm:
+            vh._teardown()
+        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
+            "Volume 'test_local1' still existed during teardown",
+            "Volume 'test_local2' still existed during teardown",
+        ])
+        self.assertEqual([], self.list_volumes())
+
+    def test_create(self):
+        """
+        We can create a volume with various parameters.
+        """
+        vh = self.make_helper()
+
+        vol_simple = vh.create('simple')
+        self.addCleanup(vh.remove, vol_simple)
+        self.assertEqual(vol_simple.name, 'test_simple')
+        self.assertEqual(vol_simple.attrs['Driver'], 'local')
+
+        vol_labels = vh.create('labels', labels={'foo': 'bar'})
+        self.addCleanup(vh.remove, vol_labels)
+        self.assertEqual(vol_labels.name, 'test_labels')
+        self.assertEqual(vol_labels.attrs['Labels'], {'foo': 'bar'})
+
+        # Copy tmpfs example from Docker docs:
+        # https://docs.docker.com/engine/reference/commandline/volume_create/#driver-specific-options
+        # This won't work on Windows
+        driver_opts = {
+            'type': 'tmpfs', 'device': 'tmpfs', 'o': 'size=100m,uid=1000'}
+        vol_opts = vh.create('opts', driver='local', driver_opts=driver_opts)
+        self.addCleanup(vh.remove, vol_opts)
+        self.assertEqual(vol_opts.name, 'test_opts')
+        self.assertEqual(vol_opts.attrs['Options'], driver_opts)
+
+    def test_remove(self):
+        """
+        We can remove a volume.
+        """
+        vh = self.make_helper()
+
+        vol_test = vh.create('test')
+        vh.remove(vol_test)
+        with self.assertRaises(docker.errors.NotFound):
+            vol_test.reload()
+
+
+@dockertest()
 class TestDockerHelper(unittest.TestCase):
     def setUp(self):
         self.client = docker.client.from_env()
@@ -212,10 +294,6 @@ class TestDockerHelper(unittest.TestCase):
     def list_containers(self, *args, namespace='test', **kw):
         return filter_by_name(
             self.client.containers.list(*args, **kw), '{}_'.format(namespace))
-
-    def list_volumes(self, *args, namespace='test', **kw):
-        return filter_by_name(
-            self.client.volumes.list(*args, **kw), '{}_'.format(namespace))
 
     def test_custom_client(self):
         """
@@ -279,35 +357,6 @@ class TestDockerHelper(unittest.TestCase):
         ])
         self.assertEqual([], self.list_containers(all=True))
 
-    def test_teardown_volumes(self):
-        """
-        DockerHelper.teardown() will remove any volumes that were created,
-        even if they no longer exist.
-        """
-        dh = self.make_helper()
-        self.assertEqual([], self.list_volumes())
-        vol_local1 = dh.volumes.create('local1', driver='local')
-        vol_local2 = dh.volumes.create('local2', driver='local')
-
-        vol_removed = dh.volumes.create('removed')
-        # We remove this behind the helper's back so the helper thinks it still
-        # exists at teardown time.
-        vol_removed.remove()
-        with self.assertRaises(docker.errors.NotFound):
-            vol_removed.reload()
-
-        self.assertEqual(
-            set([vol_local1, vol_local2]),
-            set(self.list_volumes()))
-
-        with self.assertLogs('seaworthy', level='WARNING') as cm:
-            dh.teardown()
-        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
-            "Volume 'test_local1' still existed during teardown",
-            "Volume 'test_local2' still existed during teardown",
-        ])
-        self.assertEqual([], self.list_volumes())
-
     def test_create_container(self):
         """
         We can create a container with various parameters without starting it.
@@ -328,33 +377,6 @@ class TestDockerHelper(unittest.TestCase):
         self.addCleanup(dh.containers.remove, con_env)
         self.assertEqual(con_env.status, 'created')
         self.assertIn('FOO=bar', con_env.attrs['Config']['Env'])
-
-    def test_create_volume(self):
-        """
-        We can create a volume with various parameters.
-        """
-        dh = self.make_helper()
-
-        vol_simple = dh.volumes.create('simple')
-        self.addCleanup(dh.volumes.remove, vol_simple)
-        self.assertEqual(vol_simple.name, 'test_simple')
-        self.assertEqual(vol_simple.attrs['Driver'], 'local')
-
-        vol_labels = dh.volumes.create('labels', labels={'foo': 'bar'})
-        self.addCleanup(dh.volumes.remove, vol_labels)
-        self.assertEqual(vol_labels.name, 'test_labels')
-        self.assertEqual(vol_labels.attrs['Labels'], {'foo': 'bar'})
-
-        # Copy tmpfs example from Docker docs:
-        # https://docs.docker.com/engine/reference/commandline/volume_create/#driver-specific-options
-        # This won't work on Windows
-        driver_opts = {
-            'type': 'tmpfs', 'device': 'tmpfs', 'o': 'size=100m,uid=1000'}
-        vol_opts = dh.volumes.create(
-            'opts', driver='local', driver_opts=driver_opts)
-        self.addCleanup(dh.volumes.remove, vol_opts)
-        self.assertEqual(vol_opts.name, 'test_opts')
-        self.assertEqual(vol_opts.attrs['Options'], driver_opts)
 
     def test_container_network(self):
         """
@@ -771,17 +793,6 @@ class TestDockerHelper(unittest.TestCase):
 
         with self.assertRaises(docker.errors.NotFound):
             net_test.reload()
-
-    def test_remove_volume(self):
-        """
-        We can remove a volume.
-        """
-        dh = self.make_helper()
-
-        vol_test = dh.volumes.create('test')
-        dh.volumes.remove(vol_test)
-        with self.assertRaises(docker.errors.NotFound):
-            vol_test.reload()
 
     def test_cannot_remove_mounted_volume(self):
         """
