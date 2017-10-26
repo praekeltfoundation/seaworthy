@@ -64,45 +64,49 @@ class TestContainerBase(unittest.TestCase):
         """
         We can set a container helper in the constructor.
         """
-        withdh = ContainerBase('withdh', IMG_WAIT, container_helper=self.ch)
-        self.assertIs(withdh._container_helper, self.ch)
-        self.assertIs(withdh.container_helper, self.ch)
+        with_helper = ContainerBase(
+            'with_helper', IMG_WAIT, container_helper=self.ch)
+        self.assertIs(with_helper._container_helper, self.ch)
+        self.assertIs(with_helper.container_helper, self.ch)
 
     def test_container_helper_set_to_none(self):
         """
         Setting container_helper to None has no effect even if we already have
         one.
         """
-        nodh = ContainerBase('nodh', IMG_WAIT)
-        self.assertIsNone(nodh._container_helper)
-        nodh.set_container_helper(None)
-        self.assertIsNone(nodh._container_helper)
+        no_helper = ContainerBase('no_helper', IMG_WAIT)
+        self.assertIsNone(no_helper._container_helper)
+        no_helper.set_container_helper(None)
+        self.assertIsNone(no_helper._container_helper)
 
-        withdh = ContainerBase('withdh', IMG_WAIT, container_helper=self.ch)
-        self.assertIs(withdh._container_helper, self.ch)
-        withdh.set_container_helper(None)
-        self.assertIs(withdh._container_helper, self.ch)
+        with_helper = ContainerBase(
+            'with_helper', IMG_WAIT, container_helper=self.ch)
+        self.assertIs(with_helper._container_helper, self.ch)
+        with_helper.set_container_helper(None)
+        self.assertIs(with_helper._container_helper, self.ch)
 
     def test_container_helper_set_to_current(self):
         """
         Setting container_helper to the one we already have has no effect.
         """
-        withdh = ContainerBase('withdh', IMG_WAIT, container_helper=self.ch)
-        self.assertIs(withdh._container_helper, self.ch)
-        withdh.set_container_helper(self.ch)
-        self.assertIs(withdh._container_helper, self.ch)
+        with_helper = ContainerBase(
+            'with_helper', IMG_WAIT, container_helper=self.ch)
+        self.assertIs(with_helper._container_helper, self.ch)
+        with_helper.set_container_helper(self.ch)
+        self.assertIs(with_helper._container_helper, self.ch)
 
     def test_cannot_replace_container_helper(self):
         """
         If we already have a container_helper, we can't set a different one.
         """
-        withdh = ContainerBase('withdh', IMG_WAIT, container_helper=self.ch)
-        self.assertIs(withdh.container_helper, self.ch)
+        with_helper = ContainerBase(
+            'with_helper', IMG_WAIT, container_helper=self.ch)
+        self.assertIs(with_helper.container_helper, self.ch)
         with self.assertRaises(RuntimeError) as cm:
-            withdh.set_container_helper(DockerHelper())
+            with_helper.set_container_helper(DockerHelper())
         self.assertEqual(
             str(cm.exception), 'Cannot replace existing container_helper.')
-        self.assertIs(withdh.container_helper, self.ch)
+        self.assertIs(with_helper.container_helper, self.ch)
 
     def test_create_only_if_not_created(self):
         """The container cannot be created more than once."""
