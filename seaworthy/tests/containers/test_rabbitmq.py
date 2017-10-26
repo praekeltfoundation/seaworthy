@@ -10,7 +10,7 @@ from seaworthy.pytest import dockertest
 def rabbitmq(docker_helper):
     container = RabbitMQContainer(
         create_kwargs={'ports': {'15672/tcp': ('127.0.0.1',)}},
-        container_helper=docker_helper.containers)
+        helper=docker_helper.containers)
     with container:
         container.inner().exec_run(
             ['rabbitmq-plugins', 'enable', 'rabbitmq_management'])

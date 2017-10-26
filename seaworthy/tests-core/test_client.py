@@ -228,7 +228,7 @@ class TestContainerHttpClient(unittest.TestCase):
         ch = self.make_helper()
         container = ContainerBase('first_port', IMG, create_kwargs={
             'ports': {'8080/tcp': ('127.0.0.1', None)}
-        }, container_helper=ch)
+        }, helper=ch)
         container.create_and_start()
         self.addCleanup(container.stop_and_remove)
 
@@ -256,7 +256,7 @@ class TestContainerHttpClient(unittest.TestCase):
                 '8080/tcp': ('127.0.0.1', None),
                 '5353/udp': ('127.0.0.1', None),
             }
-        }, container_helper=ch)
+        }, helper=ch)
         container.create_and_start()
         self.addCleanup(container.stop_and_remove)
 
