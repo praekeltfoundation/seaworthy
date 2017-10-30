@@ -44,6 +44,7 @@ setup(
         'docstest': [
             'doc8',
             'sphinx',
+            'sphinx_rtd_theme',
         ],
         'pep8test': [
             'flake8',
