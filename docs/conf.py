@@ -31,9 +31,11 @@
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
+extensions = [
+    'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx']
+    'sphinx.ext.intersphinx',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -49,7 +51,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Seaworthy'
-copyright = '2017, Jamie Hewland & Jeremy Thurgood'
+copyright = '2017, Praekelt.org'
 author = 'Jamie Hewland & Jeremy Thurgood'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -166,8 +168,6 @@ texinfo_documents = [
      author, 'Seaworthy', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
