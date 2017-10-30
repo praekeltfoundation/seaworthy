@@ -10,6 +10,7 @@ Seaworthy
 .. image:: https://codecov.io/gh/praekeltfoundation/seaworthy/branch/develop/graph/badge.svg
     :target: https://codecov.io/gh/praekeltfoundation/seaworthy
 
+.. badges
 
 Test harness for Docker container images
 
