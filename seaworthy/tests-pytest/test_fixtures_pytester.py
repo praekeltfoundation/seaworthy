@@ -6,7 +6,7 @@ the others. Note that these tests produce no coverage data.
 https://docs.pytest.org/en/3.2.1/writing_plugins.html#testing-plugins
 """
 from seaworthy.checks import docker_client
-from seaworthy.dockerhelper import fetch_images
+from seaworthy.helper import fetch_images
 from seaworthy.pytest.checks import dockertest
 
 

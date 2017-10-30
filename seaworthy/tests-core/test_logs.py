@@ -6,7 +6,7 @@ from datetime import datetime
 
 from seaworthy._lowlevel import stream_logs
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.dockerhelper import DockerHelper, fetch_images
+from seaworthy.helper import DockerHelper, fetch_images
 from seaworthy.logs import (
     EqualsMatcher, OrderedLinesMatcher, RegexMatcher, UnorderedLinesMatcher,
     stream_with_history, wait_for_logs_matching)
