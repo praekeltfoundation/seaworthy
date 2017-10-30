@@ -1,7 +1,7 @@
 Seaworthy
 =========
 
-.. image:: https://readthedocs.org/projects/cryptography/badge/?version=latest
+.. image:: https://readthedocs.org/projects/seaworthy/badge/?version=latest
     :target: http://seaworthy.readthedocs.io/en/latest/
 
 .. image:: https://travis-ci.org/praekeltfoundation/seaworthy.svg?branch=develop
