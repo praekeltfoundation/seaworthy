@@ -43,6 +43,7 @@ setup(
         ],
         'docstest': [
             'doc8',
+            'sphinx',
         ],
         'pep8test': [
             'flake8',
