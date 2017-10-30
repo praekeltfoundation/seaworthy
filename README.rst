@@ -4,11 +4,11 @@ Seaworthy
 .. image:: https://readthedocs.org/projects/cryptography/badge/?version=latest
     :target: http://seaworthy.readthedocs.io/en/latest/
 
-.. image:: https://img.shields.io/travis/praekeltfoundation/seaworthy/develop.svg?style=flat-square
+.. image:: https://travis-ci.org/praekeltfoundation/seaworthy.svg?branch=develop
     :target: https://travis-ci.org/praekeltfoundation/seaworthy
 
-.. image:: https://img.shields.io/codecov/c/github/praekeltfoundation/seaworthy/develop.svg?style=flat-square
-    :target: https://codecov.io/github/praekeltfoundation/seaworthy?branch=develop
+.. image:: https://codecov.io/gh/praekeltfoundation/seaworthy/branch/develop/graph/badge.svg
+    :target: https://codecov.io/gh/praekeltfoundation/seaworthy
 
 
 Test harness for Docker container images
