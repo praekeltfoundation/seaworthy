@@ -8,11 +8,11 @@
 """
 from __future__ import print_function
 
+import optparse
 import os
 import sys
-import optparse
-from os import path
 from fnmatch import fnmatch
+from os import path
 
 from sphinx import __display_version__
 from sphinx.quickstart import EXTENSIONS
