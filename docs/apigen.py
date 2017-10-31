@@ -59,6 +59,7 @@ def create_autosummary_file(modules, opts):
     modules.sort()
     for module in modules:
         lines.append('   {}'.format(module))
+    lines.append('')
 
     fname = path.join(opts.srcdir, '{}.rst'.format(opts.docname))
     logger.info('[apigen] creating API docs file: {}'.format(fname))
