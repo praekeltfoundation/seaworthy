@@ -5,6 +5,13 @@
 
     This is a hacked up and heavily modified copy of sphinx.apidoc, which is
     copyright the Sphinx team.
+
+    Unfortunately, sphinx.apidoc hardcodes most of its output and has an
+    opinionated output structure that doesn't match our needs.
+
+    We use a similar mechanism to collect the modules we want to autodocument
+    and then we build a single autosummary directive and rely on autosummary
+    (with a custom template) to generate the autodoc stubs.
 """
 from __future__ import print_function
 
