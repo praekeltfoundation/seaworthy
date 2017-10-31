@@ -6,7 +6,7 @@ from docker.models.containers import Container
 
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.containers.base import ContainerBase
-from seaworthy.dockerhelper import DockerHelper, fetch_images
+from seaworthy.helper import DockerHelper, fetch_images
 from seaworthy.logs import EqualsMatcher
 
 IMG_SCRIPT = 'alpine:latest'
@@ -22,11 +22,12 @@ def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
 @dockertest()
 class TestContainerBase(unittest.TestCase):
     def setUp(self):
-        self.dh = DockerHelper()
-        self.addCleanup(self.dh.teardown)
+        dh = DockerHelper()
+        self.addCleanup(dh.teardown)
+        self.ch = dh.containers
 
-        self.base = self.with_cleanup(ContainerBase(
-            'wait', IMG_WAIT, docker_helper=self.dh))
+        self.base = self.with_cleanup(
+            ContainerBase('wait', IMG_WAIT, helper=self.ch))
 
     def with_cleanup(self, container):
         self.addCleanup(container._teardown)
@@ -49,74 +50,74 @@ class TestContainerBase(unittest.TestCase):
         container = ContainerBase('timeout', IMG_WAIT, wait_timeout=timeout)
         self.assertEqual(container.wait_timeout, timeout)
 
-    def test_docker_helper_not_set(self):
+    def test_helper_not_set(self):
         """
-        By default, we have no docker_helper.
+        By default, we have no helper.
         """
-        nodh = ContainerBase('dh', IMG_WAIT)
-        self.assertIsNone(nodh._docker_helper)
+        noch = ContainerBase('ch', IMG_WAIT)
+        self.assertIsNone(noch._helper)
         with self.assertRaises(RuntimeError) as cm:
-            nodh.docker_helper
-        self.assertEqual(str(cm.exception), 'No docker_helper set.')
+            noch.helper
+        self.assertEqual(str(cm.exception), 'No helper set.')
 
-    def test_docker_helper_set_in_constructor(self):
+    def test_helper_set_in_constructor(self):
         """
-        We can set a docker helper in the constructor.
+        We can set a container helper in the constructor.
         """
-        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
-        self.assertIs(withdh._docker_helper, self.dh)
-        self.assertIs(withdh.docker_helper, self.dh)
+        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
+        self.assertIs(with_helper._helper, self.ch)
+        self.assertIs(with_helper.helper, self.ch)
 
-    def test_docker_helper_set_to_none(self):
+    def test_helper_set_to_none(self):
         """
-        Setting docker_helper to None has no effect even if we already have
+        Setting helper to None has no effect even if we already have
         one.
         """
-        nodh = ContainerBase('nodh', IMG_WAIT)
-        self.assertIsNone(nodh._docker_helper)
-        nodh.set_docker_helper(None)
-        self.assertIsNone(nodh._docker_helper)
+        no_helper = ContainerBase('no_helper', IMG_WAIT)
+        self.assertIsNone(no_helper._helper)
+        no_helper.set_helper(None)
+        self.assertIsNone(no_helper._helper)
 
-        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
-        self.assertIs(withdh._docker_helper, self.dh)
-        withdh.set_docker_helper(None)
-        self.assertIs(withdh._docker_helper, self.dh)
+        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
+        self.assertIs(with_helper._helper, self.ch)
+        with_helper.set_helper(None)
+        self.assertIs(with_helper._helper, self.ch)
 
-    def test_docker_helper_set_to_current(self):
+    def test_helper_set_to_current(self):
         """
-        Setting docker_helper to the one we already have has no effect.
+        Setting helper to the one we already have has no effect.
         """
-        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
-        self.assertIs(withdh._docker_helper, self.dh)
-        withdh.set_docker_helper(self.dh)
-        self.assertIs(withdh._docker_helper, self.dh)
+        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
+        self.assertIs(with_helper._helper, self.ch)
+        with_helper.set_helper(self.ch)
+        self.assertIs(with_helper._helper, self.ch)
 
-    def test_cannot_replace_docker_helper(self):
+    def test_cannot_replace_helper(self):
         """
-        If we already have a docker_helper, we can't set a different one.
+        If we already have a helper, we can't set a different one.
         """
-        withdh = ContainerBase('withdh', IMG_WAIT, docker_helper=self.dh)
-        self.assertIs(withdh.docker_helper, self.dh)
+        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
+        self.assertIs(with_helper.helper, self.ch)
         with self.assertRaises(RuntimeError) as cm:
-            withdh.set_docker_helper(DockerHelper())
+            with_helper.set_helper(DockerHelper())
         self.assertEqual(
-            str(cm.exception), 'Cannot replace existing docker_helper.')
-        self.assertIs(withdh.docker_helper, self.dh)
+            str(cm.exception), 'Cannot replace existing helper.')
+        self.assertIs(with_helper.helper, self.ch)
 
     def test_create_only_if_not_created(self):
         """The container cannot be created more than once."""
-        self.base.create_and_start(pull=False)
+        self.base.create_and_start(fetch_image=False)
 
         # We can't create the container when it's already created
         with self.assertRaises(RuntimeError) as cm:
-            self.base.create_and_start(pull=False)
+            self.base.create_and_start(fetch_image=False)
         self.assertEqual(str(cm.exception), 'Container already created.')
 
         self.base.stop_and_remove()
 
     def test_remove_only_if_created(self):
         """The container can only be removed if it has been created."""
-        self.base.create_and_start(pull=False)
+        self.base.create_and_start(fetch_image=False)
 
         # We can remove the container if it's created
         self.base.stop_and_remove()
@@ -135,7 +136,7 @@ class TestContainerBase(unittest.TestCase):
             self.base.inner()
         self.assertEqual(str(cm.exception), 'Container not created yet.')
 
-        self.base.create_and_start(pull=False)
+        self.base.create_and_start(fetch_image=False)
 
         # We can get the container once it's created
         container = self.base.inner()
@@ -204,7 +205,7 @@ class TestContainerBase(unittest.TestCase):
 
         c = self.with_cleanup(SubContainer(
             'kwargs', IMG_WAIT, create_kwargs=create_kwargs))
-        c.create_and_start(self.dh, pull=False, kwargs=kwargs)
+        c.create_and_start(self.ch, fetch_image=False, kwargs=kwargs)
 
         self.assertEqual(merge_kwargs_args, [create_kwargs, kwargs])
         c_env = [v for v in c.inner().attrs['Config']['Env'] if 'KWARGS' in v]
@@ -220,9 +221,10 @@ class TestContainerBase(unittest.TestCase):
         """
         We can get the ports exposed or published on a container.
         """
-        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
-            '8000/tcp': ('127.0.0.1', '10701'),
-        }})
+        self.base.create_and_start(
+            self.ch, fetch_image=False, kwargs={'ports': {
+                '8000/tcp': ('127.0.0.1', '10701'),
+            }})
 
         # We're not interested in the order of the ports
         self.assertCountEqual(self.base.ports.items(), [
@@ -234,7 +236,7 @@ class TestContainerBase(unittest.TestCase):
         """
         We can get the host port mapping of a container.
         """
-        self.base.create_and_start(pull=False, kwargs={'ports': {
+        self.base.create_and_start(fetch_image=False, kwargs={'ports': {
             '8080/tcp': ('127.0.0.1',),
             '9090/tcp': ('127.0.0.1', '10701'),
             '9191/udp': '10702',
@@ -263,9 +265,10 @@ class TestContainerBase(unittest.TestCase):
         When we try to get the host port for a container port that hasn't been
         exposed, an error is raised.
         """
-        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
-            '8000/tcp': ('127.0.0.1', '10701'),
-        }})
+        self.base.create_and_start(
+            self.ch, fetch_image=False, kwargs={'ports': {
+                '8000/tcp': ('127.0.0.1', '10701'),
+            }})
 
         self.assertNotIn('90/tcp', self.base.ports)
 
@@ -278,9 +281,10 @@ class TestContainerBase(unittest.TestCase):
         When we try to get the host port for a container port that hasn't been
         published to the host, an error is raised.
         """
-        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
-            '8000/tcp': ('127.0.0.1', '10701'),
-        }})
+        self.base.create_and_start(
+            self.ch, fetch_image=False, kwargs={'ports': {
+                '8000/tcp': ('127.0.0.1', '10701'),
+            }})
 
         # The Nginx image EXPOSEs port 80, but we don't publish it
         self.assertIn('80/tcp', self.base.ports)
@@ -295,11 +299,12 @@ class TestContainerBase(unittest.TestCase):
         When we get the first host port for the container, the host port mapped
         to the lowest container port is returned.
         """
-        self.base.create_and_start(self.dh, pull=False, kwargs={'ports': {
-            '8000/tcp': ('127.0.0.1',),
-            '90/tcp': ('127.0.0.1', '10701'),
-            '90/udp': ('127.0.0.1', '10702'),
-        }})
+        self.base.create_and_start(
+            self.ch, fetch_image=False, kwargs={'ports': {
+                '8000/tcp': ('127.0.0.1',),
+                '90/tcp': ('127.0.0.1', '10701'),
+                '90/udp': ('127.0.0.1', '10702'),
+            }})
 
         # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
         # be considered by ``get_first_host_port()``
@@ -314,7 +319,7 @@ class TestContainerBase(unittest.TestCase):
         When we try to get the first host port, but the container has no
         published ports, an error is raised.
         """
-        self.base.create_and_start(self.dh, pull=False)
+        self.base.create_and_start(self.ch, fetch_image=False)
 
         # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
         # be considered by ``get_first_host_port()``
@@ -332,7 +337,7 @@ class TestContainerBase(unittest.TestCase):
 
         script_con = self.with_cleanup(ContainerBase('script', IMG_SCRIPT))
 
-        script_con.create_and_start(self.dh, pull=False, kwargs={
+        script_con.create_and_start(self.ch, fetch_image=False, kwargs={
             'command': ['sh', '-c', script],
         })
         # Wait for the output to arrive.

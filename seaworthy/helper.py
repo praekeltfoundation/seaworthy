@@ -96,12 +96,15 @@ class HelperBase:
 
 
 class ContainerHelper(HelperBase):
-    def __init__(self, client, namespace, networks_helper, volumes_helper):
+    def __init__(self, client, namespace, image_helper, network_helper,
+                 volume_helper):
         super().__init__(client.containers, namespace)
-        self._networks_helper = networks_helper
-        self._volumes_helper = volumes_helper
+        self._image_helper = image_helper
+        self._network_helper = network_helper
+        self._volume_helper = volume_helper
 
-    def create(self, name, image, network=None, volumes={}, **kwargs):
+    def create(self, name, image, fetch_image=False, network=None, volumes={},
+               **kwargs):
         """
         Create a new container.
 
@@ -129,6 +132,8 @@ class ContainerHelper(HelperBase):
             - A full bind specifier (dict), for example
               ``{'bind': '/mnt', 'mode': 'rw'}``
             - A "short-form" bind specifier (str), for example ``/mnt:rw``
+        :param fetch_image:
+            Whether to attempt to pull the image if it is not found locally.
         :param kwargs:
             Other parameters to create the container with.
         """
@@ -140,13 +145,16 @@ class ContainerHelper(HelperBase):
         network = self._network_for_container(network, kwargs)
         if network is not None:
             network_id, network = (
-                self._networks_helper._get_id_and_model(network))
+                self._network_helper._get_id_and_model(network))
             create_kwargs['network'] = network_id
 
         if volumes:
             create_kwargs['volumes'] = self._volumes_for_container(volumes)
 
         create_kwargs.update(kwargs)
+
+        if fetch_image:
+            self._image_helper.fetch(image)
 
         container = super().create(name, image, **create_kwargs)
 
@@ -167,13 +175,13 @@ class ContainerHelper(HelperBase):
             return None
 
         # Else, use the default network
-        return self._networks_helper.get_default()
+        return self._network_helper.get_default()
 
     def _volumes_for_container(self, volumes):
         create_volumes = {}
         for vol, opts in volumes.items():
             try:
-                vol_id, _ = self._volumes_helper._get_id_and_model(vol)
+                vol_id, _ = self._volume_helper._get_id_and_model(vol)
             except docker.errors.NotFound:
                 # Assume this is a bind if we can't find the ID
                 vol_id = vol
@@ -253,7 +261,15 @@ class ContainerHelper(HelperBase):
         self.remove(container)
 
 
-class NetworksHelper(HelperBase):
+class ImageHelper:
+    def __init__(self, client):
+        self.images = client.images
+
+    def fetch(self, tag):
+        return fetch_image(self.images.client, tag)
+
+
+class NetworkHelper(HelperBase):
     def __init__(self, client, namespace):
         super().__init__(client.networks, namespace)
         self._default_network = None
@@ -300,7 +316,7 @@ class NetworksHelper(HelperBase):
         return super().create(name, check_duplicate=check_duplicate, **kwargs)
 
 
-class VolumesHelper(HelperBase):
+class VolumeHelper(HelperBase):
     def __init__(self, client, namespace):
         super().__init__(client.volumes, namespace)
 
@@ -323,10 +339,11 @@ class DockerHelper:
             client = docker.client.from_env()
         self._client = client
 
-        self.networks = NetworksHelper(self._client, namespace)
-        self.volumes = VolumesHelper(self._client, namespace)
+        self.images = ImageHelper(self._client)
+        self.networks = NetworkHelper(self._client, namespace)
+        self.volumes = VolumeHelper(self._client, namespace)
         self.containers = ContainerHelper(
-            self._client, namespace, self.networks, self.volumes)
+            self._client, namespace, self.images, self.networks, self.volumes)
 
     def teardown(self):
         self.containers._teardown()
@@ -336,6 +353,3 @@ class DockerHelper:
         # We need to close the underlying APIClient explicitly to avoid
         # ResourceWarnings from unclosed HTTP connections.
         self._client.api.close()
-
-    def pull_image_if_not_found(self, image):
-        return fetch_image(self._client, image)

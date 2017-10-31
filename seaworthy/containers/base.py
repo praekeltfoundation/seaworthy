@@ -32,21 +32,21 @@ class ContainerBase:
     A container object may be used as a context manager to ensure proper setup
     and teardown of the container around the code that uses it::
 
-        with ContainerBase('my_container', IMAGE, docker_helper=dh) as c:
+        with ContainerBase('my_container', IMAGE, helper=ch) as c:
             assert c.status() == 'running'
 
-    (Note that this only works if the container has a docker_helper set and
-    does not have a container created.)
+    (Note that this only works if the container has a helper set and does not
+    have a container created.)
     """
 
     WAIT_TIMEOUT = 10.0
 
     def __init__(self, name, image, wait_patterns=None, wait_timeout=None,
-                 create_kwargs=None, docker_helper=None):
+                 create_kwargs=None, helper=None):
         """
         :param name:
             The name for the container. The actual name of the container is
-            namespaced by DockerHelper. This name will be used as a network
+            namespaced by ContainerHelper. This name will be used as a network
             alias for the container.
         :param image: image tag to use
         :param list wait_patterns:
@@ -55,6 +55,10 @@ class ContainerBase:
         :param wait_timeout:
             Number of seconds to wait for the ``wait_patterns``. Defaults to
             ``self.WAIT_TIMEOUT``.
+        :param dict create_kwargs:
+            Other kwargs to use when creating the container.
+        :param seaworthy.helper.ContainerHelper helper:
+            A ContainerHelper instance used to create containers.
         """
         self.name = name
         self.image = image
@@ -69,15 +73,15 @@ class ContainerBase:
 
         self._create_kwargs = {} if create_kwargs is None else create_kwargs
 
-        self._docker_helper = docker_helper
+        self._helper = helper
         self._container = None
         self._http_clients = []
 
     @property
-    def docker_helper(self):
-        if self._docker_helper is None:
-            raise RuntimeError('No docker_helper set.')
-        return self._docker_helper
+    def helper(self):
+        if self._helper is None:
+            raise RuntimeError('No helper set.')
+        return self._helper
 
     def __enter__(self):
         self.create_and_start()
@@ -103,7 +107,7 @@ class ContainerBase:
         the container's lifecycle and adds the container as a keyword argument
         to the function when it's called.
 
-        The container must have a docker_helper set.
+        The container must have a helper set.
 
         :param name: (optional) Set the name of the keyword argument used to
             pass the container to the decorated function. By default, the
@@ -111,7 +115,7 @@ class ContainerBase:
 
         Example usage::
 
-            container = ContainerBase('container_name', IMAGE, docker_helper)
+            container = ContainerBase('container_name', IMAGE, helper)
             @container.as_fixture()
             def test_something(container_name):
                 assert container_name.status() == 'running'
@@ -128,15 +132,17 @@ class ContainerBase:
             return wrapper
         return deco
 
-    def set_docker_helper(self, docker_helper):
-        if docker_helper is None:  # We don't want to "unset" in this method.
+    def set_helper(self, helper):
+        # We don't want to "unset" in this method.
+        if helper is None:
             return
-        if docker_helper is self._docker_helper:  # We already have this one.
+        # We already have this one.
+        if helper is self._helper:
             return
-        if self._docker_helper is None:
-            self._docker_helper = docker_helper
+        if self._helper is None:
+            self._helper = helper
         else:
-            raise RuntimeError('Cannot replace existing docker_helper.')
+            raise RuntimeError('Cannot replace existing helper.')
 
     def status(self):
         """
@@ -150,7 +156,8 @@ class ContainerBase:
         self.inner().reload()
         return self.inner().status
 
-    def create_and_start(self, docker_helper=None, pull=True, kwargs=None):
+    def create_and_start(
+            self, helper=None, fetch_image=True, kwargs=None):
         """
         Create the container and start it, waiting for the expected log lines.
 
@@ -158,19 +165,16 @@ class ContainerBase:
             Whether or not to attempt to pull the image if the image tag is not
             known.
         """
-        self.set_docker_helper(docker_helper)
+        self.set_helper(helper)
         if self._container is not None:
             raise RuntimeError('Container already created.')
-
-        if pull:
-            self.docker_helper.pull_image_if_not_found(self.image)
 
         kwargs = {} if kwargs is None else kwargs
         kwargs = self.merge_kwargs(self._create_kwargs, kwargs)
 
-        self._container = self.docker_helper.containers.create(
-            self.name, self.image, **kwargs)
-        self.docker_helper.containers.start(self._container)
+        self._container = self.helper.create(
+            self.name, self.image, fetch_image=fetch_image, **kwargs)
+        self.helper.start(self._container)
 
         self.wait_for_start()
 
@@ -189,7 +193,7 @@ class ContainerBase:
 
     def stop_and_remove(self):
         """ Stop the container and remove it. """
-        self.docker_helper.containers.stop_and_remove(self.inner())
+        self.helper.stop_and_remove(self.inner())
         self._container = None
 
     def inner(self):
