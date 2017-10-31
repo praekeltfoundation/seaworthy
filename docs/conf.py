@@ -24,6 +24,7 @@ except ImportError:
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
+sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('.'))
 
 
@@ -41,7 +42,22 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
+    # Ordering is important here: we need apigen to run before autosummary.
+    'apigen',
+    'sphinx.ext.autosummary',
 ]
+
+# We want our API reference index to be 'api.rst'.
+apigen_docname = 'api'
+# We want our API reference module files to be 'api/module.name.rst'.
+apigen_destdir = 'api'
+# This is where our source lives.
+apigen_rootpath = os.path.abspath('../seaworthy')
+# Don't document tests.
+apigen_excludes = ['tests', 'tests-*']
+
+# apigen only makes autosummary directives, autosummary needs to do the rest.
+autosummary_generate = ['api.rst']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

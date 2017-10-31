@@ -8,6 +8,7 @@ Seaworthy
    :caption: Contents:
 
    faq
+   api
 
 
 Indices and tables
