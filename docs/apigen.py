@@ -60,8 +60,8 @@ def create_autosummary_file(modules, opts):
     for module in modules:
         lines.append('   {}'.format(module))
 
-    fname = '{}.rst'.format(opts.docname)
-    logger.info('Creating file %s.' % fname)
+    fname = path.join(opts.srcdir, '{}.rst'.format(opts.docname))
+    logger.info('[apigen] creating API docs file: {}'.format(fname))
     with FileAvoidWrite(fname) as f:
         f.write('\n'.join(lines))
 
@@ -204,6 +204,7 @@ Note: By default this script will not overwrite already created files.""")
         parser.error('A package path is required.')
 
     opts.rootpath, opts.excludes = args[0], args[1:]
+    opts.srcdir = '.'
     return generate_api_docs(opts)
 
 
@@ -230,6 +231,10 @@ class Opts:
 
     def __getattr__(self, name):
         return getattr(self._app.config, 'apigen_{}'.format(name))
+
+    @property
+    def srcdir(self):
+        return self._app.srcdir
 
 
 def setup(app):

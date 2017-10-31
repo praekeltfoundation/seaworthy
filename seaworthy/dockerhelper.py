@@ -118,12 +118,14 @@ class ContainerHelper(HelperBase):
         :param volumes:
             A mapping of volumes to bind parameters. The keys to this mapping
             can be any of three types of objects:
+
             - A ``Volume`` model object
             - The name of a volume (str)
             - A path on the host to bind mount into the container (str)
 
             The bind parameters, i.e. the values in the mapping, can be of
             two types:
+
             - A full bind specifier (dict), for example
               ``{'bind': '/mnt', 'mode': 'rw'}``
             - A "short-form" bind specifier (str), for example ``/mnt:rw``
