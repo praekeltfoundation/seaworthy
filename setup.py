@@ -1,4 +1,5 @@
 import os
+import re
 
 from setuptools import find_packages, setup
 
@@ -10,9 +11,18 @@ def read(*parts):
         return f.read()
 
 
+def find_version(*file_paths):
+    version_file = read(*file_paths)
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError('Unable to find version string')
+
+
 setup(
     name='seaworthy',
-    version='0.1.0.dev0',
+    version=find_version('seaworthy', '__init__.py'),
     license='BSD',
     url='https://github.com/praekeltfoundation/seaworthy',
     description='Test Docker container images',
@@ -43,6 +53,8 @@ setup(
         ],
         'docstest': [
             'doc8',
+            'sphinx',
+            'sphinx_rtd_theme',
         ],
         'pep8test': [
             'flake8',
