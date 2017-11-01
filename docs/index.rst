@@ -9,6 +9,7 @@ Seaworthy
 
    getting-started
    helpers
+   integrations
    faq
    api
 

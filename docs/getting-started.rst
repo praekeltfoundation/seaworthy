@@ -39,8 +39,8 @@ Containers can be defined using subclasses of
 ``WAIT_PATTERNS`` is a list of regex patterns. Once these patterns have been
 seen in the container logs, the container is considered to have started and be
 ready for use. For more advanced readiness checks, the
-:meth:`~seaworthy.containers.base.ContainerBase.wait_for_start` method.
-
+:meth:`~seaworthy.containers.base.ContainerBase.wait_for_start` method should
+be overridden.
 
 This container can then be used as fixtures for tests in a number of ways, the
 easiest of which is with pytest::
@@ -67,3 +67,6 @@ A few things to note here:
   function scope, which means for each test function the fixture is completely
   reinitialized. Creating and starting up a container can be a little slow, so
   you need to think carefully about what scope to use for your fixtures.
+
+pytest is not required to use Seaworthy and there are several other ways to use
+the container as a fixture. For more information see :doc:`integrations`.
