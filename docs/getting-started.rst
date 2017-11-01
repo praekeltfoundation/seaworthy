@@ -39,7 +39,7 @@ Containers can be defined using subclasses of
 ``WAIT_PATTERNS`` is a list of regex patterns. Once these patterns have been
 seen in the container logs, the container is considered to have started and be
 ready for use. For more advanced readiness checks, the
-:meth:`~ContainerBase.wait_for_start` method.
+:meth:`~seaworthy.containers.base.ContainerBase.wait_for_start` method.
 
 
 This container can then be used as fixtures for tests in a number of ways, the
