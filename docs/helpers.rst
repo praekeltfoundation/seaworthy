@@ -20,6 +20,9 @@ These helpers all provide two main functions:
 - Teardown (cleanup) of resources: when the tests end, the networks, volumes,
   and containers used in those tests are removed.
 
+In addition, some of the behaviour around resource creation and removal is
+changed from the Docker defaults to be a better fit for a testing environment.
+
 Accessing the various helpers is most easily done via the
 :class:`~seaworthy.helper.DockerHelper`::
 
