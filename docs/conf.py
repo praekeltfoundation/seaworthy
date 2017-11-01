@@ -42,6 +42,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
+    'sphinx.ext.todo',
     # Ordering is important here: we need apigen to run before autosummary.
     'apigen',
     'sphinx.ext.autosummary',
@@ -61,6 +62,8 @@ autosummary_generate = ['api.rst']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+add_module_names = False
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -104,7 +107,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = False
+todo_include_todos = True
 
 
 # -- Options for HTML output ----------------------------------------------
