@@ -135,7 +135,7 @@ def recurse_tree(rootpath, excludes, opts):
 
         pkg = root[len(path_prefix):].lstrip(path.sep).replace(path.sep, '.')
         for py_file in py_files:
-            if not shall_skip(path.join(rootpath, py_file), opts):
+            if not shall_skip(path.join(root, py_file), opts):
                 if py_file == INITPY:
                     module = ''
                 else:
