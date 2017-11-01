@@ -53,7 +53,8 @@ setup(
         ],
         'docstest': [
             'doc8',
-            'sphinx',
+            'readme_renderer',
+            'sphinx>=1.6.5',
             'sphinx_rtd_theme',
         ],
         'pep8test': [
