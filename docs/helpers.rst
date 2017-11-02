@@ -47,7 +47,7 @@ Accessing the various helpers is most easily done via the
 
 The DockerHelper can be configured with a custom Docker API client. The default
 client can be configured using environment variables. See
-:meth:`docker.client.from_env`.
+:func:`docker.client.from_env`.
 
 
 .. _`Docker SDK for Python`: https://docker-py.readthedocs.io/
