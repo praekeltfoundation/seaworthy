@@ -47,6 +47,14 @@ that are factories for fixtures. The most important two are:
     :noindex:
 
 
+testtools
+---------
+We primarily use testtools when matching against complex data structures and
+don't use any of its test runner functionality. Currently, testtools matchers
+are only used for matching :class:`~seaworthy.ps.PsTree` objects. See the API
+documentation for the :mod:`seaworthy.ps` module.
+
+
 Testing our integrations
 ------------------------
 To make sure that none of the optional dependencies accidentally creep into the
