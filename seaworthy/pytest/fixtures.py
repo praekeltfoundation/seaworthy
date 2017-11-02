@@ -9,7 +9,7 @@ import pytest
 from seaworthy.helper import DockerHelper
 
 
-def docker_helper_fixture(name='docker_helper', scope='module'):
+def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     """
     Create a fixture for the ``DockerHelper``.
 
@@ -18,13 +18,18 @@ def docker_helper_fixture(name='docker_helper', scope='module'):
 
         docker_helper = docker_helper_fixture(scope='class')
 
+    :param name: The name of the fixture.
+    :param scope: The scope of the fixture.
+    :param kwargs:
+        Keyword arguments to pass to the ``DockerHelper`` constructor.
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture():
-        prefix = 'test'
+        namespace = kwargs.pop('namespace', 'test')
         if 'PYTEST_XDIST_WORKER' in os.environ:
-            prefix = '{}_{}'.format(prefix, os.environ['PYTEST_XDIST_WORKER'])
-        docker_helper = DockerHelper(prefix)
+            namespace = '{}_{}'.format(
+                namespace, os.environ['PYTEST_XDIST_WORKER'])
+        docker_helper = DockerHelper(namespace=namespace, **kwargs)
         yield docker_helper
         docker_helper.teardown()
     return fixture

@@ -9,6 +9,43 @@ reinvent a bunch of integration and helper code for all the third-party testing
 tools we like, so we also provide optional integration modules where it makes
 sense to do so.
 
+pytest
+------
+Seaworthy is a `pytest plugin`_ and all the functions and fixtures in the
+:mod:`seaworthy.pytest` module will be available when Seaworthy is used with
+pytest.
+
+``docker_helper`` fixture
+^^^^^^^^^^^^^^^^^^^^^^^^^
+A fixture for a :class:`~seaworthy.helper.DockerHelper` instance is defined by
+default. This fixture uses all the ``DockerHelper`` defaults and has
+module-level scope. The behaviour of this fixture can be overridden by defining
+a new ``docker_helper`` fixture using
+:func:`~seaworthy.pytest.fixtures.docker_helper_fixture`.
+
+``dockertest`` decorator
+^^^^^^^^^^^^^^^^^^^^^^^^
+The :func:`~seaworthy.pytest.checks.dockertest` decorator can be used to mark
+tests that *require* Docker to run. These tests will be skipped if Docker is
+not available. It's possible that some tests in your test suite may not require
+Docker and you may want to still be able to run your tests in an environment
+that does not have Docker available. The decorator can be used as follows::
+
+    @dockertest()
+    def test_docker_thing(cake_container):
+        assert cake_container.exec_cake('variant') == ['gateau']
+
+Fixture factories
+^^^^^^^^^^^^^^^^^
+A few functions are provided in the :mod:`seaworthy.pytest.fixtures` module
+that are factories for fixtures. The most important two are:
+
+.. autofunction:: seaworthy.pytest.fixtures.container_fixture
+    :noindex:
+
+.. autofunction:: seaworthy.pytest.fixtures.clean_container_fixtures
+    :noindex:
+
 
 Testing our integrations
 ------------------------
@@ -37,4 +74,5 @@ run in different environments:
 
 
 .. _`pytest`: https://pytest.org/
+.. _`pytest plugin`: https://docs.pytest.org/en/latest/plugins.html
 .. _`testtools`: https://testtools.readthedocs.io/en/latest/
