@@ -5,13 +5,13 @@ These are wrappers around the resource models provided by the `Docker SDK for
 Python`_. There is a helper class for each of the basic Docker resource types:
 
 - :class:`~seaworthy.helper.ImageHelper` manages
-  :class:`~docker.models.images.Image` resources
+  :class:`docker.models.images.Image` resources
 - :class:`~seaworthy.helper.NetworkHelper` manages
-  :class:`~docker.models.networks.Network` resources
+  :class:`docker.models.networks.Network` resources
 - :class:`~seaworthy.helper.VolumeHelper` manages
-  :class:`~docker.models.volumes.Volume` resources
+  :class:`docker.models.volumes.Volume` resources
 - :class:`~seaworthy.helper.ContainerHelper` manages
-  :class:`~docker.models.containers.Container` resources
+  :class:`docker.models.containers.Container` resources
 
 These helpers all provide two main functions:
 
