@@ -55,10 +55,16 @@ easiest of which is with pytest::
         output = cake_container.exec_cake('type')
         assert output = ['chocolate']
 
-The scope of the fixture is important. By default, pytest fixtures have
-function scope, which means for each test function the fixture is completely
-reinitialized. Creating and starting up a container can be a little slow, so
-you need to think carefully about what scope to use for your fixtures.
+A few things to note here:
+
+- The :func:`~seaworthy.pytest.fixtures.container_fixture` function returns a
+  pytest fixture that ensures that the container is created and started before
+  the test begins and that the container is stopped and removed after the test
+  ends.
+- The scope of the fixture is important. By default, pytest fixtures have
+  function scope, which means for each test function the fixture is completely
+  reinitialized. Creating and starting up a container can be a little slow, so
+  you need to think carefully about what scope to use for your fixtures.
 
 For simple cases, :class:`~seaworthy.containers.base.ContainerBase` can be used
 directly, without subclassing::
