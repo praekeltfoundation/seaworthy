@@ -46,36 +46,29 @@ This container can then be used as fixtures for tests in a number of ways, the
 easiest of which is with pytest::
 
     import pytest
+    from seaworthy.pytest.fixtures import container_fixture
 
-
-    @pytest.fixture
-    def cake_container(docker_helper):
-        with CakeContainer('test', helper=docker_helper.containers) as con:
-            yield con
-
+    container = CakeContainer('test')
+    fixture = container_fixture('cake_container', container)
 
     def test_type(cake_container):
         output = cake_container.exec_cake('type')
         assert output = ['chocolate']
 
-A few things to note here:
-
-- The ``docker_helper`` parameter to the ``cake_container`` fixture function is
-  a fixture itself and is automatically defined when using pytest with
-  Seaworthy. For more information on the helper, see :doc:`helpers`.
-- The scope of the fixture is important. By default, pytest fixtures have
-  function scope, which means for each test function the fixture is completely
-  reinitialized. Creating and starting up a container can be a little slow, so
-  you need to think carefully about what scope to use for your fixtures.
+The scope of the fixture is important. By default, pytest fixtures have
+function scope, which means for each test function the fixture is completely
+reinitialized. Creating and starting up a container can be a little slow, so
+you need to think carefully about what scope to use for your fixtures.
 
 For simple cases, :class:`~seaworthy.containers.base.ContainerBase` can be used
 directly, without subclassing::
 
-    @pytest.fixture
-    def soda_container(docker_helper):
-        with ContainerBase('test', 'acme-corp/soda-service:cola',
-                           [r'soda \w+ is fizzing']): as con:
-            yield con
+    container = ContainerBase(
+        'test', 'acme-corp/soda-service:cola', [r'soda \w+ is fizzing'])
+    fixture = container_fixture('soda_container', container)
+
+    def test_fizzyness(soda_container):
+        pass
 
 Note that pytest is not required to use Seaworthy and there are several other
 ways to use the container as a fixture. For more information see
