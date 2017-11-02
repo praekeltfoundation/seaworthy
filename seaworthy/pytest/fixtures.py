@@ -26,7 +26,7 @@ def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     @pytest.fixture(name=name, scope=scope)
     def fixture():
         namespace = kwargs.pop('namespace', 'test')
-        if 'PYTEST_XDIST_WORKER' in os.environ:
+        if 'PYTEST_XDIST_WORKER' in os.environ:  # pragma: no cover
             namespace = '{}_{}'.format(
                 namespace, os.environ['PYTEST_XDIST_WORKER'])
         docker_helper = DockerHelper(namespace=namespace, **kwargs)
