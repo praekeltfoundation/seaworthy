@@ -14,7 +14,7 @@ installed, which can be done using extra requirements::
 
 Defining containers for tests
 -----------------------------
-Containers can be defined using subclasses of
+Containers should be defined using subclasses of
 :class:`~seaworthy.containers.base.ContainerBase`. For example::
 
     from seaworthy.containers.base import ContainerBase
@@ -68,5 +68,15 @@ A few things to note here:
   reinitialized. Creating and starting up a container can be a little slow, so
   you need to think carefully about what scope to use for your fixtures.
 
-pytest is not required to use Seaworthy and there are several other ways to use
-the container as a fixture. For more information see :doc:`integrations`.
+For simple cases, :class:`~seaworthy.containers.base.ContainerBase` can be used
+directly, without subclassing::
+
+    @pytest.fixture
+    def soda_container(docker_helper):
+        with ContainerBase('test', 'acme-corp/soda-service:cola',
+                           [r'soda \w+ is fizzing']): as con:
+            yield con
+
+Note that pytest is not required to use Seaworthy and there are several other
+ways to use the container as a fixture. For more information see
+:doc:`integrations`.
