@@ -7,6 +7,9 @@ Seaworthy
    :maxdepth: 2
    :caption: Contents:
 
+   getting-started
+   helpers
+   integrations
    faq
    api
 
