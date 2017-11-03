@@ -41,9 +41,9 @@ Default fixture for the ``DockerHelper``. Has module scope.
 docker_helper = docker_helper_fixture()
 
 
-def image_pull_fixture(image, name, scope='module'):
+def image_fetch_fixture(image, name, scope='module'):
     """
-    Create a fixture to pull an image.
+    Create a fixture to fetch an image.
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture(docker_helper):
@@ -51,7 +51,7 @@ def image_pull_fixture(image, name, scope='module'):
     return fixture
 
 
-def wrap_container_fixture(container, docker_helper):
+def _wrap_container_fixture(container, docker_helper):
     container.create_and_start(docker_helper.containers)
     yield container
     container.stop_and_remove()
@@ -70,8 +70,8 @@ def container_fixture(container, name, scope='function'):
             \"""Test something about the PostgreSQL container...\"""
 
     :param container:
-        A "container" object that is a subtype of
-        ~seaworthy.containers.ContainerBase.
+        A "container" object that is a subclass of
+        :class:`~seaworthy.containers.ContainerBase`.
     :param name: The fixture name.
     :param scope: The scope of the fixture.
 
@@ -79,7 +79,7 @@ def container_fixture(container, name, scope='function'):
     """
     @pytest.fixture(name=name, scope=scope)
     def raw_fixture(docker_helper):
-        yield from wrap_container_fixture(container, docker_helper)
+        yield from _wrap_container_fixture(container, docker_helper)
     return raw_fixture
 
 
@@ -122,8 +122,8 @@ def clean_container_fixtures(container, name, scope='class'):
                 \"""
 
     :param container:
-        A "container" object that is a subtype of
-        ~seaworthy.containers.ContainerBase.
+        A "container" object that is a subclass of
+        :class:`~seaworthy.containers.ContainerBase`.
     :param name:
         The fixture name.
     :param scope:
@@ -138,4 +138,4 @@ def clean_container_fixtures(container, name, scope='class'):
 
 
 __all__ = ['clean_container_fixtures', 'container_fixture', 'docker_helper',
-           'docker_helper_fixture', 'image_pull_fixture']
+           'docker_helper_fixture', 'image_fetch_fixture']
