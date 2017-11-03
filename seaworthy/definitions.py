@@ -201,7 +201,7 @@ class ContainerDefinition(_DefinitionBase):
         self.inner().reload()
         return self.inner().status
 
-    def create_and_start(self, fetch_image=True, helper=None, **kwargs):
+    def create_and_start(self, helper=None, fetch_image=True, **kwargs):
         """
         Create the container and start it, waiting for the expected log lines.
 
