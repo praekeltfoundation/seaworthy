@@ -72,9 +72,8 @@ def read_by_deadline(resp, sock, deadline, n):
     it's closed.
     """
     time_left = deadline - get_time()
-    if time_left <= 0:
-        raise TimeoutError('Timeout waiting for container logs.')
-    sock.settimeout(time_left)
+    # Avoid past-deadline special cases by setting a small timeout instead.
+    sock.settimeout(max(time_left, 0.001))
     try:
         data = resp.raw.read(n)
     except (ReadTimeoutError, socket.timeout) as e:
