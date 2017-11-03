@@ -201,11 +201,16 @@ class ContainerDefinition(_DefinitionBase):
         self.inner().reload()
         return self.inner().status
 
-    def create_and_start(self, helper=None, **kwargs):
+    def create_and_start(self, fetch_image=True, helper=None, **kwargs):
         """
         Create the container and start it, waiting for the expected log lines.
+
+        :param fetch_image:
+            Whether to try pull the image if it's not found. The behaviour here
+            is similar to ``docker run`` and this parameter defaults to
+            ``True``.
         """
-        self.create(helper=helper, **kwargs)
+        self.create(fetch_image=fetch_image, helper=helper, **kwargs)
 
         self.helper.start(self._inner)
 
