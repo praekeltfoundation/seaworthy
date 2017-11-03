@@ -2,6 +2,7 @@ import socket
 import struct
 import threading
 import unittest
+from collections import namedtuple
 from datetime import datetime
 
 from seaworthy._lowlevel import stream_logs
@@ -229,24 +230,27 @@ class FakeLogsContainer:
     streamed are tailed.
     """
 
-    def __init__(self, log_entries, expected_params=None):
+    def __init__(self, log_entries, expected_params=None, close_timeout=2):
         self.log_entries = log_entries
         self._seen_logs = []
-        self._expected_params = {
-            'stdout': 1,
-            'stderr': 1,
-            'stream': 1,
-            'logs': 0,
+        self._expected_stream_params = {
+            'stdout': True,
+            'stderr': True,
+            'follow': True,
         }
         if expected_params is not None:
-            self._expected_params.update(expected_params)
+            self._expected_stream_params.update(expected_params)
         self._feeder = None
         self._client_sockets = set()
+        self._api = FakeAPIClient()
+        self._close_timeout = close_timeout
+        self.client = namedtuple('DockerClient', 'api')(self._api)
 
     def cleanup(self):
         self.cancel_feeder()
         while self._client_sockets:
             self._client_sockets.pop().close()
+        assert self._api._multiplexed_response_stream_helper == 'ORIG_MRSH'
 
     def cancel_feeder(self):
         feeder = self._feeder
@@ -255,37 +259,52 @@ class FakeLogsContainer:
             feeder.join()
 
     def logs(self, stream=False, **kw):
-        assert stream is False
-        tail = kw.get('tail', 'all')
-        if tail == 'all':
-            tail = 0
+        tail = kw.pop('tail', 'all')
+        if stream:
+            return self._stream_logs(tail, kw)
         else:
-            assert tail > 0
-        return b''.join(self._seen_logs[-tail:])
+            return b''.join(self._tail_logs(tail))
 
-    def attach_socket(self, params):
+    def _tail_logs(self, tail):
+        if tail == 0:
+            # Nothing to tail.
+            return []
+        if tail == 'all':
+            # ALL THE LOGS!
+            return self._seen_logs
+        # Just some of the logs.
+        assert tail > 0
+        return self._seen_logs[-tail:]
+
+    def _stream_logs(self, tail, kw):
+        # Check that we're properly monkeypatched.
+        assert self._api._multiplexed_response_stream_helper != 'ORIG_MRSH'
         assert self._feeder is None
-        assert params == self._expected_params
+        assert kw == self._expected_stream_params
         server, client = socket.socketpair()
         self._client_sockets.add(client)
-        self._feeder = LogFeeder(self, server)
-        fileobj = socket.SocketIO(client, 'rb')
-        # The "socket" object we get back from the real attach_socket() method
-        # has the real response object added to it like this so it doesn't get
-        # garbage-collected too soon. We (ab)use that to properly close the
-        # connection when we're done (to avoid leaks and ResourceWarnings), so
-        # we need an equivalent in this fake. We do this before starting the
-        # feeder to avoid races with really fast logs.
-        fileobj._response = self._feeder
+        self._feeder = LogFeeder(self, server, self._tail_logs(tail))
+        # Add a raw attr for the client to read from.
+        self._feeder.raw = socket.SocketIO(client, 'rb')
         self._feeder.start()
-        return fileobj
+        return self._feeder, client
+
+
+class FakeAPIClient:
+    """
+    A fake APIClient so we can make sure our monkeypatch is properly applied
+    and removed.
+    """
+    def __init__(self):
+        self._multiplexed_response_stream_helper = 'ORIG_MRSH'
 
 
 class LogFeeder(threading.Thread):
-    def __init__(self, container, sock):
+    def __init__(self, container, sock, tail):
         super().__init__()
         self.con = container
         self.sock = sock
+        self.tail = tail
         self.finished = threading.Event()
 
     def close(self):
@@ -298,6 +317,9 @@ class LogFeeder(threading.Thread):
         self.sock.send(data)
 
     def run(self):
+        # Emit tailed lines.
+        for line in self.tail:
+            self.send_line(line)
         # Emit previously unstreamed lines at designated intervals.
         for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
             # Wait for either cancelation (break) or timeout (no break).
@@ -305,7 +327,11 @@ class LogFeeder(threading.Thread):
                 break
             self.con._seen_logs.append(line)
             self.send_line(line)
-        # For whatever reason, we're done. Time to clean up.
+        # Wait until we're done, which we may already be. Since some of the
+        # tests don't do client-side timeouts, we use a fake-specific "server"
+        # timeout.
+        self.finished.wait(self.con._close_timeout)
+        # Time to clean up.
         self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
         self.con._feeder = None
@@ -313,6 +339,7 @@ class LogFeeder(threading.Thread):
 
 class TestFakeLogsContainer(unittest.TestCase):
     def mkcontainer(self, *args, **kw):
+        kw.setdefault('close_timeout', 0.1)
         con = FakeLogsContainer(*args, **kw)
         self.addCleanup(con.cleanup)
         return con
@@ -370,6 +397,7 @@ class TestFakeLogsContainer(unittest.TestCase):
 
 class TestStreamWithHistoryFunc(unittest.TestCase):
     def mkcontainer(self, *args, **kw):
+        kw.setdefault('close_timeout', 0.1)
         con = FakeLogsContainer(*args, **kw)
         self.addCleanup(con.cleanup)
         return con
@@ -416,12 +444,13 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
             for line in self.swh(con, timeout=0.15):
                 lines.append(line)
         self.assertEqual(lines, [b'hello\n'])
-        lines = list(self.swh(con, timeout=0.25))
+        lines = list(self.swh(con, timeout=0.35))
         self.assertEqual(lines, [b'hello\n', b'goodbye\n'])
 
 
 class TestWaitForLogsMatchingFunc(unittest.TestCase):
     def mkcontainer(self, *args, **kw):
+        kw.setdefault('close_timeout', 0.1)
         con = FakeLogsContainer(*args, **kw)
         self.addCleanup(con.cleanup)
         return con
@@ -546,6 +575,7 @@ class FakeAndRealContainerMixin:
 
 class TestWithFakeContainer(unittest.TestCase, FakeAndRealContainerMixin):
     def mkcontainer(self, *args, **kw):
+        kw.setdefault('close_timeout', 0.1)
         con = FakeLogsContainer(*args, **kw)
         self.addCleanup(con.cleanup)
         return con
