@@ -7,7 +7,7 @@ from seaworthy.helper import DockerHelper, fetch_images
 from seaworthy.pytest.checks import dockertest
 from seaworthy.pytest.fixtures import (
     clean_container_fixtures, container_fixture, docker_helper_fixture,
-    image_pull_fixture)
+    image_fetch_fixture)
 
 
 IMG = 'nginx:alpine'
@@ -47,13 +47,13 @@ class TestDockerHelperFixture:
 
 
 @dockertest()
-class TestImagePullFixtureFunc:
+class TestImageFetchFixtureFunc:
     def test_create_fixture(self, docker_helper):
         """
-        We can create an fixture that pulls an image and returns an image
+        We can create an fixture that fetches an image and returns an image
         model.
         """
-        fixture = image_pull_fixture(IMG, name='image', scope='module')
+        fixture = image_fetch_fixture(IMG, name='image', scope='module')
         image = fixture(docker_helper)
 
         assert isinstance(image, docker.models.images.Image)

@@ -41,9 +41,9 @@ Default fixture for the ``DockerHelper``. Has module scope.
 docker_helper = docker_helper_fixture()
 
 
-def image_pull_fixture(image, name, scope='module'):
+def image_fetch_fixture(image, name, scope='module'):
     """
-    Create a fixture to pull an image.
+    Create a fixture to fetch an image.
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture(docker_helper):
@@ -138,4 +138,4 @@ def clean_container_fixtures(container, name, scope='class'):
 
 
 __all__ = ['clean_container_fixtures', 'container_fixture', 'docker_helper',
-           'docker_helper_fixture', 'image_pull_fixture']
+           'docker_helper_fixture', 'image_fetch_fixture']

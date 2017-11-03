@@ -48,20 +48,20 @@ class TestDockerHelperFixture:
 
 
 @dockertest()
-class TestImagePullFixtureFunc:
+class TestImageFetchFixtureFunc:
     def test_fixture(self, testdir):
         """
         When the fixture is used in a test, the image passed to the test
         should have the right tag.
         """
         testdir.makeconftest("""
-            from seaworthy.pytest.fixtures import image_pull_fixture
+            from seaworthy.pytest.fixtures import image_fetch_fixture
 
-            fixture = image_pull_fixture('busybox', name='image')
+            fixture = image_fetch_fixture('busybox', name='image')
         """.format(IMG))
 
         testdir.makepyfile("""
-            def test_image_pull(image):
+            def test_image_fetch(image):
                 assert 'busybox:latest' in image.tags
         """)
 
