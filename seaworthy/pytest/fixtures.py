@@ -51,7 +51,7 @@ def image_pull_fixture(image, name, scope='module'):
     return fixture
 
 
-def wrap_container_fixture(container, docker_helper):
+def _wrap_container_fixture(container, docker_helper):
     container.create_and_start(docker_helper.containers)
     yield container
     container.stop_and_remove()
@@ -79,7 +79,7 @@ def container_fixture(container, name, scope='function'):
     """
     @pytest.fixture(name=name, scope=scope)
     def raw_fixture(docker_helper):
-        yield from wrap_container_fixture(container, docker_helper)
+        yield from _wrap_container_fixture(container, docker_helper)
     return raw_fixture
 
 
