@@ -70,8 +70,8 @@ def container_fixture(container, name, scope='function'):
             \"""Test something about the PostgreSQL container...\"""
 
     :param container:
-        A "container" object that is a subtype of
-        ~seaworthy.containers.ContainerBase.
+        A "container" object that is a subclass of
+        :class:`~seaworthy.containers.ContainerBase`.
     :param name: The fixture name.
     :param scope: The scope of the fixture.
 
@@ -122,8 +122,8 @@ def clean_container_fixtures(container, name, scope='class'):
                 \"""
 
     :param container:
-        A "container" object that is a subtype of
-        ~seaworthy.containers.ContainerBase.
+        A "container" object that is a subclass of
+        :class:`~seaworthy.containers.ContainerBase`.
     :param name:
         The fixture name.
     :param scope:
