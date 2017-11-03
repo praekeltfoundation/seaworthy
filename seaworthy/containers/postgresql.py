@@ -1,8 +1,8 @@
+from seaworthy.definitions import ContainerDefinition
 from seaworthy.logs import output_lines
-from .base import ContainerBase
 
 
-class PostgreSQLContainer(ContainerBase):
+class PostgreSQLContainer(ContainerDefinition):
     DEFAULT_NAME = 'postgresql'
     DEFAULT_IMAGE = 'postgres:alpine'
     # The postgres image starts up PostgreSQL twice--the first time to set up

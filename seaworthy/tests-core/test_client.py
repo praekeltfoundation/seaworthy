@@ -4,7 +4,7 @@ import responses
 
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.client import ContainerHttpClient
-from seaworthy.containers.base import ContainerBase
+from seaworthy.definitions import ContainerDefinition
 from seaworthy.helper import DockerHelper, fetch_images
 
 
@@ -226,7 +226,7 @@ class TestContainerHttpClient(unittest.TestCase):
         specified.
         """
         ch = self.make_helper()
-        container = ContainerBase('first_port', IMG, create_kwargs={
+        container = ContainerDefinition('first_port', IMG, create_kwargs={
             'ports': {'8080/tcp': ('127.0.0.1', None)}
         }, helper=ch)
         container.create_and_start()
@@ -251,7 +251,7 @@ class TestContainerHttpClient(unittest.TestCase):
         connects to the container port specified.
         """
         ch = self.make_helper()
-        container = ContainerBase('first_port', IMG, create_kwargs={
+        container = ContainerDefinition('first_port', IMG, create_kwargs={
             'ports': {
                 '8080/tcp': ('127.0.0.1', None),
                 '5353/udp': ('127.0.0.1', None),

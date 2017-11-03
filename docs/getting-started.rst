@@ -15,13 +15,13 @@ installed, which can be done using extra requirements::
 Defining containers for tests
 -----------------------------
 Containers should be defined using subclasses of
-:class:`~seaworthy.containers.base.ContainerBase`. For example::
+:class:`~seaworthy.definitions.ContainerDefinition`. For example::
 
-    from seaworthy.containers.base import ContainerBase
+    from seaworthy.definitions import ContainerDefinition
     from seaworthy.logs import output_lines
 
 
-    class CakeContainer(ContainerBase):
+    class CakeContainer(ContainerDefinition):
         IMAGE = 'acme-corp/cake-service:chocolate'
         WAIT_PATTERNS = [
             r'cake \w+ is baked',
@@ -39,7 +39,7 @@ Containers should be defined using subclasses of
 ``WAIT_PATTERNS`` is a list of regex patterns. Once these patterns have been
 seen in the container logs, the container is considered to have started and be
 ready for use. For more advanced readiness checks, the
-:meth:`~seaworthy.containers.base.ContainerBase.wait_for_start` method should
+:meth:`~seaworthy.containers.base.ContainerDefinition.wait_for_start` method should
 be overridden.
 
 This container can then be used as fixtures for tests in a number of ways, the
@@ -66,10 +66,10 @@ A few things to note here:
   reinitialized. Creating and starting up a container can be a little slow, so
   you need to think carefully about what scope to use for your fixtures.
 
-For simple cases, :class:`~seaworthy.containers.base.ContainerBase` can be used
-directly, without subclassing::
+For simple cases, :class:`~seaworthy.definitions.ContainerDefinition` can be
+used directly, without subclassing::
 
-    container = ContainerBase(
+    container = ContainerDefinition(
         'test', 'acme-corp/soda-service:cola', [r'soda \w+ is fizzing'])
     fixture = container_fixture('soda_container', container)
 

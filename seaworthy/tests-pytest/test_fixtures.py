@@ -2,7 +2,7 @@ import docker
 import pytest
 
 from seaworthy.checks import docker_client
-from seaworthy.containers.base import ContainerBase
+from seaworthy.definitions import ContainerDefinition
 from seaworthy.helper import DockerHelper, fetch_images
 from seaworthy.pytest.checks import dockertest
 from seaworthy.pytest.fixtures import (
@@ -68,11 +68,11 @@ class TestContainerFixtureFunc:
         remove the container.
         """
         fixture = container_fixture(
-            ContainerBase(name='test', image=IMG), 'test')
+            ContainerDefinition(name='test', image=IMG), 'test')
         fixture_gen = fixture(docker_helper)
         container = next(fixture_gen)
 
-        assert isinstance(container, ContainerBase)
+        assert isinstance(container, ContainerDefinition)
         assert container.inner().status == 'running'
 
         # Test things are torn down
@@ -92,12 +92,12 @@ class TestCleanContainerFixturesFunc:
         remove the container.
         """
         raw_fixture, fixture = clean_container_fixtures(
-            ContainerBase(name='test', image=IMG), 'test')
+            ContainerDefinition(name='test', image=IMG), 'test')
         fixture_gen = raw_fixture(docker_helper)
         # TODO: Assert on cleaning fixture
         container = next(fixture_gen)
 
-        assert isinstance(container, ContainerBase)
+        assert isinstance(container, ContainerDefinition)
         assert container.inner().status == 'running'
 
         # Test things are torn down
