@@ -1,8 +1,7 @@
 import functools
 
 from seaworthy.logs import (
-    RegexMatcher, UnorderedLinesMatcher, stream_logs, stream_with_history,
-    wait_for_logs_matching)
+    RegexMatcher, UnorderedLinesMatcher, stream_logs, wait_for_logs_matching)
 
 
 def deep_merge(*dicts):
@@ -286,14 +285,13 @@ class ContainerBase:
             stdout=stdout, stderr=stderr, timestamps=timestamps, tail=tail,
             since=since)
 
-    def stream_logs(self, stdout=True, stderr=True, old_logs=False,
-                    timeout=10.0):
+    def stream_logs(self, stdout=True, stderr=True, tail='all', timeout=10.0):
         """
         Stream container output.
         """
-        stream_func = stream_with_history if old_logs else stream_logs
-        return stream_func(
-                self.inner(), stdout=stdout, stderr=stderr, timeout=timeout)
+        return stream_logs(
+            self.inner(), stdout=stdout, stderr=stderr, tail=tail,
+            timeout=timeout)
 
     def wait_for_logs_matching(self, matcher, timeout=10, encoding='utf-8',
                                **logs_kwargs):
