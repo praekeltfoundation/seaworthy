@@ -16,19 +16,6 @@ def _last_few_log_lines(container):
     return container.logs(tail=100).decode('utf-8')
 
 
-def stream_with_history(container, timeout=10, **logs_kwargs):
-    """
-    Return an iterator over all container logs, past and future.
-
-    TODO: Get rid of this and just use stream_logs() directly.
-    """
-    # Ignore the `stream` kwarg, because we handle that ourselves.
-    logs_kwargs.pop('stream', None)
-    logs_kwargs['tail'] = 'all'
-    stream = stream_logs(container, timeout=timeout, **logs_kwargs)
-    yield from stream
-
-
 def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
                            **logs_kwargs):
     """
@@ -62,7 +49,7 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         ended without error).
     """
     try:
-        for line in stream_with_history(
+        for line in stream_logs(
                 container, timeout=timeout, **logs_kwargs):
             # Drop the trailing newline
             line = line.decode(encoding).rstrip()

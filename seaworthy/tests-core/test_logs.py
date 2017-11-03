@@ -5,12 +5,11 @@ import unittest
 from collections import namedtuple
 from datetime import datetime
 
-from seaworthy._lowlevel import stream_logs
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.helper import DockerHelper, fetch_images
 from seaworthy.logs import (
     EqualsMatcher, OrderedLinesMatcher, RegexMatcher, UnorderedLinesMatcher,
-    stream_with_history, wait_for_logs_matching)
+    stream_logs, wait_for_logs_matching)
 
 # We use this image to test with because it is a small (~4MB) image from
 # https://github.com/docker-library/official-images that we can run shell
@@ -344,8 +343,8 @@ class TestFakeLogsContainer(unittest.TestCase):
         self.addCleanup(con.cleanup)
         return con
 
-    def stream(self, con, timeout=1):
-        return list(stream_logs(con, timeout=timeout))
+    def stream(self, con, **kw):
+        return list(stream_logs(con, **kw))
 
     def test_empty(self):
         """
@@ -380,7 +379,7 @@ class TestFakeLogsContainer(unittest.TestCase):
     def test_streaming_waits(self):
         """
         Streamed logs will be returned at specified intervals. Any logs that
-        have already been streamed are not returned again.
+        have already been streamed are not returned again if we set tail=0.
 
         NOTE: This test measures wall-clock time, so if something causes it to
               be too slow the second assertion may fail.
@@ -389,24 +388,24 @@ class TestFakeLogsContainer(unittest.TestCase):
         t0 = datetime.now()
         self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
         t1 = datetime.now()
-        self.assertEqual(self.stream(con), [])
+        self.assertEqual(self.stream(con, tail=0), [])
         t2 = datetime.now()
         self.assertLess(0.3, (t1 - t0).total_seconds())
         self.assertLess((t2 - t1).total_seconds(), 0.3)
 
 
-class TestStreamWithHistoryFunc(unittest.TestCase):
+class TestStreamLogsFunc(unittest.TestCase):
     def mkcontainer(self, *args, **kw):
         kw.setdefault('close_timeout', 0.1)
         con = FakeLogsContainer(*args, **kw)
         self.addCleanup(con.cleanup)
         return con
 
-    def stream(self, con, timeout=1):
-        return list(stream_logs(con, timeout=timeout))
+    def stream_only(self, con, timeout=1):
+        return list(stream_logs(con, tail=0, timeout=timeout))
 
-    def swh(self, con, timeout=0.5, **kw):
-        return stream_with_history(con, timeout=timeout, **kw)
+    def stream_logs(self, con, timeout=0.5, **kw):
+        return stream_logs(con, timeout=timeout, **kw)
 
     def test_stream_only(self):
         """
@@ -416,7 +415,8 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
             (0.1, b'hello\n'),
             (0.1, b'goodbye\n'),
         ])
-        self.assertEqual(list(self.swh(con)), [b'hello\n', b'goodbye\n'])
+        self.assertEqual(
+            list(self.stream_logs(con, tail=0)), [b'hello\n', b'goodbye\n'])
 
     def test_historical_only(self):
         """
@@ -426,9 +426,10 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
             (0.1, b'hello\n'),
             (0.1, b'goodbye\n'),
         ])
-        self.assertEqual(self.stream(con), [b'hello\n', b'goodbye\n'])
-        self.assertEqual(self.stream(con), [])
-        self.assertEqual(list(self.swh(con)), [b'hello\n', b'goodbye\n'])
+        self.assertEqual(self.stream_only(con), [b'hello\n', b'goodbye\n'])
+        self.assertEqual(self.stream_only(con), [])
+        self.assertEqual(
+            list(self.stream_logs(con)), [b'hello\n', b'goodbye\n'])
 
     def test_timeout_and_stream_again(self):
         """
@@ -441,10 +442,10 @@ class TestStreamWithHistoryFunc(unittest.TestCase):
         ])
         lines = []
         with self.assertRaises(TimeoutError):
-            for line in self.swh(con, timeout=0.15):
+            for line in self.stream_logs(con, timeout=0.15):
                 lines.append(line)
         self.assertEqual(lines, [b'hello\n'])
-        lines = list(self.swh(con, timeout=0.35))
+        lines = list(self.stream_logs(con, timeout=0.35))
         self.assertEqual(lines, [b'hello\n', b'goodbye\n'])
 
 
@@ -545,6 +546,13 @@ class TestWaitForLogsMatchingFunc(unittest.TestCase):
 
 
 class FakeAndRealContainerMixin:
+    def wflm(self, con, matcher, timeout=0.5, **kw):
+        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
+
+    def stream_logs(self, con, timeout=0.5, **kw):
+        for line in stream_logs(con, timeout=timeout, **kw):
+            yield line
+
     def test_fake_and_real_logging_behaviour(self):
         """
         Our fake logs container should exhibit similar behaviour to a real
@@ -559,18 +567,18 @@ class FakeAndRealContainerMixin:
 
         streamed_logs = []
         with self.assertRaises(TimeoutError):
-            for line in self.stream(logger, timeout=0.7):
+            for line in self.stream_logs(logger, tail=0, timeout=0.7):
                 streamed_logs.append(line.decode('utf8').rstrip())
         self.assertNotIn('Log entry 1', streamed_logs)
         self.assertIn('Log entry 4', streamed_logs)
         self.assertNotIn('Log entry 9', streamed_logs)
 
-        swh_logs = []
-        for line in self.swh(logger, timeout=2):
-            swh_logs.append(line.decode('utf8').rstrip())
-        self.assertIn('Log entry 1', swh_logs)
-        self.assertIn('Log entry 4', swh_logs)
-        self.assertIn('Log entry 9', swh_logs)
+        streamed_logs = []
+        for line in self.stream_logs(logger, timeout=2):
+            streamed_logs.append(line.decode('utf8').rstrip())
+        self.assertIn('Log entry 1', streamed_logs)
+        self.assertIn('Log entry 4', streamed_logs)
+        self.assertIn('Log entry 9', streamed_logs)
 
 
 class TestWithFakeContainer(unittest.TestCase, FakeAndRealContainerMixin):
@@ -584,17 +592,6 @@ class TestWithFakeContainer(unittest.TestCase, FakeAndRealContainerMixin):
         return self.mkcontainer([
             (0.2, 'Log entry {}\n'.format(n).encode('utf8'))
             for n in range(10)])
-
-    def wflm(self, con, matcher, timeout=0.5, **kw):
-        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
-
-    def stream(self, con, timeout=1):
-        for line in stream_logs(con, timeout=timeout):
-            yield line
-
-    def swh(self, con, timeout=0.5, **kw):
-        for line in stream_with_history(con, timeout=timeout, **kw):
-            yield line
 
 
 @dockertest()
@@ -615,14 +612,3 @@ class TestWithRealContainer(unittest.TestCase, FakeAndRealContainerMixin):
         self.addCleanup(self.dh.containers.stop_and_remove, logger)
         self.dh.containers.start(logger)
         return logger
-
-    def wflm(self, con, matcher, timeout=0.5, **kw):
-        return wait_for_logs_matching(con, matcher, timeout=timeout, **kw)
-
-    def stream(self, con, timeout=1):
-        for line in stream_logs(con, timeout=timeout):
-            yield line
-
-    def swh(self, con, timeout=0.5, **kw):
-        for line in stream_with_history(con, timeout=timeout, **kw):
-            yield line

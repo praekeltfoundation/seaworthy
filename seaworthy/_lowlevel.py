@@ -22,7 +22,7 @@ class SocketClosed(Exception):
     """
 
 
-def stream_logs(container, stdout=True, stderr=True, tail=0, timeout=10.0):
+def stream_logs(container, stdout=True, stderr=True, tail='all', timeout=10.0):
     """
     Stream logs from a docker container within a timeout.
 
