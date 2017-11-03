@@ -261,6 +261,21 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
     def make_definition(self, name, helper=None):
         return ContainerDefinition(name, IMG_WAIT, helper=helper)
 
+    def test_context_manager(self):
+        """
+        We can use a definition object as a context manager (which returns
+        itself) to create and remove it.
+        """
+        self.assertFalse(self.definition.created)
+        with self.definition as definition:
+            self.assertIs(definition, self.definition)
+            self.assertTrue(definition.created)
+            # Also assert that the container is running
+            self.assertEqual(definition.status(), 'running')
+        self.assertFalse(self.definition.created)
+        # No status for container now
+        self.assertIs(self.definition.status(), None)
+
     def test_wait_timeout_default(self):
         """
         When wait_timeout isn't passed to the constructor, the default timeout
