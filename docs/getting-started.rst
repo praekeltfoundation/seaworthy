@@ -78,4 +78,4 @@ used directly, without subclassing::
 
 Note that pytest is not required to use Seaworthy and there are several other
 ways to use the container as a fixture. For more information see
-:doc:`integrations`.
+:doc:`integrations` and :doc:`helpers-definitions`.
