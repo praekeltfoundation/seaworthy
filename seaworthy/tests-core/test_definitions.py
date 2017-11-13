@@ -528,18 +528,18 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         time.sleep(0.01)
         lines = []
         with self.assertRaises(TimeoutError):
-            for line in script.stream_logs(timeout=0.3):
+            for line in script.stream_logs(tail=0, timeout=0.3):
                 lines.append(line)
         # We missed the first line and time out before the third.
         self.assertEqual(lines, [b'e0\n'])
 
         lines = []
-        for line in script.stream_logs(timeout=1.0):
+        for line in script.stream_logs(tail=0, timeout=1.0):
             lines.append(line)
         # We should get the third and fourth now.
         self.assertEqual(lines, [b'o1\n', b'e1\n'])
 
-    def test_stream_old_logs(self):
+    def test_stream_tail_all(self):
         """
         We can stream logs, including old logs, with a timeout.
         """
@@ -551,13 +551,13 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         time.sleep(0.01)
         lines = []
         with self.assertRaises(TimeoutError):
-            for line in script.stream_logs(old_logs=True, timeout=0.3):
+            for line in script.stream_logs(tail='all', timeout=0.3):
                 lines.append(line)
         # We get the (old) first line and time out before the third.
         self.assertEqual(lines, [b'o0\n', b'e0\n'])
 
         lines = []
-        for line in script.stream_logs(old_logs=True, timeout=1.0):
+        for line in script.stream_logs(tail='all', timeout=1.0):
             lines.append(line)
         self.assertEqual(lines, [b'o0\n', b'e0\n', b'o1\n', b'e1\n'])
 
@@ -573,7 +573,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         time.sleep(0.01)
 
         lines = []
-        for line in script.stream_logs(stderr=False, timeout=1.5):
+        for line in script.stream_logs(stderr=False, tail=0, timeout=1.5):
             lines.append(line)
         self.assertEqual(lines, [b'o0\n', b'o1\n'])
 
