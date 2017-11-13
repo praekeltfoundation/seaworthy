@@ -1,0 +1,134 @@
+Resource helpers & definition
+==============================
+Two important abstractions in Seaworthy are resource *helpers* and
+*definitions*. These provide test-oriented interfaces to all of the basic
+(non-Swarm) Docker resource types.
+
+==========================================  ===================================================
+Seaworthy
+-----------------------------------------------------------------------------------------------
+Helper                                      Definition
+==========================================  ===================================================
+:class:`~seaworthy.helper.ContainerHelper`  :class:`~seaworthy.definitions.ContainerDefinition`
+:class:`~seaworthy.helper.ImageHelper`      :class:`~seaworthy.definitions.ImageDefinition`
+:class:`~seaworthy.helper.NetworkHelper`    :class:`~seaworthy.definitions.NetworkDefinition`
+:class:`~seaworthy.helper.VolumeHelper`     :class:`~seaworthy.definitions.VolumeDefinition`
+==========================================  ===================================================
+
+These helpers and definitions are wrappers around the the resource models
+provided by the `Docker SDK for Python`_. Helpers wrap collections of models,
+while definitions wrap individual model instances:
+
+======================================================  ============================================
+Docker SDK
+----------------------------------------------------------------------------------------------------
+Collection                                              Model
+======================================================  ============================================
+:class:`~docker.models.containers.ContainerCollection`  :class:`~docker.models.containers.Container`
+:class:`~docker.models.images.ImageCollection`          :class:`~docker.models.images.Image`
+:class:`~docker.models.networks.NetworkCollection`      :class:`~docker.models.networks.Network`
+:class:`~docker.models.volumes.VolumeCollection`        :class:`~docker.models.volumes.Volume`
+======================================================  ============================================
+
+Helpers
+-------
+Resource helpers provide two main functions:
+
+- Namespacing of resources: by prefixing resource names, the resources are
+  isolated from other Docker resources already present on the system.
+- Teardown (cleanup) of resources: when the tests end, the networks, volumes,
+  and containers used in those tests are removed.
+
+In addition, some of the behaviour around resource creation and removal is
+changed from the Docker defaults to be a better fit for a testing environment.
+
+Accessing the various helpers is most easily done via the
+:class:`~seaworthy.helper.DockerHelper`::
+
+    from seaworthy.helper import DockerHelper
+
+
+    # Create a DockerHelper with the default namespace, 'test'
+    docker_helper = DockerHelper()
+
+    # Create a network using the NetworkHelper
+    network = docker_helper.networks.create('private')
+
+    # Create a volume using the VolumeHelper
+    volume = docker_helper.volumes.create('shared')
+
+    # Fetch (pull) an image using the ImageHelper
+    image = docker_helper.images.fetch('busybox')
+
+    # Create a container using the ContainerHelper
+    container = docker_helper.containers.create(
+        'conny', image, network=network, volumes={volume: '/vol'})
+
+The DockerHelper can be configured with a custom Docker API client. The default
+client can be configured using environment variables. See
+:func:`docker.client.from_env`.
+
+
+Definitions
+-----------
+Resource definitions provide three main functions:
+
+- Make it possible to *define* resources before those resources are actually
+  created in Docker. This is important for creating test fixtures—if we can
+  define everything about a resource before it is created, then we can create
+  the resource when it is needed as a fixture for a test.
+- Simplify the setup and teardown of resources before and after tests. For
+  example, :class:`~seaworthy.definitions.ContainerDefinition` can be used to
+  check that a container has produced certain log lines before it is used in a
+  test.
+- Provide useful functionality to interact with and introspect resources. For
+  example, the :meth:`~seaworthy.definitions.ContainerDefinition.http_client`
+  method can be used to get a simple HTTP client to make requests against a
+  container.
+
+Resource defintions can either be substantiated directly or subclassed to
+provide more specialised functionality.
+
+For a simple volume, one could create an instance of
+:class:`~seaworthy.definitions.VolumeDefinition`::
+
+    from seaworthy.definitions import VolumeDefinition
+    from seaworthy.helpers import DockerHelper
+
+
+    docker_helper = DockerHelper()
+    volume = VolumeDefinition('persist', helper=docker_helper.volumes)
+
+
+Using definitions in tests
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Definitions can be used as fixtures for tests in a number of different ways.
+
+As a context manager::
+
+    with VolumeDefinition('files', helper=docker_helper.volumes) as volume:
+        assert volume.created
+
+    assert not volume.created
+
+With the ``as_fixture`` decorator::
+
+    network = NetworkDefinition('lan_network', helper=docker_helper.networks)
+
+    @network.as_fixture()
+    def test_network(lan_network):
+        assert lan_network.created
+
+When using pytest, it's easy to create a fixture::
+
+    from seaworthy.pytest.fixtures import container_fixture
+
+
+    container = ContainerDefinition('nginx', 'nginx:alpine')
+    fixture = container_fixture('nginx_container', container)
+
+    def test_nginx(nginx_container):
+        assert nginx_container.created
+
+
+.. _`Docker SDK for Python`: https://docker-py.readthedocs.io/
