@@ -4,7 +4,7 @@ import unittest
 import docker
 
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.helper import (
+from seaworthy.helpers import (
     ContainerHelper, DockerHelper, ImageHelper, NetworkHelper, VolumeHelper,
     fetch_images)
 

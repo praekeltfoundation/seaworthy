@@ -4,16 +4,16 @@ Two important abstractions in Seaworthy are resource *helpers* and
 *definitions*. These provide test-oriented interfaces to all of the basic
 (non-Swarm) Docker resource types.
 
-==========================================  ===================================================
+===========================================  ===================================================
 Seaworthy
------------------------------------------------------------------------------------------------
-Helper                                      Definition
-==========================================  ===================================================
-:class:`~seaworthy.helper.ContainerHelper`  :class:`~seaworthy.definitions.ContainerDefinition`
-:class:`~seaworthy.helper.ImageHelper`      :class:`~seaworthy.definitions.ImageDefinition`
-:class:`~seaworthy.helper.NetworkHelper`    :class:`~seaworthy.definitions.NetworkDefinition`
-:class:`~seaworthy.helper.VolumeHelper`     :class:`~seaworthy.definitions.VolumeDefinition`
-==========================================  ===================================================
+------------------------------------------------------------------------------------------------
+Helper                                       Definition
+===========================================  ===================================================
+:class:`~seaworthy.helpers.ContainerHelper`  :class:`~seaworthy.definitions.ContainerDefinition`
+:class:`~seaworthy.helpers.ImageHelper`      :class:`~seaworthy.definitions.ImageDefinition`
+:class:`~seaworthy.helpers.NetworkHelper`    :class:`~seaworthy.definitions.NetworkDefinition`
+:class:`~seaworthy.helpers.VolumeHelper`     :class:`~seaworthy.definitions.VolumeDefinition`
+===========================================  ===================================================
 
 These helpers and definitions are wrappers around the the resource models
 provided by the `Docker SDK for Python`_. Helpers wrap collections of models,
@@ -43,9 +43,9 @@ In addition, some of the behaviour around resource creation and removal is
 changed from the Docker defaults to be a better fit for a testing environment.
 
 Accessing the various helpers is most easily done via the
-:class:`~seaworthy.helper.DockerHelper`::
+:class:`~seaworthy.helpers.DockerHelper`::
 
-    from seaworthy.helper import DockerHelper
+    from seaworthy.helpers import DockerHelper
 
 
     # Create a DockerHelper with the default namespace, 'test'

@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from seaworthy.helper import DockerHelper
+from seaworthy.helpers import DockerHelper
 
 
 def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):

@@ -7,7 +7,7 @@ seaworthy
    Write some API reference docs for :mod:`seaworthy`.
 """
 
-from .helper import DockerHelper
+from .helpers import DockerHelper
 from .logs import output_lines, wait_for_logs_matching
 
 __all__ = ['DockerHelper', 'output_lines', 'wait_for_logs_matching']

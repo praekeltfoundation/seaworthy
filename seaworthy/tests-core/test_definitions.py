@@ -5,7 +5,7 @@ from datetime import datetime
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.definitions import (
     ContainerDefinition, NetworkDefinition, VolumeDefinition)
-from seaworthy.helper import DockerHelper, fetch_images
+from seaworthy.helpers import DockerHelper, fetch_images
 from seaworthy.logs import EqualsMatcher
 
 IMG_SCRIPT = 'alpine:latest'

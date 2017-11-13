@@ -4,7 +4,7 @@ import pytest
 
 from seaworthy.checks import docker_client
 from seaworthy.definitions import ContainerDefinition
-from seaworthy.helper import DockerHelper, fetch_images
+from seaworthy.helpers import DockerHelper, fetch_images
 from seaworthy.pytest.checks import dockertest
 from seaworthy.pytest.fixtures import (
     clean_container_fixtures, container_fixture, docker_helper_fixture,
