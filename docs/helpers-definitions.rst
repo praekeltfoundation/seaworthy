@@ -86,7 +86,7 @@ Resource definitions provide three main functions:
   method can be used to get a simple HTTP client to make requests against a
   container.
 
-Resource defintions can either be substantiated directly or subclassed to
+Resource defintions can either be instantiated directly or subclassed to
 provide more specialised functionality.
 
 For a simple volume, one could create an instance of
