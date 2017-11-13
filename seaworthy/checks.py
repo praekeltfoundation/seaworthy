@@ -7,6 +7,7 @@ import unittest
 from contextlib import contextmanager
 
 import docker
+
 from requests.exceptions import ConnectionError
 
 

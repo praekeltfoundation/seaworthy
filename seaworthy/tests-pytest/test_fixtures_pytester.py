@@ -74,11 +74,11 @@ class TestContainerFixtureFunc:
         function should be running.
         """
         testdir.makeconftest("""
-            from seaworthy.containers.base import ContainerBase
+            from seaworthy.definitions import ContainerDefinition
             from seaworthy.pytest.fixtures import container_fixture
 
-            fixture = container_fixture(ContainerBase(name='test', image='{}'),
-                                        'container')
+            fixture = container_fixture(
+                ContainerDefinition(name='test', image='{}'), 'container')
         """.format(IMG))
 
         testdir.makepyfile("""
@@ -99,11 +99,11 @@ class TestCleanContainerFixturesFunc:
         function should be running.
         """
         testdir.makeconftest("""
-            from seaworthy.containers.base import ContainerBase
+            from seaworthy.definitions import ContainerDefinition
             from seaworthy.pytest.fixtures import clean_container_fixtures
 
 
-            class CleanableContainer(ContainerBase):
+            class CleanableContainer(ContainerDefinition):
                 def __init__(self):
                     super().__init__(name='test', image='{}')
                     self.cleaned = False

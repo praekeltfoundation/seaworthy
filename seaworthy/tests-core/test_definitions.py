@@ -2,10 +2,9 @@ import time
 import unittest
 from datetime import datetime
 
-from docker.models.containers import Container
-
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.containers.base import ContainerBase
+from seaworthy.definitions import (
+    ContainerDefinition, NetworkDefinition, VolumeDefinition)
 from seaworthy.helper import DockerHelper, fetch_images
 from seaworthy.logs import EqualsMatcher
 
@@ -14,138 +13,196 @@ IMG_WAIT = 'nginx:alpine'
 
 
 @dockertest()
-def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
-    with docker_client() as client:
-        fetch_images(client, [IMG_SCRIPT, IMG_WAIT])
-
-
-@dockertest()
-class TestContainerBase(unittest.TestCase):
-    def setUp(self):
+class DefinitionTestMixin:
+    def _setup(self):
         dh = DockerHelper()
         self.addCleanup(dh.teardown)
-        self.ch = dh.containers
 
-        self.base = self.with_cleanup(
-            ContainerBase('wait', IMG_WAIT, helper=self.ch))
+        self.helper = self.get_resource_helper(dh)
+        self.definition = self.with_cleanup(
+            self.make_definition('test', helper=self.helper))
 
-    def with_cleanup(self, container):
-        self.addCleanup(container._teardown)
-        return container
+    def with_cleanup(self, definition):
+        self.addCleanup(definition._teardown)
+        return definition
 
-    def test_wait_timeout_default(self):
-        """
-        When wait_timeout isn't passed to the constructor, the default timeout
-        is used.
-        """
-        container = ContainerBase('timeout', IMG_WAIT)
-        self.assertEqual(container.wait_timeout, ContainerBase.WAIT_TIMEOUT)
-
-    def test_wait_timeout_override(self):
-        """
-        When wait_timeout is passed to the constructor, it is used in place of
-        the default.
-        """
-        timeout = ContainerBase.WAIT_TIMEOUT + 10.0
-        container = ContainerBase('timeout', IMG_WAIT, wait_timeout=timeout)
-        self.assertEqual(container.wait_timeout, timeout)
+    def make_definition(self, name, helper=None):
+        raise NotImplementedError()  # pragma: no cover
 
     def test_helper_not_set(self):
         """
         By default, we have no helper.
         """
-        noch = ContainerBase('ch', IMG_WAIT)
-        self.assertIsNone(noch._helper)
+        no_helper = self.make_definition('no_helper')
+        self.assertIsNone(no_helper._helper)
         with self.assertRaises(RuntimeError) as cm:
-            noch.helper
+            no_helper.helper
         self.assertEqual(str(cm.exception), 'No helper set.')
 
     def test_helper_set_in_constructor(self):
         """
-        We can set a container helper in the constructor.
+        We can set a helper in the constructor.
         """
-        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
-        self.assertIs(with_helper._helper, self.ch)
-        self.assertIs(with_helper.helper, self.ch)
+        with_helper = self.make_definition('with_helper', helper=self.helper)
+        self.assertIs(with_helper._helper, self.helper)
+        self.assertIs(with_helper.helper, self.helper)
 
     def test_helper_set_to_none(self):
         """
         Setting helper to None has no effect even if we already have
         one.
         """
-        no_helper = ContainerBase('no_helper', IMG_WAIT)
+        no_helper = self.make_definition('no_helper')
         self.assertIsNone(no_helper._helper)
         no_helper.set_helper(None)
         self.assertIsNone(no_helper._helper)
 
-        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
-        self.assertIs(with_helper._helper, self.ch)
+        with_helper = self.make_definition('with_helper', helper=self.helper)
+        self.assertIs(with_helper._helper, self.helper)
         with_helper.set_helper(None)
-        self.assertIs(with_helper._helper, self.ch)
+        self.assertIs(with_helper._helper, self.helper)
 
     def test_helper_set_to_current(self):
         """
         Setting helper to the one we already have has no effect.
         """
-        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
-        self.assertIs(with_helper._helper, self.ch)
-        with_helper.set_helper(self.ch)
-        self.assertIs(with_helper._helper, self.ch)
+        with_helper = self.make_definition('with_helper', helper=self.helper)
+        self.assertIs(with_helper._helper, self.helper)
+        with_helper.set_helper(self.helper)
+        self.assertIs(with_helper._helper, self.helper)
 
     def test_cannot_replace_helper(self):
         """
         If we already have a helper, we can't set a different one.
         """
-        with_helper = ContainerBase('with_helper', IMG_WAIT, helper=self.ch)
-        self.assertIs(with_helper.helper, self.ch)
+        with_helper = self.make_definition('with_helper', helper=self.helper)
+        self.assertIs(with_helper.helper, self.helper)
+        # TODO: fix this...
         with self.assertRaises(RuntimeError) as cm:
             with_helper.set_helper(DockerHelper())
         self.assertEqual(
             str(cm.exception), 'Cannot replace existing helper.')
-        self.assertIs(with_helper.helper, self.ch)
+        self.assertIs(with_helper.helper, self.helper)
 
     def test_create_only_if_not_created(self):
-        """The container cannot be created more than once."""
-        self.base.create_and_start(fetch_image=False)
+        """
+        The resource cannot be created more than once.
+        """
+        self.definition.create()
 
-        # We can't create the container when it's already created
+        # We can't create the resource when it's already created
         with self.assertRaises(RuntimeError) as cm:
-            self.base.create_and_start(fetch_image=False)
-        self.assertEqual(str(cm.exception), 'Container already created.')
+            self.definition.create()
+        self.assertRegex(str(cm.exception), r'^\w+ already created\.$')
 
-        self.base.stop_and_remove()
+        self.definition.remove()
 
     def test_remove_only_if_created(self):
-        """The container can only be removed if it has been created."""
-        self.base.create_and_start(fetch_image=False)
+        """
+        The resource can only be removed if it has been created.
+        """
+        self.definition.create()
 
-        # We can remove the container if it's created
-        self.base.stop_and_remove()
+        # We can remove the resource if it's created
+        self.definition.remove()
 
         with self.assertRaises(RuntimeError) as cm:
-            self.base.stop_and_remove()
-        self.assertEqual(str(cm.exception), 'Container not created yet.')
+            self.definition.remove()
+        self.assertRegex(str(cm.exception), r'^\w+ not created yet\.$')
 
-    def test_container_only_if_created(self):
+    def test_inner_only_if_created(self):
         """
-        We can only access the inner Container object if the container has been
+        We can only access the inner object if the resource has been
         created.
         """
-        # If we try get the container before it's created it'll fail
+        # If we try get the resource before it's created it'll fail
         with self.assertRaises(RuntimeError) as cm:
-            self.base.inner()
-        self.assertEqual(str(cm.exception), 'Container not created yet.')
+            self.definition.inner()
+        self.assertRegex(str(cm.exception), r'^\w+ not created yet\.$')
 
-        self.base.create_and_start(fetch_image=False)
+        self.definition.create()
 
-        # We can get the container once it's created
-        container = self.base.inner()
-        self.assertIsInstance(container, Container)
+        # We can get the resource once it's created
+        inner = self.definition.inner()
+        self.assertIsInstance(inner, self.definition._RESOURCE_TYPE)
 
-        self.base.stop_and_remove()
+        self.definition.remove()
         with self.assertRaises(RuntimeError) as cm:
-            self.base.inner()
-        self.assertEqual(str(cm.exception), 'Container not created yet.')
+            self.definition.inner()
+        self.assertRegex(str(cm.exception), r'^\w+ not created yet\.$')
+
+    def test_context_manager(self):
+        """
+        We can use a definition object as a context manager (which returns
+        itself) to create and remove it.
+        """
+        self.assertFalse(self.definition.created)
+        with self.definition as definition:
+            self.assertIs(definition, self.definition)
+            self.assertTrue(definition.created)
+        self.assertFalse(self.definition.created)
+
+    def test_fixture_on_function(self):
+        """
+        We can make a function decorator fixture for our definition.
+        """
+        self.assertFalse(self.definition.created)
+        closure_state = []
+
+        @self.definition.as_fixture()
+        def foo(test):
+            self.assertIs(test, self.definition)
+            self.assertTrue(self.definition.created)
+            closure_state.append(1)
+
+        self.assertEqual(closure_state, [])
+        self.assertFalse(self.definition.created)
+        foo()
+        self.assertFalse(self.definition.created)
+        self.assertEqual(closure_state, [1])
+
+    def test_fixture_on_method(self):
+        """
+        The fixture decorator works on methods too.
+        """
+        self.assertFalse(self.definition.created)
+        closure_state = []
+
+        class Foo:
+            def __init__(self, value, tc):
+                self.value = value
+                self.tc = tc
+
+            @self.definition.as_fixture()
+            def foo(self, test):
+                self.tc.assertIs(test, self.tc.definition)
+                self.tc.assertTrue(test.created)
+                closure_state.append(self.value)
+
+        self.assertEqual(closure_state, [])
+        self.assertFalse(self.definition.created)
+        Foo(3, self).foo()
+        self.assertFalse(self.definition.created)
+        self.assertEqual(closure_state, [3])
+
+    def test_fixture_with_name(self):
+        """
+        The fixture decorator can override the parameter name used.
+        """
+        self.assertFalse(self.definition.created)
+        closure_state = []
+
+        @self.definition.as_fixture(name='something_more_sensible')
+        def foo(something_more_sensible):
+            self.assertIs(something_more_sensible, self.definition)
+            self.assertTrue(something_more_sensible.created)
+            closure_state.append(1)
+
+        self.assertEqual(closure_state, [])
+        self.assertFalse(self.definition.created)
+        foo()
+        self.assertFalse(self.definition.created)
+        self.assertEqual(closure_state, [1])
 
     def test_merge_kwargs(self):
         """
@@ -154,7 +211,7 @@ class TestContainerBase(unittest.TestCase):
         """
         create_kwargs = {'a': {'aa': 1, 'ab': 2}, 's': 'foo', 't': 'bar'}
         kwargs = {'a': {'ba': 3, 'ab': 4}, 'r': 'arr', 't': 'baz'}
-        self.assertEqual(self.base.merge_kwargs(create_kwargs, kwargs), {
+        self.assertEqual(self.definition.merge_kwargs(create_kwargs, kwargs), {
             'a': {'aa': 1, 'ab': 4, 'ba': 3},
             'r': 'arr',
             's': 'foo',
@@ -166,10 +223,11 @@ class TestContainerBase(unittest.TestCase):
         The default merge_kwargs() method deep-merges the two kwargs dicts
         passed to it on top of the output of base_kwargs().
         """
-        self.base.base_kwargs = lambda: {'a': {'aa': 0, 'bb': 6}, 'b': 'base'}
+        self.definition.base_kwargs = (
+            lambda: {'a': {'aa': 0, 'bb': 6}, 'b': 'base'})
         create_kwargs = {'a': {'aa': 1, 'ab': 2}, 's': 'foo', 't': 'bar'}
         kwargs = {'a': {'ba': 3, 'ab': 4}, 'r': 'arr', 't': 'baz'}
-        self.assertEqual(self.base.merge_kwargs(create_kwargs, kwargs), {
+        self.assertEqual(self.definition.merge_kwargs(create_kwargs, kwargs), {
             'a': {'aa': 1, 'ab': 4, 'ba': 3, 'bb': 6},
             'b': 'base',
             'r': 'arr',
@@ -182,9 +240,65 @@ class TestContainerBase(unittest.TestCase):
         The kwargs we merge must be dicts.
         """
         with self.assertRaises(Exception):
-            self.base.merge_kwargs({}, 'hello')
+            self.definition.merge_kwargs({}, 'hello')
         with self.assertRaises(Exception):
-            self.base.merge_kwargs('hello', {})
+            self.definition.merge_kwargs('hello', {})
+
+
+@dockertest()
+class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
+    @classmethod
+    def setUpClass(cls):
+        with docker_client() as client:
+            fetch_images(client, [IMG_SCRIPT, IMG_WAIT])
+
+    def setUp(self):
+        self._setup()
+
+    def get_resource_helper(self, docker_helper):
+        return docker_helper.containers
+
+    def make_definition(self, name, helper=None):
+        return ContainerDefinition(name, IMG_WAIT, helper=helper)
+
+    def test_context_manager(self):
+        """
+        We can use a definition object as a context manager (which returns
+        itself) to create and remove it.
+        """
+        self.assertFalse(self.definition.created)
+        with self.definition as definition:
+            self.assertIs(definition, self.definition)
+            self.assertTrue(definition.created)
+            # Also assert that the container is running
+            self.assertEqual(definition.status(), 'running')
+        self.assertFalse(self.definition.created)
+        # No status for container now
+        self.assertIs(self.definition.status(), None)
+
+    def test_wait_timeout_default(self):
+        """
+        When wait_timeout isn't passed to the constructor, the default timeout
+        is used.
+        """
+        container = ContainerDefinition('timeout', IMG_WAIT)
+        self.assertEqual(
+            container.wait_timeout, ContainerDefinition.WAIT_TIMEOUT)
+
+    def test_wait_timeout_override(self):
+        """
+        When wait_timeout is passed to the constructor, it is used in place of
+        the default.
+        """
+        timeout = ContainerDefinition.WAIT_TIMEOUT + 10.0
+        container = ContainerDefinition(
+            'timeout', IMG_WAIT, wait_timeout=timeout)
+        self.assertEqual(container.wait_timeout, timeout)
+
+    def test_default_clean(self):
+        """By default, the ``clean`` method raises a NotImplementedError."""
+        with self.assertRaises(NotImplementedError):
+            self.definition.clean()
 
     def test_create_kwargs_handling(self):
         """
@@ -198,36 +312,31 @@ class TestContainerBase(unittest.TestCase):
         kwargs = {'environment': {'KWARGS': 't', 'KWARGS_MERGED': 't'}}
         merge_kwargs_args = []
 
-        class SubContainer(ContainerBase):
+        class SubContainer(ContainerDefinition):
             def merge_kwargs(self, *args):
                 merge_kwargs_args.extend(args)
                 return super().merge_kwargs(*args)
 
         c = self.with_cleanup(SubContainer(
             'kwargs', IMG_WAIT, create_kwargs=create_kwargs))
-        c.create_and_start(self.ch, fetch_image=False, kwargs=kwargs)
+        c.create(self.helper, **kwargs)
 
         self.assertEqual(merge_kwargs_args, [create_kwargs, kwargs])
         c_env = [v for v in c.inner().attrs['Config']['Env'] if 'KWARGS' in v]
         self.assertEqual(
             sorted(c_env), ['CREATE_KWARGS=t', 'KWARGS=t', 'KWARGS_MERGED=t'])
 
-    def test_default_clean(self):
-        """By default, the ``clean`` method raises a NotImplementedError."""
-        with self.assertRaises(NotImplementedError):
-            self.base.clean()
-
     def test_ports(self):
         """
         We can get the ports exposed or published on a container.
         """
-        self.base.create_and_start(
-            self.ch, fetch_image=False, kwargs={'ports': {
+        self.definition.create_and_start(
+            self.helper, fetch_image=False, ports={
                 '8000/tcp': ('127.0.0.1', '10701'),
-            }})
+            })
 
         # We're not interested in the order of the ports
-        self.assertCountEqual(self.base.ports.items(), [
+        self.assertCountEqual(self.definition.ports.items(), [
             ('80/tcp', None),
             ('8000/tcp', [{'HostIp': '127.0.0.1', 'HostPort': '10701'}]),
         ])
@@ -236,25 +345,25 @@ class TestContainerBase(unittest.TestCase):
         """
         We can get the host port mapping of a container.
         """
-        self.base.create_and_start(fetch_image=False, kwargs={'ports': {
+        self.definition.create_and_start(fetch_image=False, ports={
             '8080/tcp': ('127.0.0.1',),
             '9090/tcp': ('127.0.0.1', '10701'),
             '9191/udp': '10702',
-        }})
+        })
 
         # We get a random high port number here.
-        host_iface, random_host_port = self.base.get_host_port('8080')
+        host_iface, random_host_port = self.definition.get_host_port('8080')
         self.assertEqual(host_iface, '127.0.0.1')
         self.assertGreater(int(random_host_port), 1024)
         self.assertLess(int(random_host_port), 65536)
 
         # We get the specific port we defined here.
-        host_iface, specific_host_port = self.base.get_host_port('9090')
+        host_iface, specific_host_port = self.definition.get_host_port('9090')
         self.assertEqual(host_iface, '127.0.0.1')
         self.assertEqual(specific_host_port, '10701')
 
         # We get a UDP port we defined.
-        _, udp_host_port = self.base.get_host_port('9191', proto='udp')
+        _, udp_host_port = self.definition.get_host_port('9191', proto='udp')
         self.assertEqual(udp_host_port, '10702')
 
         # FIXME: Don't bother testing index != 0, the port order is
@@ -265,15 +374,15 @@ class TestContainerBase(unittest.TestCase):
         When we try to get the host port for a container port that hasn't been
         exposed, an error is raised.
         """
-        self.base.create_and_start(
-            self.ch, fetch_image=False, kwargs={'ports': {
+        self.definition.create_and_start(
+            self.helper, fetch_image=False, ports={
                 '8000/tcp': ('127.0.0.1', '10701'),
-            }})
+            })
 
-        self.assertNotIn('90/tcp', self.base.ports)
+        self.assertNotIn('90/tcp', self.definition.ports)
 
         with self.assertRaises(ValueError) as cm:
-            self.base.get_host_port('90')
+            self.definition.get_host_port('90')
         self.assertEqual(str(cm.exception), "Port '90/tcp' is not exposed")
 
     def test_get_host_port_not_published(self):
@@ -281,16 +390,16 @@ class TestContainerBase(unittest.TestCase):
         When we try to get the host port for a container port that hasn't been
         published to the host, an error is raised.
         """
-        self.base.create_and_start(
-            self.ch, fetch_image=False, kwargs={'ports': {
+        self.definition.create_and_start(
+            self.helper, fetch_image=False, ports={
                 '8000/tcp': ('127.0.0.1', '10701'),
-            }})
+            })
 
         # The Nginx image EXPOSEs port 80, but we don't publish it
-        self.assertIn('80/tcp', self.base.ports)
+        self.assertIn('80/tcp', self.definition.ports)
 
         with self.assertRaises(ValueError) as cm:
-            self.base.get_host_port('80')
+            self.definition.get_host_port('80')
         self.assertEqual(
             str(cm.exception), "Port '80/tcp' is not published to the host")
 
@@ -299,18 +408,18 @@ class TestContainerBase(unittest.TestCase):
         When we get the first host port for the container, the host port mapped
         to the lowest container port is returned.
         """
-        self.base.create_and_start(
-            self.ch, fetch_image=False, kwargs={'ports': {
+        self.definition.create_and_start(
+            self.helper, fetch_image=False, ports={
                 '8000/tcp': ('127.0.0.1',),
                 '90/tcp': ('127.0.0.1', '10701'),
                 '90/udp': ('127.0.0.1', '10702'),
-            }})
+            })
 
         # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
         # be considered by ``get_first_host_port()``
-        self.assertIn('80/tcp', self.base.ports)
+        self.assertIn('80/tcp', self.definition.ports)
 
-        host_iface, host_port = self.base.get_first_host_port()
+        host_iface, host_port = self.definition.get_first_host_port()
         self.assertEqual(host_iface, '127.0.0.1')
         self.assertEqual(host_port, '10701')
 
@@ -319,14 +428,14 @@ class TestContainerBase(unittest.TestCase):
         When we try to get the first host port, but the container has no
         published ports, an error is raised.
         """
-        self.base.create_and_start(self.ch, fetch_image=False)
+        self.definition.create_and_start(self.helper, fetch_image=False)
 
         # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
         # be considered by ``get_first_host_port()``
-        self.assertIn('80/tcp', self.base.ports)
+        self.assertIn('80/tcp', self.definition.ports)
 
         with self.assertRaises(RuntimeError) as cm:
-            self.base.get_first_host_port()
+            self.definition.get_first_host_port()
 
         self.assertEqual(str(cm.exception), 'Container has no published ports')
 
@@ -335,11 +444,11 @@ class TestContainerBase(unittest.TestCase):
         # stderr.
         script = '\nsleep {}\n'.format(delay).join(logs)
 
-        script_con = self.with_cleanup(ContainerBase('script', IMG_SCRIPT))
+        script_con = self.with_cleanup(
+            ContainerDefinition('script', IMG_SCRIPT))
 
-        script_con.create_and_start(self.ch, fetch_image=False, kwargs={
-            'command': ['sh', '-c', script],
-        })
+        script_con.create_and_start(self.helper, fetch_image=False,
+                                    command=['sh', '-c', script])
         # Wait for the output to arrive.
         if wait:
             # Wait a minimum of 100ms to avoid jitter with small intervals.
@@ -510,92 +619,41 @@ class TestContainerBase(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             script.wait_for_logs_matching(EqualsMatcher('hello'), timeout=0.1)
 
-    def test_context_manager(self):
-        """
-        We can use a container object as a context manager (which returns
-        itself) to create/start and stop/remove it.
-        """
-        self.assertEqual(self.base.status(), None)
-        with self.base as base:
-            self.assertIs(base, self.base)
-            self.assertEqual(base.status(), 'running')
-        self.assertEqual(self.base.status(), None)
-
-    def test_fixture_on_function(self):
-        """
-        We can make a function decorator fixture for our container.
-        """
-        self.assertEqual(self.base.status(), None)
-        closure_state = []
-
-        @self.base.as_fixture()
-        def foo(wait):
-            self.assertIs(wait, self.base)
-            self.assertEqual(wait.status(), 'running')
-            closure_state.append(1)
-
-        self.assertEqual(closure_state, [])
-        self.assertEqual(self.base.status(), None)
-        foo()
-        self.assertEqual(self.base.status(), None)
-        self.assertEqual(closure_state, [1])
-
-    def test_fixture_on_method(self):
-        """
-        The fixture decorator works on methods too.
-        """
-        self.assertEqual(self.base.status(), None)
-        closure_state = []
-
-        class Foo:
-            def __init__(self, value, tc):
-                self.value = value
-                self.tc = tc
-
-            @self.base.as_fixture()
-            def foo(self, wait):
-                self.tc.assertIs(wait, self.tc.base)
-                self.tc.assertEqual(wait.status(), 'running')
-                closure_state.append(self.value)
-
-        self.assertEqual(closure_state, [])
-        self.assertEqual(self.base.status(), None)
-        Foo(3, self).foo()
-        self.assertEqual(self.base.status(), None)
-        self.assertEqual(closure_state, [3])
-
-    def test_fixture_with_name(self):
-        """
-        The fixture decorator can override the parameter name used.
-        """
-        self.assertEqual(self.base.status(), None)
-        closure_state = []
-
-        @self.base.as_fixture(name='something_more_sensible')
-        def foo(something_more_sensible):
-            self.assertIs(something_more_sensible, self.base)
-            self.assertEqual(something_more_sensible.status(), 'running')
-            closure_state.append(1)
-
-        self.assertEqual(closure_state, [])
-        self.assertEqual(self.base.status(), None)
-        foo()
-        self.assertEqual(self.base.status(), None)
-        self.assertEqual(closure_state, [1])
-
     def test_http_client(self):
         """
         We can get an HTTP client from the container object.
         """
-        self.assertEqual(self.base._http_clients, [])
-        self.base._create_kwargs = {
+        self.assertEqual(self.definition._http_clients, [])
+        self.definition._create_kwargs = {
             'ports': {'8000/tcp': ('127.0.0.1', '10701')},
         }
-        with self.base as base:
+        with self.definition as base:
             client = base.http_client()
             self.assertEqual(
                 client._base_url.to_text(), 'http://127.0.0.1:10701')
             # Client is stashed for cleanup.
-            self.assertEqual(self.base._http_clients, [client])
+            self.assertEqual(self.definition._http_clients, [client])
         # Client is cleaned up at the end.
-        self.assertEqual(self.base._http_clients, [])
+        self.assertEqual(self.definition._http_clients, [])
+
+
+class TestNetworkDefinition(unittest.TestCase, DefinitionTestMixin):
+    def setUp(self):
+        self._setup()
+
+    def get_resource_helper(self, docker_helper):
+        return docker_helper.networks
+
+    def make_definition(self, name, helper=None):
+        return NetworkDefinition(name, helper=helper)
+
+
+class TestVolumeDefinition(unittest.TestCase, DefinitionTestMixin):
+    def setUp(self):
+        self._setup()
+
+    def get_resource_helper(self, docker_helper):
+        return docker_helper.volumes
+
+    def make_definition(self, name, helper=None):
+        return VolumeDefinition(name, helper=helper)

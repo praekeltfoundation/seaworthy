@@ -1,5 +1,5 @@
+from seaworthy.definitions import ContainerDefinition
 from seaworthy.logs import output_lines
-from .base import ContainerBase
 
 
 def _parse_rabbitmq_user(user_line):
@@ -8,7 +8,7 @@ def _parse_rabbitmq_user(user_line):
     return (user, tags)
 
 
-class RabbitMQContainer(ContainerBase):
+class RabbitMQContainer(ContainerDefinition):
     # For some reason this container is slower to start through seaworthy than
     # with a plain `docker run`, so give it a bit more time to get going. :-(
     WAIT_TIMEOUT = 20.0

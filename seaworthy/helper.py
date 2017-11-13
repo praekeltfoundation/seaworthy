@@ -38,7 +38,7 @@ class HelperBase:
         self.collection = collection
         self.namespace = namespace
 
-        self._resource_type = self.collection.model.__name__.lower()
+        self.resource_type = self.collection.model.__name__.lower()
         self._ids = set()
 
     def _resource_name(self, name):
@@ -66,14 +66,14 @@ class HelperBase:
     def create(self, name, *args, **kwargs):
         resource_name = self._resource_name(name)
         log.info(
-            "Creating {} '{}'...".format(self._resource_type, resource_name))
+            "Creating {} '{}'...".format(self.resource_type, resource_name))
         resource = self.collection.create(*args, name=resource_name, **kwargs)
         self._ids.add(resource.id)
         return resource
 
     def remove(self, resource, **kwargs):
         log.info(
-            "Removing {} '{}'...".format(self._resource_type, resource.name))
+            "Removing {} '{}'...".format(self.resource_type, resource.name))
         resource.remove(**kwargs)
         self._ids.remove(resource.id)
 
@@ -86,7 +86,7 @@ class HelperBase:
                 continue
 
             log.warning("{} '{}' still existed during teardown".format(
-                self._resource_type.title(), resource.name))
+                self.resource_type.title(), resource.name))
 
             self._teardown_remove(resource)
 
