@@ -1,4 +1,5 @@
 import docker
+
 import pytest
 
 from seaworthy.checks import docker_client
