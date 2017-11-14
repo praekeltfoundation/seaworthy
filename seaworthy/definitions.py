@@ -23,7 +23,7 @@ def deep_merge(*dicts):
 
 
 class _DefinitionBase:
-    _RESOURCE_TYPE = None
+    __model_type__ = None
 
     def __init__(self, name, create_kwargs=None, helper=None):
         self.name = name
@@ -38,7 +38,7 @@ class _DefinitionBase:
         self.set_helper(helper)
         if self.created:
             raise RuntimeError(
-                '{} already created.'.format(self._RESOURCE_TYPE.__name__))
+                '{} already created.'.format(self.__model_type__.__name__))
 
         kwargs = self.merge_kwargs(self._create_kwargs, kwargs)
 
@@ -100,7 +100,7 @@ class _DefinitionBase:
         """
         if not self.created:
             raise RuntimeError(
-                '{} not created yet.'.format(self._RESOURCE_TYPE.__name__))
+                '{} not created yet.'.format(self.__model_type__.__name__))
         return self._inner
 
     @property
@@ -139,7 +139,7 @@ class ContainerDefinition(_DefinitionBase):
     have a container created.)
     """
 
-    _RESOURCE_TYPE = models.containers.Container
+    __model_type__ = models.containers.Container
     WAIT_TIMEOUT = 10.0
 
     def __init__(self, name, image, wait_patterns=None, wait_timeout=None,
@@ -330,8 +330,8 @@ class ContainerDefinition(_DefinitionBase):
 
 
 class NetworkDefinition(_DefinitionBase):
-    _RESOURCE_TYPE = models.networks.Network
+    __model_type__ = models.networks.Network
 
 
 class VolumeDefinition(_DefinitionBase):
-    _RESOURCE_TYPE = models.volumes.Volume
+    __model_type__ = models.volumes.Volume
