@@ -15,12 +15,12 @@ IMG_WAIT = 'nginx:alpine'
 @dockertest()
 class DefinitionTestMixin:
     def _setup(self):
-        dh = DockerHelper()
-        self.addCleanup(dh.teardown)
+        self.dh = DockerHelper()
+        self.addCleanup(self.dh.teardown)
 
-        self.helper = self.get_resource_helper(dh)
         self.definition = self.with_cleanup(
-            self.make_definition('test', helper=self.helper))
+            self.make_definition('test', helper=self.dh))
+        self.helper = self.definition.helper
 
     def with_cleanup(self, definition):
         self.addCleanup(definition._teardown)
@@ -83,6 +83,15 @@ class DefinitionTestMixin:
         self.assertEqual(
             str(cm.exception), 'Cannot replace existing helper.')
         self.assertIs(with_helper.helper, self.helper)
+
+    def test_helper_set_to_docker_helper(self):
+        """
+        Setting helper to a DockerHelper instance gets us the correct helper.
+        """
+        with_helper = self.make_definition('with_helper', helper=self.dh)
+        self.assertIs(
+            with_helper._helper.collection.model, with_helper.__model_type__)
+        self.assertIs(with_helper._helper, self.helper)
 
     def test_create_only_if_not_created(self):
         """
@@ -254,9 +263,6 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
 
     def setUp(self):
         self._setup()
-
-    def get_resource_helper(self, docker_helper):
-        return docker_helper.containers
 
     def make_definition(self, name, helper=None):
         return ContainerDefinition(name, IMG_WAIT, helper=helper)
@@ -641,9 +647,6 @@ class TestNetworkDefinition(unittest.TestCase, DefinitionTestMixin):
     def setUp(self):
         self._setup()
 
-    def get_resource_helper(self, docker_helper):
-        return docker_helper.networks
-
     def make_definition(self, name, helper=None):
         return NetworkDefinition(name, helper=helper)
 
@@ -651,9 +654,6 @@ class TestNetworkDefinition(unittest.TestCase, DefinitionTestMixin):
 class TestVolumeDefinition(unittest.TestCase, DefinitionTestMixin):
     def setUp(self):
         self._setup()
-
-    def get_resource_helper(self, docker_helper):
-        return docker_helper.volumes
 
     def make_definition(self, name, helper=None):
         return VolumeDefinition(name, helper=helper)

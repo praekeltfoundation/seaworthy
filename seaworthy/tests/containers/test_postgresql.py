@@ -6,7 +6,7 @@ from seaworthy.pytest import dockertest
 
 @pytest.fixture(scope='module')
 def postgresql(docker_helper):
-    with PostgreSQLContainer(helper=docker_helper.containers) as container:
+    with PostgreSQLContainer(helper=docker_helper) as container:
         yield container
 
 

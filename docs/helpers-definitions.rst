@@ -97,7 +97,7 @@ For a simple volume, one could create an instance of
 
 
     docker_helper = DockerHelper()
-    volume = VolumeDefinition('persist', helper=docker_helper.volumes)
+    volume = VolumeDefinition('persist', helper=docker_helper)
 
 
 Using definitions in tests
@@ -106,14 +106,14 @@ Definitions can be used as fixtures for tests in a number of different ways.
 
 As a context manager::
 
-    with VolumeDefinition('files', helper=docker_helper.volumes) as volume:
+    with VolumeDefinition('files', helper=docker_helper) as volume:
         assert volume.created
 
     assert not volume.created
 
 With the ``as_fixture`` decorator::
 
-    network = NetworkDefinition('lan_network', helper=docker_helper.networks)
+    network = NetworkDefinition('lan_network', helper=docker_helper)
 
     @network.as_fixture()
     def test_network(lan_network):

@@ -2,6 +2,7 @@ import functools
 
 from docker import models
 
+from seaworthy.helpers import DockerHelper
 from seaworthy.logs import (
     RegexMatcher, UnorderedLinesMatcher, stream_logs, wait_for_logs_matching)
 
@@ -30,7 +31,9 @@ class _DefinitionBase:
 
         self._create_args = ()
         self._create_kwargs = {} if create_kwargs is None else create_kwargs
-        self._helper = helper
+
+        self._helper = None
+        self.set_helper(helper)
 
         self._inner = None
 
@@ -70,6 +73,11 @@ class _DefinitionBase:
         # We don't want to "unset" in this method.
         if helper is None:
             return
+
+        # Get the right kind of helper if given a DockerHelper
+        if isinstance(helper, DockerHelper):
+            helper = helper._helper_for_model(self.__model_type__)
+
         # We already have this one.
         if helper is self._helper:
             return

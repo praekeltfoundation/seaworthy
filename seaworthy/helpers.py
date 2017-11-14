@@ -351,6 +351,22 @@ class DockerHelper:
         self.containers = ContainerHelper(
             self._client, namespace, self.images, self.networks, self.volumes)
 
+    def _helper_for_model(self, model_type):
+        """
+        Get the helper for a given type of Docker model. For use by resource
+        definitions.
+        """
+        if model_type is models.containers.Container:
+            return self.containers
+        if model_type is models.images.Image:
+            return self.images
+        if model_type is models.networks.Network:
+            return self.networks
+        if model_type is models.volumes.Volume:
+            return self.volumes
+
+        raise ValueError('Unknown model type {}'.format(model_type))
+
     def teardown(self):
         self.containers._teardown()
         self.networks._teardown()
