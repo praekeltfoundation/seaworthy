@@ -33,7 +33,7 @@ def _parse_volume_short_form(short_form):
     return {'bind': bind, 'mode': mode}
 
 
-class HelperBase:
+class _HelperBase:
     def __init__(self, collection, namespace):
         self.collection = collection
         self.namespace = namespace
@@ -95,7 +95,7 @@ class HelperBase:
         self.remove(resource)
 
 
-class ContainerHelper(HelperBase):
+class ContainerHelper(_HelperBase):
     def __init__(self, client, namespace, image_helper, network_helper,
                  volume_helper):
         super().__init__(client.containers, namespace)
@@ -269,7 +269,7 @@ class ImageHelper:
         return fetch_image(self.images.client, tag)
 
 
-class NetworkHelper(HelperBase):
+class NetworkHelper(_HelperBase):
     def __init__(self, client, namespace):
         super().__init__(client.networks, namespace)
         self._default_network = None
@@ -316,7 +316,7 @@ class NetworkHelper(HelperBase):
         return super().create(name, check_duplicate=check_duplicate, **kwargs)
 
 
-class VolumeHelper(HelperBase):
+class VolumeHelper(_HelperBase):
     def __init__(self, client, namespace):
         super().__init__(client.volumes, namespace)
 
