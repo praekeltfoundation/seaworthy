@@ -1,6 +1,7 @@
 import logging
 
 import docker
+from docker import models
 
 log = logging.getLogger(__name__)
 
@@ -33,12 +34,14 @@ def _parse_volume_short_form(short_form):
     return {'bind': bind, 'mode': mode}
 
 
-class HelperBase:
-    def __init__(self, collection, namespace):
-        self.collection = collection
+class _HelperBase:
+    __collection_type__ = None
+
+    def __init__(self, client, namespace):
+        self.collection = self.__collection_type__(client=client)
         self.namespace = namespace
 
-        self.resource_type = self.collection.model.__name__.lower()
+        self._model_name = self.collection.model.__name__.lower()
         self._ids = set()
 
     def _resource_name(self, name):
@@ -66,14 +69,14 @@ class HelperBase:
     def create(self, name, *args, **kwargs):
         resource_name = self._resource_name(name)
         log.info(
-            "Creating {} '{}'...".format(self.resource_type, resource_name))
+            "Creating {} '{}'...".format(self._model_name, resource_name))
         resource = self.collection.create(*args, name=resource_name, **kwargs)
         self._ids.add(resource.id)
         return resource
 
     def remove(self, resource, **kwargs):
         log.info(
-            "Removing {} '{}'...".format(self.resource_type, resource.name))
+            "Removing {} '{}'...".format(self._model_name, resource.name))
         resource.remove(**kwargs)
         self._ids.remove(resource.id)
 
@@ -86,7 +89,7 @@ class HelperBase:
                 continue
 
             log.warning("{} '{}' still existed during teardown".format(
-                self.resource_type.title(), resource.name))
+                self._model_name.title(), resource.name))
 
             self._teardown_remove(resource)
 
@@ -95,10 +98,12 @@ class HelperBase:
         self.remove(resource)
 
 
-class ContainerHelper(HelperBase):
+class ContainerHelper(_HelperBase):
+    __collection_type__ = models.containers.ContainerCollection
+
     def __init__(self, client, namespace, image_helper, network_helper,
                  volume_helper):
-        super().__init__(client.containers, namespace)
+        super().__init__(client, namespace)
         self._image_helper = image_helper
         self._network_helper = network_helper
         self._volume_helper = volume_helper
@@ -263,15 +268,17 @@ class ContainerHelper(HelperBase):
 
 class ImageHelper:
     def __init__(self, client):
-        self.images = client.images
+        self.collection = client.images
 
     def fetch(self, tag):
-        return fetch_image(self.images.client, tag)
+        return fetch_image(self.collection.client, tag)
 
 
-class NetworkHelper(HelperBase):
+class NetworkHelper(_HelperBase):
+    __collection_type__ = models.networks.NetworkCollection
+
     def __init__(self, client, namespace):
-        super().__init__(client.networks, namespace)
+        super().__init__(client, namespace)
         self._default_network = None
 
     def _teardown(self):
@@ -316,9 +323,8 @@ class NetworkHelper(HelperBase):
         return super().create(name, check_duplicate=check_duplicate, **kwargs)
 
 
-class VolumeHelper(HelperBase):
-    def __init__(self, client, namespace):
-        super().__init__(client.volumes, namespace)
+class VolumeHelper(_HelperBase):
+    __collection_type__ = models.volumes.VolumeCollection
 
     def create(self, name, **kwargs):
         """
@@ -344,6 +350,22 @@ class DockerHelper:
         self.volumes = VolumeHelper(self._client, namespace)
         self.containers = ContainerHelper(
             self._client, namespace, self.images, self.networks, self.volumes)
+
+    def _helper_for_model(self, model_type):
+        """
+        Get the helper for a given type of Docker model. For use by resource
+        definitions.
+        """
+        if model_type is models.containers.Container:
+            return self.containers
+        if model_type is models.images.Image:
+            return self.images
+        if model_type is models.networks.Network:
+            return self.networks
+        if model_type is models.volumes.Volume:
+            return self.volumes
+
+        raise ValueError('Unknown model type {}'.format(model_type))
 
     def teardown(self):
         self.containers._teardown()

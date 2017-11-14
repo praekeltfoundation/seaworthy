@@ -17,7 +17,7 @@ pytest.
 
 ``docker_helper`` fixture
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-A fixture for a :class:`~seaworthy.helper.DockerHelper` instance is defined by
+A fixture for a :class:`~seaworthy.helpers.DockerHelper` instance is defined by
 default. This fixture uses all the ``DockerHelper`` defaults and has
 module-level scope. The behaviour of this fixture can be overridden by defining
 a new ``docker_helper`` fixture using

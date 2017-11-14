@@ -2,9 +2,10 @@ import tempfile
 import unittest
 
 import docker
+from docker import models
 
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.helper import (
+from seaworthy.helpers import (
     ContainerHelper, DockerHelper, ImageHelper, NetworkHelper, VolumeHelper,
     fetch_images)
 
@@ -969,3 +970,23 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(dh.containers.namespace, 'integ')
         self.assertEqual(dh.networks.namespace, 'integ')
         self.assertEqual(dh.volumes.namespace, 'integ')
+
+    def test_helper_for_model(self):
+        """
+        The _helper_for_model method returns the correct helper for the given
+        Docker model type, or raises an exception if the model is of an unknown
+        type.
+        """
+        dh = self.make_helper()
+        self.assertIs(
+            dh._helper_for_model(models.containers.Container), dh.containers)
+        self.assertIs(dh._helper_for_model(models.images.Image), dh.images)
+        self.assertIs(
+            dh._helper_for_model(models.networks.Network), dh.networks)
+        self.assertIs(dh._helper_for_model(models.volumes.Volume), dh.volumes)
+
+        with self.assertRaises(ValueError) as cm:
+            dh._helper_for_model(models.plugins.Plugin)
+        self.assertEqual(
+            str(cm.exception),
+            "Unknown model type <class 'docker.models.plugins.Plugin'>")

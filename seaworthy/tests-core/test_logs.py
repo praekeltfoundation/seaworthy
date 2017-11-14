@@ -6,7 +6,7 @@ from collections import namedtuple
 from datetime import datetime
 
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.helper import DockerHelper, fetch_images
+from seaworthy.helpers import DockerHelper, fetch_images
 from seaworthy.logs import (
     EqualsMatcher, OrderedLinesMatcher, RegexMatcher, UnorderedLinesMatcher,
     stream_logs, wait_for_logs_matching)

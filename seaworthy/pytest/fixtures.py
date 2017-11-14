@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from seaworthy.helper import DockerHelper
+from seaworthy.helpers import DockerHelper
 
 
 def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
@@ -52,7 +52,7 @@ def image_fetch_fixture(image, name, scope='module'):
 
 
 def _wrap_container_fixture(container, docker_helper):
-    container.create_and_start(docker_helper.containers)
+    container.create_and_start(docker_helper)
     yield container
     container.stop_and_remove()
 
