@@ -124,7 +124,7 @@ class DefinitionTestMixin:
 
         # We can get the resource once it's created
         inner = self.definition.inner()
-        self.assertIsInstance(inner, self.definition._RESOURCE_TYPE)
+        self.assertIsInstance(inner, self.definition.__model_type__)
 
         self.definition.remove()
         with self.assertRaises(RuntimeError) as cm:
