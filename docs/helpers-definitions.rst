@@ -104,6 +104,23 @@ Using definitions in tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Definitions can be used as fixtures for tests in a number of different ways.
 
+With classic xunit-style setup/teardown::
+
+    import unittest
+
+
+    class ContainerTest(unittest.TestCase):
+        def setUp(self):
+            self.container = ContainerDefinition('echo', 'jmalloc/echo-server')
+            self.helper = DockerHelper()
+            self.container.setup(helper=self.helper)
+
+        def test_echo(self):
+            self.assertTrue(self.container.created)
+
+        def tearDown(self):
+            self.container.teardown()
+
 As a context manager::
 
     with VolumeDefinition('files', helper=docker_helper) as volume:
