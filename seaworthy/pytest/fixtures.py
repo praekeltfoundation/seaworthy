@@ -73,9 +73,9 @@ def resource_fixture(definition, name, scope='function'):
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture(docker_helper):
-        definition.set_helper(docker_helper)
-        with definition:
-            yield definition
+        definition.setup(helper=docker_helper)
+        yield definition
+        definition.teardown()
 
     return fixture
 
