@@ -46,10 +46,10 @@ This container can then be used as fixtures for tests in a number of ways, the
 easiest of which is with pytest::
 
     import pytest
-    from seaworthy.pytest.fixtures import container_fixture
+    from seaworthy.pytest.fixtures import resource_fixture
 
     container = CakeContainer('test')
-    fixture = container_fixture('cake_container', container)
+    fixture = resource_fixture('cake_container', container)
 
     def test_type(cake_container):
         output = cake_container.exec_cake('type')
@@ -57,7 +57,7 @@ easiest of which is with pytest::
 
 A few things to note here:
 
-- The :func:`~seaworthy.pytest.fixtures.container_fixture` function returns a
+- The :func:`~seaworthy.pytest.fixtures.resource_fixture` function returns a
   pytest fixture that ensures that the container is created and started before
   the test begins and that the container is stopped and removed after the test
   ends.
@@ -71,7 +71,7 @@ used directly, without subclassing::
 
     container = ContainerDefinition(
         'test', 'acme-corp/soda-service:cola', [r'soda \w+ is fizzing'])
-    fixture = container_fixture('soda_container', container)
+    fixture = resource_fixture('soda_container', container)
 
     def test_fizzyness(soda_container):
         pass

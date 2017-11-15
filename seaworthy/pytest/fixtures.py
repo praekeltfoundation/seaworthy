@@ -51,15 +51,9 @@ def image_fetch_fixture(image, name, scope='module'):
     return fixture
 
 
-def _wrap_container_fixture(container, docker_helper):
-    container.create_and_start(docker_helper)
-    yield container
-    container.stop_and_remove()
-
-
-def container_fixture(container, name, scope='function'):
+def resource_fixture(definition, name, scope='function'):
     """
-    Create a fixture for a container.
+    Create a fixture for a resource.
 
     Note that it is important to keep a reference to the fixture function
     returned by this function::
@@ -69,18 +63,21 @@ def container_fixture(container, name, scope='function'):
         def test_container(postgresql):
             \"""Test something about the PostgreSQL container...\"""
 
-    :param container:
-        A "container" object that is a subclass of
-        :class:`~seaworthy.definitions.ContainerDefinition`.
+    :param definition:
+        A resource definition, one of those defined in the
+        :mod:`seaworthy.definitions` module.
     :param name: The fixture name.
     :param scope: The scope of the fixture.
 
     :returns: The fixture function.
     """
     @pytest.fixture(name=name, scope=scope)
-    def raw_fixture(docker_helper):
-        yield from _wrap_container_fixture(container, docker_helper)
-    return raw_fixture
+    def fixture(docker_helper):
+        definition.set_helper(docker_helper)
+        with definition:
+            yield definition
+
+    return fixture
 
 
 def _clean_container_fixture(name, raw_name):
@@ -133,9 +130,9 @@ def clean_container_fixtures(container, name, scope='class'):
         A tuple of two fixture functions.
     """
     raw_name = 'raw_{}'.format(name)
-    return (container_fixture(container, raw_name, scope),
+    return (resource_fixture(container, raw_name, scope),
             _clean_container_fixture(name, raw_name))
 
 
-__all__ = ['clean_container_fixtures', 'container_fixture', 'docker_helper',
-           'docker_helper_fixture', 'image_fetch_fixture']
+__all__ = ['clean_container_fixtures', 'docker_helper',
+           'docker_helper_fixture', 'image_fetch_fixture', 'resource_fixture']

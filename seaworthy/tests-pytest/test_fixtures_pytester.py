@@ -67,17 +67,17 @@ class TestImageFetchFixtureFunc:
 
 
 @dockertest()
-class TestContainerFixtureFunc:
-    def test_fixture(self, testdir):
+class TestResourceFixtureFunc:
+    def test_container_fixture(self, testdir):
         """
         When the fixture is used in a test, the container passed to the test
         function should be running.
         """
         testdir.makeconftest("""
             from seaworthy.definitions import ContainerDefinition
-            from seaworthy.pytest.fixtures import container_fixture
+            from seaworthy.pytest.fixtures import resource_fixture
 
-            fixture = container_fixture(
+            fixture = resource_fixture(
                 ContainerDefinition(name='test', image='{}'), 'container')
         """.format(IMG))
 
