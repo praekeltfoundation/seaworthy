@@ -37,8 +37,7 @@ class _DefinitionBase:
 
         self._inner = None
 
-    def create(self, helper=None, **kwargs):
-        self.set_helper(helper)
+    def create(self, **kwargs):
         if self.created:
             raise RuntimeError(
                 '{} already created.'.format(self.__model_type__.__name__))
@@ -52,16 +51,41 @@ class _DefinitionBase:
         self.helper.remove(self.inner(), **kwargs)
         self._inner = None
 
-    def __enter__(self):
+    def setup(self, helper=None):
+        """
+        Setup this resource so that is ready to be used in a test. If the
+        resource has already been created, this call does nothing.
+
+        For most resources, this just involes creating the resource in Docker.
+
+        :param helper:
+            The resource helper to use, if one was not provided when this
+            resource definition was created.
+        """
+        if self.created:
+            return
+
+        self.set_helper(helper)
         self.create()
+
+    def teardown(self):
+        """
+        Teardown this resource so that it no longer exists in Docker. If the
+        resource has already been removed, this call does nothing.
+
+        For most resources, this just involves removing the resource in Docker.
+        """
+        if not self.created:
+            return
+
+        self.remove()
+
+    def __enter__(self):
+        self.setup()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._teardown()
-
-    def _teardown(self):
-        if self.created:
-            self.remove()
+        self.teardown()
 
     @property
     def helper(self):
@@ -183,17 +207,28 @@ class ContainerDefinition(_DefinitionBase):
 
         self._http_clients = []
 
-    def __enter__(self):
-        self.create_and_start()
-        return self
+    def setup(self, helper=None):
+        """
+        Creates the container, starts it, and waits for it to completely start.
 
-    def _teardown(self):
+        :param helper:
+            The resource helper to use, if one was not provided when this
+            container definition was created.
+        """
+        if self.created:
+            return
+
+        self.set_helper(helper)
+        self.create_and_start()
+        self.wait_for_start()
+
+    def teardown(self):
         """
         Stop and remove the container if it exists.
         """
         while self._http_clients:
             self._http_clients.pop().close()
-        if self._inner is not None:
+        if self.created:
             self.stop_and_remove()
 
     def status(self):
@@ -208,20 +243,17 @@ class ContainerDefinition(_DefinitionBase):
         self.inner().reload()
         return self.inner().status
 
-    def create_and_start(self, helper=None, fetch_image=True, **kwargs):
+    def create_and_start(self, fetch_image=True, **kwargs):
         """
-        Create the container and start it, waiting for the expected log lines.
+        Create the container and start it.
 
         :param fetch_image:
             Whether to try pull the image if it's not found. The behaviour here
             is similar to ``docker run`` and this parameter defaults to
             ``True``.
         """
-        self.create(fetch_image=fetch_image, helper=helper, **kwargs)
-
+        self.create(fetch_image=fetch_image, **kwargs)
         self.helper.start(self._inner)
-
-        self.wait_for_start()
 
     def wait_for_start(self):
         """
