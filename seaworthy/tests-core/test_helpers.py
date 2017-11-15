@@ -333,13 +333,16 @@ class TestContainerHelper(unittest.TestCase):
         self.assertEqual(con_created.status, 'created')
 
         con_running = ch.create('running', IMG)
-        ch.start(con_running)
+        con_running.start()
+        con_running.reload()
         self.assertEqual(con_running.status, 'running')
 
         con_stopped = ch.create('stopped', IMG)
-        ch.start(con_stopped)
+        con_stopped.start()
+        con_stopped.reload()
         self.assertEqual(con_stopped.status, 'running')
-        ch.stop(con_stopped)
+        con_stopped.stop()
+        con_stopped.reload()
         self.assertNotEqual(con_stopped.status, 'running')
 
         con_removed = ch.create('removed', IMG)
@@ -628,34 +631,6 @@ class TestContainerHelper(unittest.TestCase):
         self.assertEqual(str(cm.exception),
                          "Volume 'test_duplicate' specified more than once")
 
-    def test_start(self):
-        """
-        We can start a container after creating it.
-        """
-        ch = self.make_helper()
-
-        con = ch.create('con', IMG)
-        self.addCleanup(ch.remove, con)
-        self.assertEqual(con.status, 'created')
-        ch.start(con)
-        self.assertEqual(con.status, 'running')
-
-    def test_stop(self):
-        """
-        We can stop a running container.
-        """
-        # We don't test the timeout because that's just passed directly through
-        # to docker and it's nontrivial to construct a container that takes a
-        # specific amount of time to stop.
-        ch = self.make_helper()
-
-        con = ch.create('con', IMG)
-        self.addCleanup(ch.remove, con)
-        ch.start(con)
-        self.assertEqual(con.status, 'running')
-        ch.stop(con)
-        self.assertEqual(con.status, 'exited')
-
     def test_remove(self):
         """
         We can remove a not-running container.
@@ -669,8 +644,9 @@ class TestContainerHelper(unittest.TestCase):
             con_created.reload()
 
         con_stopped = ch.create('stopped', IMG)
-        ch.start(con_stopped)
-        ch.stop(con_stopped)
+        con_stopped.start()
+        con_stopped.stop()
+        con_stopped.reload()
         self.assertEqual(con_stopped.status, 'exited')
         ch.remove(con_stopped)
         with self.assertRaises(docker.errors.NotFound):
@@ -683,25 +659,12 @@ class TestContainerHelper(unittest.TestCase):
         ch = self.make_helper()
 
         con_running = ch.create('running', IMG)
-        ch.start(con_running)
+        con_running.start()
+        con_running.reload()
         self.assertEqual(con_running.status, 'running')
         with self.assertRaises(docker.errors.APIError):
             ch.remove(con_running, force=False)
         ch.remove(con_running)
-        with self.assertRaises(docker.errors.NotFound):
-            con_running.reload()
-
-    def test_stop_and_remove(self):
-        """
-        This does the stop and remove as separate steps, so we can remove a
-        running container without forcing.
-        """
-        ch = self.make_helper()
-
-        con_running = ch.create('running', IMG)
-        ch.start(con_running)
-        self.assertEqual(con_running.status, 'running')
-        ch.stop_and_remove(con_running, remove_force=False)
         with self.assertRaises(docker.errors.NotFound):
             con_running.reload()
 
@@ -801,7 +764,8 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(list(networks.keys()), [net_test.name])
 
         # Start the container, now the network should know about it
-        dh.containers.start(con_running)
+        con_running.start()
+        con_running.reload()
         self.assertEqual(con_running.status, 'running')
         net_test.reload()
         self.assertEqual(net_test.containers, [con_running])
@@ -833,8 +797,9 @@ class TestDockerHelper(unittest.TestCase):
         self.assertEqual(list(networks.keys()), [net_test.name])
 
         # Stop the container
-        dh.containers.start(con_stopped)
-        dh.containers.stop(con_stopped)
+        con_stopped.start()
+        con_stopped.stop()
+        con_stopped.reload()
         self.assertEqual(con_stopped.status, 'exited')
 
         net_test.reload()
@@ -872,7 +837,8 @@ class TestDockerHelper(unittest.TestCase):
             'running', IMG,
             volumes={vol_running: {'bind': '/vol', 'mode': 'rw'}})
 
-        dh.containers.start(con_running)
+        con_running.start()
+        con_running.reload()
         self.assertEqual(con_running.status, 'running')
 
         # Try remove the volume... we can't
@@ -889,8 +855,9 @@ class TestDockerHelper(unittest.TestCase):
             'stopped', IMG,
             volumes={vol_stopped: {'bind': '/vol', 'mode': 'rw'}})
 
-        dh.containers.start(con_stopped)
-        dh.containers.stop(con_stopped)
+        con_stopped.start()
+        con_stopped.stop()
+        con_stopped.reload()
         self.assertEqual(con_stopped.status, 'exited')
 
         # Try remove the volume... we can't

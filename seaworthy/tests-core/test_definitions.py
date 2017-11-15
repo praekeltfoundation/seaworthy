@@ -23,7 +23,7 @@ class DefinitionTestMixin:
         self.helper = self.definition.helper
 
     def with_cleanup(self, definition):
-        self.addCleanup(definition._teardown)
+        self.addCleanup(definition.teardown)
         return definition
 
     def make_definition(self, name, helper=None):
@@ -139,6 +139,50 @@ class DefinitionTestMixin:
         with self.assertRaises(RuntimeError) as cm:
             self.definition.inner()
         self.assertRegex(str(cm.exception), r'^\w+ not created yet\.$')
+
+    def test_setup_teardown(self):
+        """
+        We can use the ``setup`` and ``teardown`` methods to create and remove
+        the resource.
+        """
+        self.assertFalse(self.definition.created)
+
+        self.definition.setup()
+        self.assertTrue(self.definition.created)
+
+        self.definition.teardown()
+        self.assertFalse(self.definition.created)
+
+    def test_setup_multiple_calls(self):
+        """
+        setup() can be called multiple times after it has been called once
+        without having any effect.
+        """
+        self.assertFalse(self.definition.created)
+
+        self.definition.setup()
+        self.assertTrue(self.definition.created)
+        inner = self.definition.inner()
+
+        self.definition.setup()
+        self.definition.setup()
+
+        self.assertIs(inner, self.definition.inner())
+
+    def test_teardown_multiple_calls(self):
+        """
+        teardown() can be called multiple times after it has been called once
+        without having any effect.
+        """
+        self.assertFalse(self.definition.created)
+        self.definition.setup()
+        self.assertTrue(self.definition.created)
+
+        self.definition.teardown()
+        self.assertFalse(self.definition.created)
+
+        self.definition.teardown()
+        self.definition.teardown()
 
     def test_context_manager(self):
         """
@@ -267,6 +311,23 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
     def make_definition(self, name, helper=None):
         return ContainerDefinition(name, IMG_WAIT, helper=helper)
 
+    def test_setup_teardown(self):
+        """
+        We can use the ``setup`` and ``teardown`` methods to create and remove
+        the container.
+        """
+        self.assertFalse(self.definition.created)
+
+        self.definition.setup()
+        self.assertTrue(self.definition.created)
+        # Also assert that the container is running
+        self.assertEqual(self.definition.status(), 'running')
+
+        self.definition.teardown()
+        self.assertFalse(self.definition.created)
+        # No status for container now
+        self.assertIs(self.definition.status(), None)
+
     def test_context_manager(self):
         """
         We can use a definition object as a context manager (which returns
@@ -281,6 +342,34 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         self.assertFalse(self.definition.created)
         # No status for container now
         self.assertIs(self.definition.status(), None)
+
+    def test_start(self):
+        """
+        We can start a container after creating it.
+        """
+        self.definition.create()
+        inner = self.definition.inner()
+        self.assertEqual(inner.status, 'created')
+
+        self.definition.start()
+        self.assertEqual(inner.status, 'running')
+
+    def test_stop(self):
+        """
+        We can stop a running container.
+        """
+        # We don't test the timeout because that's just passed directly through
+        # to docker and it's nontrivial to construct a container that takes a
+        # specific amount of time to stop.
+        self.definition.create()
+        inner = self.definition.inner()
+        self.assertEqual(inner.status, 'created')
+
+        self.definition.start()
+        self.assertEqual(inner.status, 'running')
+
+        self.definition.stop()
+        self.assertEqual(inner.status, 'exited')
 
     def test_wait_timeout_default(self):
         """
@@ -310,7 +399,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         """
         The keyword args passed used for container creation come from the
         return value of merge_kwargs() called on create_kwargs from the
-        constructor and kwargs from the create_and_start() method.
+        constructor and kwargs from the create() method.
         """
         create_kwargs = {
             'environment': {'CREATE_KWARGS': 't', 'KWARGS_MERGED': 'f'},
@@ -324,8 +413,9 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
                 return super().merge_kwargs(*args)
 
         c = self.with_cleanup(SubContainer(
-            'kwargs', IMG_WAIT, create_kwargs=create_kwargs))
-        c.create(self.helper, **kwargs)
+            'kwargs', IMG_WAIT, create_kwargs=create_kwargs,
+            helper=self.helper))
+        c.create(**kwargs)
 
         self.assertEqual(merge_kwargs_args, [create_kwargs, kwargs])
         c_env = [v for v in c.inner().attrs['Config']['Env'] if 'KWARGS' in v]
@@ -336,10 +426,8 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         """
         We can get the ports exposed or published on a container.
         """
-        self.definition.create_and_start(
-            self.helper, fetch_image=False, ports={
-                '8000/tcp': ('127.0.0.1', '10701'),
-            })
+        self.definition.run(
+            fetch_image=False, ports={'8000/tcp': ('127.0.0.1', '10701')})
 
         # We're not interested in the order of the ports
         self.assertCountEqual(self.definition.ports.items(), [
@@ -351,7 +439,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         """
         We can get the host port mapping of a container.
         """
-        self.definition.create_and_start(fetch_image=False, ports={
+        self.definition.run(fetch_image=False, ports={
             '8080/tcp': ('127.0.0.1',),
             '9090/tcp': ('127.0.0.1', '10701'),
             '9191/udp': '10702',
@@ -380,10 +468,8 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we try to get the host port for a container port that hasn't been
         exposed, an error is raised.
         """
-        self.definition.create_and_start(
-            self.helper, fetch_image=False, ports={
-                '8000/tcp': ('127.0.0.1', '10701'),
-            })
+        self.definition.run(
+            fetch_image=False, ports={'8000/tcp': ('127.0.0.1', '10701')})
 
         self.assertNotIn('90/tcp', self.definition.ports)
 
@@ -396,10 +482,8 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we try to get the host port for a container port that hasn't been
         published to the host, an error is raised.
         """
-        self.definition.create_and_start(
-            self.helper, fetch_image=False, ports={
-                '8000/tcp': ('127.0.0.1', '10701'),
-            })
+        self.definition.run(
+            fetch_image=False, ports={'8000/tcp': ('127.0.0.1', '10701')})
 
         # The Nginx image EXPOSEs port 80, but we don't publish it
         self.assertIn('80/tcp', self.definition.ports)
@@ -414,8 +498,8 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we get the first host port for the container, the host port mapped
         to the lowest container port is returned.
         """
-        self.definition.create_and_start(
-            self.helper, fetch_image=False, ports={
+        self.definition.run(
+            fetch_image=False, ports={
                 '8000/tcp': ('127.0.0.1',),
                 '90/tcp': ('127.0.0.1', '10701'),
                 '90/udp': ('127.0.0.1', '10702'),
@@ -434,7 +518,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we try to get the first host port, but the container has no
         published ports, an error is raised.
         """
-        self.definition.create_and_start(self.helper, fetch_image=False)
+        self.definition.run(fetch_image=False)
 
         # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
         # be considered by ``get_first_host_port()``
@@ -451,10 +535,9 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         script = '\nsleep {}\n'.format(delay).join(logs)
 
         script_con = self.with_cleanup(
-            ContainerDefinition('script', IMG_SCRIPT))
+            ContainerDefinition('script', IMG_SCRIPT, helper=self.helper))
 
-        script_con.create_and_start(self.helper, fetch_image=False,
-                                    command=['sh', '-c', script])
+        script_con.run(fetch_image=False, command=['sh', '-c', script])
         # Wait for the output to arrive.
         if wait:
             # Wait a minimum of 100ms to avoid jitter with small intervals.

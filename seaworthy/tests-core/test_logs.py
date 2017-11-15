@@ -609,6 +609,7 @@ class TestWithRealContainer(unittest.TestCase, FakeAndRealContainerMixin):
         ])
         logger = self.dh.containers.create(
             'logger', IMG, command=['sh', '-c', script])
-        self.addCleanup(self.dh.containers.stop_and_remove, logger)
-        self.dh.containers.start(logger)
+        self.addCleanup(self.dh.containers.remove, logger, force=True)
+        logger.start()
+        logger.reload()
         return logger

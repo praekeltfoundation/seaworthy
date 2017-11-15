@@ -130,5 +130,20 @@ When using pytest, it's easy to create a fixture::
     def test_nginx(nginx_container):
         assert nginx_container.created
 
+You can also use classic xunit-style setup/teardown::
+
+    import unittest
+
+
+    class EchoContainerTest(unittest.TestCase):
+        def setUp(self):
+            self.helper = DockerHelper()
+            self.container = ContainerDefinition('echo', 'jmalloc/echo-server')
+            self.container.setup(helper=self.helper)
+            self.addCleanup(self.container.teardown)
+
+        def test_container(self):
+            self.assertTrue(self.container.created)
+
 
 .. _`Docker SDK for Python`: https://docker-py.readthedocs.io/

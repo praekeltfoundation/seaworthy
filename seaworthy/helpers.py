@@ -219,24 +219,6 @@ class ContainerHelper(_HelperBase):
         # are connected to it but that listing doesn't include containers that
         # have been created and connected but not yet started. :-/
 
-    def status(self, container):
-        container.reload()
-        log.debug("Container '{}' has status '{}'".format(
-            container.name, container.status))
-        return container.status
-
-    def start(self, container):
-        log.info("Starting container '{}'...".format(container.name))
-        container.start()
-        # If the container is short-lived, it may have finished and exited
-        # before we check its status.
-        assert self.status(container) in ['running', 'exited']
-
-    def stop(self, container, timeout=5):
-        log.info("Stopping container '{}'...".format(container.name))
-        container.stop(timeout=timeout)
-        assert self.status(container) != 'running'
-
     def remove(self, container, force=True, volumes=True):
         """
         Remove a container.
@@ -256,14 +238,8 @@ class ContainerHelper(_HelperBase):
         """
         super().remove(container, force=force, v=volumes)
 
-    def stop_and_remove(self, container, stop_timeout=5, remove_force=True):
-        self.stop(container, timeout=stop_timeout)
-        self.remove(container, force=remove_force)
-
     def _teardown_remove(self, container):
-        if container.status == 'running':
-            self.stop(container)
-        self.remove(container)
+        self.remove(container, force=True)
 
 
 class ImageHelper:

@@ -229,8 +229,8 @@ class TestContainerHttpClient(unittest.TestCase):
         container = ContainerDefinition('first_port', IMG, create_kwargs={
             'ports': {'8080/tcp': ('127.0.0.1', None)}
         }, helper=ch)
-        container.create_and_start()
-        self.addCleanup(container.stop_and_remove)
+        container.setup()
+        self.addCleanup(container.teardown)
 
         client = ContainerHttpClient.for_container(container)
         self.addCleanup(client.close)
@@ -257,8 +257,8 @@ class TestContainerHttpClient(unittest.TestCase):
                 '5353/udp': ('127.0.0.1', None),
             }
         }, helper=ch)
-        container.create_and_start()
-        self.addCleanup(container.stop_and_remove)
+        container.setup()
+        self.addCleanup(container.teardown)
 
         client = ContainerHttpClient.for_container(
             container, container_port='8080')
