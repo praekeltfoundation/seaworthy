@@ -312,6 +312,34 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         # No status for container now
         self.assertIs(self.definition.status(), None)
 
+    def test_start(self):
+        """
+        We can start a container after creating it.
+        """
+        self.definition.create()
+        inner = self.definition.inner()
+        self.assertEqual(inner.status, 'created')
+
+        self.definition.start()
+        self.assertEqual(inner.status, 'running')
+
+    def test_stop(self):
+        """
+        We can stop a running container.
+        """
+        # We don't test the timeout because that's just passed directly through
+        # to docker and it's nontrivial to construct a container that takes a
+        # specific amount of time to stop.
+        self.definition.create()
+        inner = self.definition.inner()
+        self.assertEqual(inner.status, 'created')
+
+        self.definition.start()
+        self.assertEqual(inner.status, 'running')
+
+        self.definition.stop()
+        self.assertEqual(inner.status, 'exited')
+
     def test_wait_timeout_default(self):
         """
         When wait_timeout isn't passed to the constructor, the default timeout

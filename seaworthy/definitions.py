@@ -243,6 +243,24 @@ class ContainerDefinition(_DefinitionBase):
         self.inner().reload()
         return self.inner().status
 
+    def start(self):
+        """
+        Start the container. The container must have been created.
+        """
+        self.inner().start()
+        self.inner().reload()
+
+    def stop(self, timeout=5):
+        """
+        Stop the container. The container must have been created.
+
+        :param timeout:
+            Timeout in seconds to wait for the container to stop before sending
+            a ``SIGKILL``. Default: 5 (half the Docker default)
+        """
+        self.inner().stop(timeout=timeout)
+        self.inner().reload()
+
     def run(self, fetch_image=True, **kwargs):
         """
         Create the container and start it. Similar to ``docker run``.
@@ -253,7 +271,7 @@ class ContainerDefinition(_DefinitionBase):
             ``True``.
         """
         self.create(fetch_image=fetch_image, **kwargs)
-        self.helper.start(self._inner)
+        self.start()
 
     def wait_for_start(self):
         """
@@ -268,12 +286,12 @@ class ContainerDefinition(_DefinitionBase):
             matcher = UnorderedLinesMatcher(*self.wait_matchers)
             self.wait_for_logs_matching(matcher, timeout=self.wait_timeout)
 
-    def halt(self):
+    def halt(self, stop_timeout=5):
         """
         Stop the container and remove it. The opposite of :meth:`run`.
         """
-        self.helper.stop_and_remove(self.inner())
-        self._inner = None
+        self.stop(timeout=stop_timeout)
+        self.remove()
 
     def clean(self):
         """
