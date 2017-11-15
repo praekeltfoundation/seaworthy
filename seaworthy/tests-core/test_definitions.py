@@ -153,6 +153,37 @@ class DefinitionTestMixin:
         self.definition.teardown()
         self.assertFalse(self.definition.created)
 
+    def test_setup_multiple_calls(self):
+        """
+        setup() can be called multiple times after it has been called once
+        without having any effect.
+        """
+        self.assertFalse(self.definition.created)
+
+        self.definition.setup()
+        self.assertTrue(self.definition.created)
+        inner = self.definition.inner()
+
+        self.definition.setup()
+        self.definition.setup()
+
+        self.assertIs(inner, self.definition.inner())
+
+    def test_teardown_multiple_calls(self):
+        """
+        teardown() can be called multiple times after it has been called once
+        without having any effect.
+        """
+        self.assertFalse(self.definition.created)
+        self.definition.setup()
+        self.assertTrue(self.definition.created)
+
+        self.definition.teardown()
+        self.assertFalse(self.definition.created)
+
+        self.definition.teardown()
+        self.definition.teardown()
+
     def test_context_manager(self):
         """
         We can use a definition object as a context manager (which returns
