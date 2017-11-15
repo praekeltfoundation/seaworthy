@@ -61,12 +61,18 @@ class _DefinitionBase:
         :param helper:
             The resource helper to use, if one was not provided when this
             resource definition was created.
+        :returns:
+            This definition instance. Useful for creating and setting up a
+            resource in a single step::
+
+                volume = VolumeDefinition('volly').setup(helper=docker_helper)
         """
         if self.created:
             return
 
         self.set_helper(helper)
         self.create()
+        return self
 
     def teardown(self):
         """
@@ -81,8 +87,7 @@ class _DefinitionBase:
         self.remove()
 
     def __enter__(self):
-        self.setup()
-        return self
+        return self.setup()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.teardown()
@@ -214,6 +219,11 @@ class ContainerDefinition(_DefinitionBase):
         :param helper:
             The resource helper to use, if one was not provided when this
             container definition was created.
+        :returns:
+            This container definition instance. Useful for creating and setting
+            up a container in a single step::
+
+                con = ContainerDefinition('conny', 'nginx').setup(helper=dh)
         """
         if self.created:
             return
@@ -221,6 +231,7 @@ class ContainerDefinition(_DefinitionBase):
         self.set_helper(helper)
         self.run()
         self.wait_for_start()
+        return self
 
     def teardown(self):
         """
