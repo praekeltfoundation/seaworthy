@@ -219,7 +219,7 @@ class ContainerDefinition(_DefinitionBase):
             return
 
         self.set_helper(helper)
-        self.create_and_start()
+        self.run()
         self.wait_for_start()
 
     def teardown(self):
@@ -229,7 +229,7 @@ class ContainerDefinition(_DefinitionBase):
         while self._http_clients:
             self._http_clients.pop().close()
         if self.created:
-            self.stop_and_remove()
+            self.halt()
 
     def status(self):
         """
@@ -243,9 +243,9 @@ class ContainerDefinition(_DefinitionBase):
         self.inner().reload()
         return self.inner().status
 
-    def create_and_start(self, fetch_image=True, **kwargs):
+    def run(self, fetch_image=True, **kwargs):
         """
-        Create the container and start it.
+        Create the container and start it. Similar to ``docker run``.
 
         :param fetch_image:
             Whether to try pull the image if it's not found. The behaviour here
@@ -268,8 +268,10 @@ class ContainerDefinition(_DefinitionBase):
             matcher = UnorderedLinesMatcher(*self.wait_matchers)
             self.wait_for_logs_matching(matcher, timeout=self.wait_timeout)
 
-    def stop_and_remove(self):
-        """ Stop the container and remove it. """
+    def halt(self):
+        """
+        Stop the container and remove it. The opposite of :meth:`run`.
+        """
         self.helper.stop_and_remove(self.inner())
         self._inner = None
 

@@ -340,7 +340,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         """
         The keyword args passed used for container creation come from the
         return value of merge_kwargs() called on create_kwargs from the
-        constructor and kwargs from the create_and_start() method.
+        constructor and kwargs from the create() method.
         """
         create_kwargs = {
             'environment': {'CREATE_KWARGS': 't', 'KWARGS_MERGED': 'f'},
@@ -367,7 +367,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         """
         We can get the ports exposed or published on a container.
         """
-        self.definition.create_and_start(
+        self.definition.run(
             fetch_image=False, ports={'8000/tcp': ('127.0.0.1', '10701')})
 
         # We're not interested in the order of the ports
@@ -380,7 +380,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         """
         We can get the host port mapping of a container.
         """
-        self.definition.create_and_start(fetch_image=False, ports={
+        self.definition.run(fetch_image=False, ports={
             '8080/tcp': ('127.0.0.1',),
             '9090/tcp': ('127.0.0.1', '10701'),
             '9191/udp': '10702',
@@ -409,7 +409,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we try to get the host port for a container port that hasn't been
         exposed, an error is raised.
         """
-        self.definition.create_and_start(
+        self.definition.run(
             fetch_image=False, ports={'8000/tcp': ('127.0.0.1', '10701')})
 
         self.assertNotIn('90/tcp', self.definition.ports)
@@ -423,7 +423,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we try to get the host port for a container port that hasn't been
         published to the host, an error is raised.
         """
-        self.definition.create_and_start(
+        self.definition.run(
             fetch_image=False, ports={'8000/tcp': ('127.0.0.1', '10701')})
 
         # The Nginx image EXPOSEs port 80, but we don't publish it
@@ -439,7 +439,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we get the first host port for the container, the host port mapped
         to the lowest container port is returned.
         """
-        self.definition.create_and_start(
+        self.definition.run(
             fetch_image=False, ports={
                 '8000/tcp': ('127.0.0.1',),
                 '90/tcp': ('127.0.0.1', '10701'),
@@ -459,7 +459,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         When we try to get the first host port, but the container has no
         published ports, an error is raised.
         """
-        self.definition.create_and_start(fetch_image=False)
+        self.definition.run(fetch_image=False)
 
         # The Nginx image EXPOSEs port 80, but it's not published so shouldn't
         # be considered by ``get_first_host_port()``
@@ -478,8 +478,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         script_con = self.with_cleanup(
             ContainerDefinition('script', IMG_SCRIPT, helper=self.helper))
 
-        script_con.create_and_start(fetch_image=False,
-                                    command=['sh', '-c', script])
+        script_con.run(fetch_image=False, command=['sh', '-c', script])
         # Wait for the output to arrive.
         if wait:
             # Wait a minimum of 100ms to avoid jitter with small intervals.
