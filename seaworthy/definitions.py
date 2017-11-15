@@ -56,7 +56,7 @@ class _DefinitionBase:
         Setup this resource so that is ready to be used in a test. If the
         resource has already been created, this call does nothing.
 
-        For most resources, this just involes creating the resource in Docker.
+        For most resources, this just involves creating the resource in Docker.
 
         :param helper:
             The resource helper to use, if one was not provided when this
