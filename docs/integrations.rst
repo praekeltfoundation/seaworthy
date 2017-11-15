@@ -40,7 +40,7 @@ Fixture factories
 A few functions are provided in the :mod:`seaworthy.pytest.fixtures` module
 that are factories for fixtures. The most important two are:
 
-.. autofunction:: seaworthy.pytest.fixtures.container_fixture
+.. autofunction:: seaworthy.pytest.fixtures.resource_fixture
     :noindex:
 
 .. autofunction:: seaworthy.pytest.fixtures.clean_container_fixtures

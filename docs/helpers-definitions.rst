@@ -121,11 +121,11 @@ With the ``as_fixture`` decorator::
 
 When using pytest, it's easy to create a fixture::
 
-    from seaworthy.pytest.fixtures import container_fixture
+    from seaworthy.pytest.fixtures import resource_fixture
 
 
     container = ContainerDefinition('nginx', 'nginx:alpine')
-    fixture = container_fixture('nginx_container', container)
+    fixture = resource_fixture('nginx_container', container)
 
     def test_nginx(nginx_container):
         assert nginx_container.created

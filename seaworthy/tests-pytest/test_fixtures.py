@@ -7,8 +7,8 @@ from seaworthy.definitions import ContainerDefinition
 from seaworthy.helpers import DockerHelper, fetch_images
 from seaworthy.pytest.checks import dockertest
 from seaworthy.pytest.fixtures import (
-    clean_container_fixtures, container_fixture, docker_helper_fixture,
-    image_fetch_fixture)
+    clean_container_fixtures, docker_helper_fixture, image_fetch_fixture,
+    resource_fixture)
 
 
 IMG = 'nginx:alpine'
@@ -68,7 +68,7 @@ class TestContainerFixtureFunc:
         The fixture should yield a started container, and afterwards stop and
         remove the container.
         """
-        fixture = container_fixture(
+        fixture = resource_fixture(
             ContainerDefinition(name='test', image=IMG), 'test')
         fixture_gen = fixture(docker_helper)
         container = next(fixture_gen)
