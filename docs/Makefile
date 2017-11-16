@@ -7,10 +7,17 @@ SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = Seaworthy
 SOURCEDIR     = .
 BUILDDIR      = _build
+CLEANCMD      = python apigen.py --clean
+CLEANOPTS     =
 
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+# Override the default here so we can clean up the generated stuff.
+clean:
+	@$(CLEANCMD) $(CLEANOPTS)
+	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 .PHONY: help Makefile
 
