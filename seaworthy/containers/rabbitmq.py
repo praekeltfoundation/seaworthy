@@ -54,17 +54,16 @@ class RabbitMQContainer(ContainerDefinition):
         reset_erl = 'rabbit:stop(), rabbit_mnesia:reset(), rabbit:start().'
         self.exec_rabbitmqctl('eval', [reset_erl])
 
-    def exec_rabbitmqctl(self, command, command_opts=[],
-                         rabbitmqctl_opts=['-q']):
+    def exec_rabbitmqctl(self, command, args=[], rabbitmqctl_opts=['-q']):
         """
         Execute a ``rabbitmqctl`` command inside a running container.
 
         :param command: the command to run
-        :param command_opts: a list of extra options to pass to the command
+        :param args: a list of args for the command
         :param rabbitmqctl_opts:
             a list of extra options to pass to ``rabbitmqctl``
         """
-        cmd = ['rabbitmqctl'] + rabbitmqctl_opts + [command] + command_opts
+        cmd = ['rabbitmqctl'] + rabbitmqctl_opts + [command] + args
         return self.inner().exec_run(cmd)
 
     def list_vhosts(self):

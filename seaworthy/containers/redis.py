@@ -20,16 +20,16 @@ class RedisContainer(ContainerDefinition):
     def clean(self):
         self.exec_redis_cli('FLUSHALL')
 
-    def exec_redis_cli(self, command, args=[], db=0, cli_opts=[]):
+    def exec_redis_cli(self, command, args=[], db=0, redis_cli_opts=[]):
         """
         Execute a ``redis-cli`` command inside a running container.
 
         :param command: the command to run
         :param args: a list of args for the command
         :param db: the db number to query (default ``0``)
-        :param cli_opts: a list of extra options to pass to ``redis-cli``
+        :param redis_cli_opts: a list of extra options to pass to ``redis-cli``
         """
-        cli_opts = ['-n', str(db)] + cli_opts
+        cli_opts = ['-n', str(db)] + redis_cli_opts
         cmd = ['redis-cli'] + cli_opts + [command] + [str(a) for a in args]
         return self.inner().exec_run(cmd)
 
