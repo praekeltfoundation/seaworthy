@@ -125,7 +125,6 @@ has been created. The mapping is as follows:
 Seaworthy resource definition                        Docker SDK model
 ===================================================  ============================================
 :class:`~seaworthy.definitions.ContainerDefinition`  :class:`docker.models.containers.Container`
-:class:`~seaworthy.definitions.ImageDefinition`      :class:`docker.models.images.Image`
 :class:`~seaworthy.definitions.NetworkDefinition`    :class:`docker.models.networks.Network`
 :class:`~seaworthy.definitions.VolumeDefinition`     :class:`docker.models.volumes.Volume`
 ===================================================  ============================================
