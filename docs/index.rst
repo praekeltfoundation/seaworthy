@@ -8,7 +8,7 @@ Seaworthy
    :caption: Contents:
 
    getting-started
-   helpers-definitions
+   definitions-helpers
    integrations
    faq
    api
