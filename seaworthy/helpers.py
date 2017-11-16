@@ -3,6 +3,13 @@ import logging
 import docker
 from docker import models
 
+# These are a hack to control our generated documentation. The values of the
+# attributes are ignored, only their presence or absence can be detected by the
+# apigen machinery.
+__apigen_undoc_members__ = None
+__apigen_inherited_members__ = None
+
+
 log = logging.getLogger(__name__)
 
 
