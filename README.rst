@@ -14,11 +14,6 @@ Seaworthy
 
 Test harness for Docker container images
 
-Seaworthy's goals have some overlap with `TestContainers`_, but our current
-primary use case is testing the behaviour of Docker images, rather than
-providing a way to use Docker containers to test other software. Also,
-Seaworthy is written in Python.
-
 
 Project status
 ~~~~~~~~~~~~~~
@@ -28,5 +23,4 @@ change. The project was split out of the tests we wrote for our
 there.
 
 
-.. _`TestContainers`: https://www.testcontainers.org/
 .. _`docker-django-bootstrap`: https://github.com/praekeltfoundation/docker-django-bootstrap

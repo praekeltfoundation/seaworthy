@@ -1,6 +1,14 @@
 Frequently asked questions
 ==========================
 
+What about TestContainers?
+""""""""""""""""""""""""""
+Seaworthy's goals have some overlap with `TestContainers`_, but our current
+primary use case is testing the behaviour of Docker images, rather than
+providing a way to use Docker containers to test other software. Also,
+Seaworthy is written in Python rather than Java.
+
+
 What are the similarities between Seaworthy and docker-compose?
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Seaworthy does try to reuse some of the default behaviour that docker-compose
@@ -51,6 +59,7 @@ However, there may be cases where having Seaworthy build Docker images would
 make sense, such as if an image is built purely to be used in tests.
 
 
+.. _`TestContainers`: https://www.testcontainers.org/
 .. _`Docker SDK for Python`: https://docker-py.readthedocs.io/
 .. _`pytest`: https://pytest.org/
 .. _`testtools`: https://testtools.readthedocs.io/
