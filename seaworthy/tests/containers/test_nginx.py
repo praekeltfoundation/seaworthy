@@ -61,7 +61,7 @@ class TestNginxContainer:
         config is used, and when that config is changed and a reload signal is
         sent to Nginx, the new config takes effect.
         """
-        config_template = string.Template(textwrap.dedent("""
+        config_template = string.Template(textwrap.dedent("""\
         server {
             listen 80;
 
