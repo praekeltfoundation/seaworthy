@@ -96,7 +96,7 @@ server {
 
             # It takes a little while for the new config to be loaded.
             # Try a few times with a small delay
-            for _ in range(5):
+            for _ in range(5):  # pragma: no cover
                 response = client.get('/')
                 if response.headers['X-Test-Header'] == 'bar':
                     break
