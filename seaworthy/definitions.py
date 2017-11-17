@@ -186,7 +186,9 @@ class ContainerDefinition(_DefinitionBase):
     of subclasses) are intended to be used both as test fixtures and as
     convenient objects for operating on containers being tested.
 
-    TODO: Document this properly.
+    .. todo::
+
+        Document this properly.
 
     A container object may be used as a context manager to ensure proper setup
     and teardown of the container around the code that uses it::
