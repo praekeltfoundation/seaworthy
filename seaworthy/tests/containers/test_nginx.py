@@ -1,4 +1,5 @@
 import string
+import textwrap
 import time
 
 import pytest
@@ -60,17 +61,17 @@ class TestNginxContainer:
         config is used, and when that config is changed and a reload signal is
         sent to Nginx, the new config takes effect.
         """
-        config_template = string.Template("""
-server {
-    listen 80;
+        config_template = string.Template(textwrap.dedent("""
+        server {
+            listen 80;
 
-    location / {
-        root       /usr/share/nginx/html;
-        index      index.html index.htm;
-        add_header X-Test-Header $test_header;
-    }
-}
-        """)
+            location / {
+                root       /usr/share/nginx/html;
+                index      index.html index.htm;
+                add_header X-Test-Header $test_header;
+            }
+        }
+        """))
 
         config_file = tmpdir.join('test.conf')
         config_file.write(config_template.substitute(test_header='foo'))
