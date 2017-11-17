@@ -16,8 +16,8 @@ class ContainerHttpClient:
     HTTP client for a specific container.
 
     In most cases, these should be obtained from
-    :meth:`.ContainerDefinition.http_client` instead of
-    being instantiated directly.
+    :meth:`.ContainerDefinition.http_client` instead of being instantiated
+    directly.
     """
 
     URL_DEFAULTS = {'scheme': 'http'}
