@@ -12,7 +12,8 @@ class PsException(Exception):
 @attr.s
 class PsRow(object):
     """
-    Representation of a process list entry.
+    Representation of a process list entry, containing the details of a single
+    process.
     """
 
     pid = attr.ib(convert=int)
