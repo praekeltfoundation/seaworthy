@@ -1,3 +1,5 @@
+import time
+
 import hyperlink
 
 import requests
@@ -186,3 +188,34 @@ class ContainerHttpClient:
         :return: response object
         """
         return self._session.delete(self._url(path, url_kwargs), **kwargs)
+
+
+def wait_for_response(client, timeout, path='/'):
+    """
+    Try make a GET request with an HTTP client against a certain path and
+    return once any response has been received, ignoring any errors.
+
+    :raises TimeoutError:
+        If a request fails to be made within the timeout period.
+    """
+    # We want time.monotonic on Pythons that have it, otherwise time.time will
+    # have to do.
+    get_time = getattr(time, 'monotonic', time.time)
+
+    deadline = get_time() + timeout
+    while True:
+        try:
+            # Don't care what the response is, as long as we get one
+            time_left = deadline - get_time()
+            client.get(
+                path, timeout=max(time_left, 0.001), allow_redirects=False)
+            return
+        except requests.exceptions.Timeout:
+            # Requests timed out, our time must be up
+            break
+        except Exception:
+            if get_time() >= deadline:
+                break
+            time.sleep(0.1)
+
+    raise TimeoutError('Timeout waiting for HTTP response.')

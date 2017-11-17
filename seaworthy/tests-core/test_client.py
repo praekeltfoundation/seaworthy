@@ -272,3 +272,9 @@ class TestContainerHttpClient(unittest.TestCase):
 
         addr, port = container.get_host_port('8080')
         self.assertIn('Host: {}:{}'.format(addr, port), response_lines)
+
+
+class TestWaitForResponseFunc:
+    """
+    Big TODO
+    """
