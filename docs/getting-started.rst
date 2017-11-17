@@ -49,7 +49,7 @@ easiest of which is with pytest::
     from seaworthy.pytest.fixtures import resource_fixture
 
     container = CakeContainer('test')
-    fixture = resource_fixture('cake_container', container)
+    fixture = resource_fixture(container, 'cake_container')
 
     def test_type(cake_container):
         output = cake_container.exec_cake('type')
@@ -71,7 +71,7 @@ used directly, without subclassing::
 
     container = ContainerDefinition(
         'test', 'acme-corp/soda-service:cola', [r'soda \w+ is fizzing'])
-    fixture = resource_fixture('soda_container', container)
+    fixture = resource_fixture(container, 'soda_container')
 
     def test_fizzyness(soda_container):
         pass
