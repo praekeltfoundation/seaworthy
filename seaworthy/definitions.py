@@ -7,6 +7,13 @@ from seaworthy.logs import (
     RegexMatcher, UnorderedLinesMatcher, stream_logs, wait_for_logs_matching)
 
 
+# These are a hack to control our generated documentation. The values of the
+# attributes are ignored, only their presence or absence can be detected by the
+# apigen machinery.
+__apigen_undoc_members__ = None
+__apigen_inherited_members__ = None
+
+
 def deep_merge(*dicts):
     result = {}
     for d in dicts:

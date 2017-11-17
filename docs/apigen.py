@@ -17,6 +17,7 @@ from __future__ import print_function
 
 import optparse
 import os
+import shutil
 import sys
 from fnmatch import fnmatch
 from os import path
@@ -31,6 +32,9 @@ if False:
     from typing import Any, List, Tuple  # NOQA
 
 logger = logging.getLogger(__name__)
+
+
+BASEDIR = path.dirname(__file__)
 
 
 INITPY = '__init__.py'
@@ -181,6 +185,8 @@ Note: By default this script will not overwrite already created files.""")
 
     parser.add_option('-o', '--output-dir', action='store', dest='destdir',
                       help='Directory to place all output', default='api')
+    parser.add_option('-s', '--source-dir', action='store', dest='srcdir',
+                      help='Documentation source directory', default=BASEDIR)
     parser.add_option('-n', '--docname', action='store', dest='docname',
                       help='Index document name', default='api')
     parser.add_option('-l', '--follow-links', action='store_true',
@@ -196,6 +202,8 @@ Note: By default this script will not overwrite already created files.""")
                            'implicit namespaces specification')
     parser.add_option('--version', action='store_true', dest='show_version',
                       help='Show version information and exit')
+    parser.add_option('--clean', action='store_true', dest='cleanup',
+                      help='Clean up generated files and exit')
     group = parser.add_option_group('Extension options')
     for ext in EXTENSIONS:
         group.add_option('--ext-' + ext, action='store_true',
@@ -204,15 +212,22 @@ Note: By default this script will not overwrite already created files.""")
 
     (opts, args) = parser.parse_args(argv[1:])
 
+    # Make this more explicitly the current directory.
+    if not opts.srcdir:
+        opts.srcdir = '.'
+
     if opts.show_version:
         print('Sphinx (sphinx-apidoc) %s' % __display_version__)
         return 0
+
+    if opts.cleanup:
+        print("Removing generated API docs from '{}'...".format(opts.srcdir))
+        return cleanup_api_docs(opts)
 
     if not args:
         parser.error('A package path is required.')
 
     opts.rootpath, opts.excludes = args[0], args[1:]
-    opts.srcdir = '.'
     return generate_api_docs(opts)
 
 
@@ -220,12 +235,23 @@ def generate_api_docs(opts):
     if not path.isdir(opts.rootpath):
         logger.warning('{} is not a directory. Skipped.'.format(opts.rootpath))
         return 1
-    if not path.isdir(opts.destdir):
-        os.makedirs(opts.destdir)
+    destdir = path.join(opts.srcdir, opts.destdir)
+    if not path.isdir(destdir):
+        os.makedirs(destdir)
     rootpath = path.abspath(opts.rootpath)
     excludes = normalize_excludes(rootpath, opts.excludes)
     modules = recurse_tree(rootpath, excludes, opts)
     create_autosummary_file(modules, opts)
+    return 0
+
+
+def cleanup_api_docs(opts):
+    destdir = path.join(opts.srcdir, opts.destdir)
+    if path.exists(destdir):
+        shutil.rmtree(destdir)
+    fname = path.join(opts.srcdir, '{}.rst'.format(opts.docname))
+    if path.exists(fname):
+        os.remove(fname)
     return 0
 
 

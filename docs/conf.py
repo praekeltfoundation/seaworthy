@@ -43,6 +43,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
+    'sphinx.ext.coverage',
     # Ordering is important here: we need apigen to run before autosummary.
     'apigen',
     'sphinx.ext.autosummary',
@@ -64,6 +65,8 @@ autosummary_generate = ['api.rst']
 templates_path = ['_templates']
 
 add_module_names = False
+
+coverage_write_headline = False
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
