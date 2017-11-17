@@ -58,7 +58,7 @@ def resource_fixture(definition, name, scope='function'):
     Note that it is important to keep a reference to the fixture function
     returned by this function::
 
-        fixture = container_fixture(PostgreSQLContainer(), 'postgresql')
+        fixture = resource_fixture(PostgreSQLContainer(), 'postgresql')
 
         def test_container(postgresql):
             \"""Test something about the PostgreSQL container...\"""
