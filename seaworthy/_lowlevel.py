@@ -24,7 +24,7 @@ class SocketClosed(Exception):
 
 def stream_logs(container, stdout=True, stderr=True, tail='all', timeout=10.0):
     """
-    Stream logs from a docker container within a timeout.
+    Stream logs from a Docker container within a timeout.
 
     We can't use docker-py's existing streaming support because that's stuck
     behind a blocking API and we have no (sane) way to enforce a timeout.
@@ -96,7 +96,7 @@ def read_n_bytes(resp, sock, n, deadline):
 
 def read_frame(resp, sock, deadline):
     """
-    Read a docker stream frame before a timeout deadline.
+    Read a Docker stream frame before a timeout deadline.
     """
     header = read_n_bytes(resp, sock, 8, deadline)
     _, size = struct.unpack('>BxxxL', header)

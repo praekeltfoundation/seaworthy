@@ -251,7 +251,7 @@ class ContainerDefinition(_DefinitionBase):
 
     def status(self):
         """
-        Get the container's current status from docker.
+        Get the container's current status from Docker.
 
         If the container does not exist (before creation and after removal),
         the status is ``None``.
