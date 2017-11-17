@@ -7,14 +7,16 @@ from seaworthy.logs import (
     RegexMatcher, UnorderedLinesMatcher, stream_logs, wait_for_logs_matching)
 
 
-# These are a hack to control our generated documentation. The values of the
-# attributes are ignored, only their presence or absence can be detected by the
+# This is a hack to control our generated documentation. The value of the
+# attribute is ignored, only its presence or absence can be detected by the
 # apigen machinery.
-__apigen_undoc_members__ = None
 __apigen_inherited_members__ = None
 
 
 def deep_merge(*dicts):
+    """
+    Recursively merge all input dicts into a single dict.
+    """
     result = {}
     for d in dicts:
         if not isinstance(d, dict):
@@ -45,6 +47,11 @@ class _DefinitionBase:
         self._inner = None
 
     def create(self, **kwargs):
+        """
+        Create an instance of this resource definition.
+
+        Only one instance may exist at any given time.
+        """
         if self.created:
             raise RuntimeError(
                 '{} already created.'.format(self.__model_type__.__name__))
@@ -55,6 +62,9 @@ class _DefinitionBase:
             self.name, *self._create_args, **kwargs)
 
     def remove(self, **kwargs):
+        """
+        Remove an instance of this resource definition.
+        """
         self.helper.remove(self.inner(), **kwargs)
         self._inner = None
 
@@ -106,6 +116,11 @@ class _DefinitionBase:
         return self._helper
 
     def set_helper(self, helper):
+        """
+        .. todo::
+
+            Document this.
+        """
         # We don't want to "unset" in this method.
         if helper is None:
             return
@@ -408,8 +423,22 @@ class ContainerDefinition(_DefinitionBase):
 
 
 class NetworkDefinition(_DefinitionBase):
+    """
+    This is the base class for network definitions.
+
+    .. todo::
+
+        Document this properly.
+    """
     __model_type__ = models.networks.Network
 
 
 class VolumeDefinition(_DefinitionBase):
+    """
+    This is the base class for volume definitions.
+
+    .. todo::
+
+        Document this properly.
+    """
     __model_type__ = models.volumes.Volume

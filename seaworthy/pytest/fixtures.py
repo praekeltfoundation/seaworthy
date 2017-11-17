@@ -11,7 +11,7 @@ from seaworthy.helpers import DockerHelper
 
 def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     """
-    Create a fixture for the :class:`.DockerHelper`.
+    Create a fixture for :class:`~seaworthy.DockerHelper`.
 
     This can be used to create a fixture with a different name to the default.
     It can also be used to override the scope of the default fixture:::
@@ -21,7 +21,8 @@ def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     :param name: The name of the fixture.
     :param scope: The scope of the fixture.
     :param kwargs:
-        Keyword arguments to pass to the :class:`.DockerHelper` constructor.
+        Keyword arguments to pass to the :class:`~seaworthy.DockerHelper`
+        constructor.
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture():
@@ -35,7 +36,7 @@ def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     return fixture
 
 
-#: Default fixture for the :class:`.DockerHelper`. Has module scope.
+#: Default fixture for :class:`~seaworthy.DockerHelper`. Has module scope.
 docker_helper = docker_helper_fixture()
 
 
