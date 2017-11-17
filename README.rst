@@ -50,7 +50,7 @@ Run pytest::
 
 
 Project status
-~~~~~~~~~~~~~~
+--------------
 Seaworthy should be considered alpha-level software. It is well-tested and
 works well for the first few things we have used it for, but we would like to
 use it for more of our Docker projects, which may require some parts of
