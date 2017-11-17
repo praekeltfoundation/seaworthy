@@ -3,6 +3,13 @@ from seaworthy.logs import output_lines
 
 
 class RedisContainer(ContainerDefinition):
+    """
+    Redis container definition.
+
+    .. todo::
+       Write more docs.
+    """
+
     DEFAULT_NAME = 'redis'
     DEFAULT_IMAGE = 'redis:alpine'
     DEFAULT_WAIT_PATTERNS = (r'\* Ready to accept connections',)
@@ -15,9 +22,15 @@ class RedisContainer(ContainerDefinition):
         super().__init__(name, image, wait_patterns, **kwargs)
 
     def base_kwargs(self):
+        """
+        Add a ``tmpfs`` entry for ``/data`` to avoid unnecessary disk I/O.
+        """
         return {'tmpfs': {'/data': 'uid=100,gid=101'}}
 
     def clean(self):
+        """
+        Remove all data by sending the ``FLUSHALL`` command.
+        """
         self.exec_redis_cli('FLUSHALL')
 
     def exec_redis_cli(self, command, args=[], db=0, redis_cli_opts=[]):
