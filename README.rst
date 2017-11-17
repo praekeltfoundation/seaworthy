@@ -51,11 +51,17 @@ Run pytest::
 
 Project status
 ~~~~~~~~~~~~~~
-Seaworthy is in the early stages of development and will be undergoing lots of
-change. The project was split out of the tests we wrote for our
+Seaworthy should be considered alpha-level software. It is well-tested and
+works well for the first few things we have used it for, but we would like to
+use it for more of our Docker projects, which may require some parts of
+Seaworthy to evolve further. See the `project issues`_ for known
+issues/shortcomings.
+
+The project was originally split out of the tests we wrote for our
 `docker-django-bootstrap`_ project. There are examples of Seaworthy in use
 there.
 
 
 .. _`documentation`: http://seaworthy.readthedocs.io/en/latest/
+.. _`project issues`: https://github.com/praekeltfoundation/seaworthy/issues
 .. _`docker-django-bootstrap`: https://github.com/praekeltfoundation/docker-django-bootstrap
