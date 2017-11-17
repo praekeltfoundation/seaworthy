@@ -9,6 +9,13 @@ def _parse_rabbitmq_user(user_line):
 
 
 class RabbitMQContainer(ContainerDefinition):
+    """
+    RabbitMQ container definition.
+
+    .. todo::
+       Write more docs.
+    """
+
     # For some reason this container is slower to start through seaworthy than
     # with a plain `docker run`, so give it a bit more time to get going. :-(
     WAIT_TIMEOUT = 20.0
@@ -41,6 +48,11 @@ class RabbitMQContainer(ContainerDefinition):
         self.password = password
 
     def base_kwargs(self):
+        """
+        Add a ``tmpfs`` entry for ``/var/lib/rabbitmq`` to avoid unnecessary
+        disk I/O and ``environment`` entries for the configured vhost and user
+        creds.
+        """
         return {
             'environment': {
                 'RABBITMQ_DEFAULT_VHOST': self.vhost,
@@ -51,6 +63,10 @@ class RabbitMQContainer(ContainerDefinition):
         }
 
     def clean(self):
+        """
+        Remove all data by using ``rabbitmqctl`` to eval
+        ``rabbit_mnesia:reset()``.
+        """
         reset_erl = 'rabbit:stop(), rabbit_mnesia:reset(), rabbit:start().'
         self.exec_rabbitmqctl('eval', [reset_erl])
 

@@ -359,7 +359,7 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         We can stop a running container.
         """
         # We don't test the timeout because that's just passed directly through
-        # to docker and it's nontrivial to construct a container that takes a
+        # to Docker and it's nontrivial to construct a container that takes a
         # specific amount of time to stop.
         self.definition.create()
         inner = self.definition.inner()
