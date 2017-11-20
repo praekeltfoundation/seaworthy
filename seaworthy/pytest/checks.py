@@ -1,3 +1,7 @@
+"""
+pytest mark to skip tests that require Docker.
+"""
+
 import pytest
 
 from seaworthy.checks import docker_available

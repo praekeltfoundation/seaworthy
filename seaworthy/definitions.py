@@ -1,3 +1,8 @@
+"""
+Wrappers over Docker resource types to aid in setup/teardown of and interaction
+with Docker resources.
+"""
+
 import functools
 
 from docker import models

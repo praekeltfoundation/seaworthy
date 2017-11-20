@@ -1,5 +1,5 @@
 """
-Contains a number of pytest fixtures or factories for fixtures.
+A number of pytest fixtures or factories for fixtures.
 """
 
 import os

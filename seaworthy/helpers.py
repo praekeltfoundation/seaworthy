@@ -1,3 +1,8 @@
+"""
+Classes that track resource creation and removal to ensure that all resources
+are namespaced and cleaned up after use.
+"""
+
 import logging
 
 import docker

@@ -1,3 +1,8 @@
+"""
+A requests-based HTTP client for interacting with containers that have
+forwarded ports.
+"""
+
 import hyperlink
 
 import requests

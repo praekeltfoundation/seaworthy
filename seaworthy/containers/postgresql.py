@@ -1,3 +1,7 @@
+"""
+PostgreSQL container definition.
+"""
+
 from seaworthy.definitions import ContainerDefinition
 from seaworthy.logs import output_lines
 
