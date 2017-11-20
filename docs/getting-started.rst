@@ -62,9 +62,11 @@ A few things to note here:
   the test begins and that the container is stopped and removed after the test
   ends.
 - The scope of the fixture is important. By default, pytest fixtures have
-  function scope, which means for each test function the fixture is completely
-  reinitialized. Creating and starting up a container can be a little slow, so
-  you need to think carefully about what scope to use for your fixtures.
+  function scope, which means that for each test function the fixture is
+  completely reinitialized. Creating and starting up a container can be a
+  little slow, so you need to think carefully about what scope to use for your
+  fixtures. See :meth:`~seaworthy.definitions.ContainerDefinition.clean` for a
+  way to avoid container setup/teardown overhead.
 
 For simple cases, :class:`~seaworthy.definitions.ContainerDefinition` can be
 used directly, without subclassing::
@@ -73,8 +75,8 @@ used directly, without subclassing::
         'test', 'acme-corp/soda-service:cola', [r'soda \w+ is fizzing'])
     fixture = resource_fixture(container, 'soda_container')
 
-    def test_fizzyness(soda_container):
-        pass
+    def test_refreshment(soda_container):
+        assert 'Parpor-Colla Corp' in soda_container.get_logs()
 
 Note that pytest is not required to use Seaworthy and there are several other
 ways to use the container as a fixture. For more information see
