@@ -56,12 +56,14 @@ def resource_fixture(definition, name, scope='function'):
 
     .. note:: This function returns a fixture function. It is important to keep
         a reference to the returned function within the scope of the tests that
-        use the fixture::
+        use the fixture.
 
-            fixture = resource_fixture(PostgreSQLContainer(), 'postgresql')
+    .. code-block:: python
 
-            def test_container(postgresql):
-                \"""Test something about the PostgreSQL container...\"""
+        fixture = resource_fixture(PostgreSQLContainer(), 'postgresql')
+
+        def test_container(postgresql):
+            \"""Test something about the PostgreSQL container...\"""
 
     :param definition:
         A resource definition, one of those defined in the
@@ -100,25 +102,26 @@ def clean_container_fixtures(container, name, scope='class'):
 
     .. note:: This function returns two fixture functions. It is important to
         keep references to the returned functions within the scope of the tests
-        that use the fixtures::
+        that use the fixtures.
 
-            f1, f2 = clean_container_fixtures(
-                PostgreSQLContainer(), 'postgresql')
+    .. code-block:: python
 
-            class TestPostgresqlContainer
-                @pytest.mark.clean_postgresql
-                def test_clean_container(self, web_container, postgresql):
-                    \"""
-                    Test something about the container that requires it to have
-                    a clean state (e.g. database table creation).
-                    \"""
+        f1, f2 = clean_container_fixtures(PostgreSQLContainer(), 'postgresql')
 
-                def test_dirty_container(self, web_container, postgresql):
-                    \"""
-                    Test something about the container that doesn't require it
-                    to have a clean state (e.g. testing something about a
-                    dependent container).
-                    \"""
+        class TestPostgresqlContainer
+            @pytest.mark.clean_postgresql
+            def test_clean_container(self, web_container, postgresql):
+                \"""
+                Test something about the container that requires it to have a
+                clean state (e.g. database table creation).
+                \"""
+
+            def test_dirty_container(self, web_container, postgresql):
+                \"""
+                Test something about the container that doesn't require it to
+                have a clean state (e.g. testing something about a dependent
+                container).
+                \"""
 
     :param container:
         A "container" object that is a subclass of
