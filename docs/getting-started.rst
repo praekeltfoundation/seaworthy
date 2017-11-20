@@ -23,10 +23,10 @@ Containers should be defined using subclasses of
 
     class CakeContainer(ContainerDefinition):
         IMAGE = 'acme-corp/cake-service:chocolate'
-        WAIT_PATTERNS = [
+        WAIT_PATTERNS = (
             r'cake \w+ is baked',
             r'cake \w+ is served',
-        ]
+        )
 
         def __init__(self, name):
             super().__init__(name, IMAGE, WAIT_PATTERNS)
