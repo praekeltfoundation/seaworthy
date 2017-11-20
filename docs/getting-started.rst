@@ -76,7 +76,7 @@ used directly, without subclassing::
     fixture = resource_fixture(container, 'soda_container')
 
     def test_refreshment(soda_container):
-        assert 'Parpor-Colla Corp' in soda_container.get_logs()
+        assert 'Papor-Colla Corp' in soda_container.get_logs()
 
 Note that pytest is not required to use Seaworthy and there are several other
 ways to use the container as a fixture. For more information see
