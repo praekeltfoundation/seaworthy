@@ -29,7 +29,8 @@ First install Seaworthy along with pytest using pip::
 
     pip install seaworthy[pytest]
 
-Write some tests in a file, for example, ``test_echo_container.py``::
+Write some tests in a file, for example, ``test_echo_container.py``:
+.. code-block:: python
 
     from seaworthy.definitions import ContainerDefinition
     from seaworthy.pytest.fixtures import resource_fixture
