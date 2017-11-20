@@ -1,5 +1,5 @@
 """
-Contains a number of pytest fixtures or factories for fixtures.
+A number of pytest fixtures or factories for fixtures.
 """
 
 import os
@@ -14,7 +14,7 @@ def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     Create a fixture for :class:`~seaworthy.DockerHelper`.
 
     This can be used to create a fixture with a different name to the default.
-    It can also be used to override the scope of the default fixture:::
+    It can also be used to override the scope of the default fixture::
 
         docker_helper = docker_helper_fixture(scope='class')
 
@@ -54,8 +54,11 @@ def resource_fixture(definition, name, scope='function'):
     """
     Create a fixture for a resource.
 
-    Note that it is important to keep a reference to the fixture function
-    returned by this function::
+    .. note:: This function returns a fixture function. It is important to keep
+        a reference to the returned function within the scope of the tests that
+        use the fixture.
+
+    .. code-block:: python
 
         fixture = resource_fixture(PostgreSQLContainer(), 'postgresql')
 
@@ -97,8 +100,11 @@ def clean_container_fixtures(container, name, scope='class'):
     method will be called on the container object before it is passed as an
     argument to the test function.
 
-    Note that this function returns two fixture functions and references must
-    be kept to both in the correct scope.::
+    .. note:: This function returns two fixture functions. It is important to
+        keep references to the returned functions within the scope of the tests
+        that use the fixtures.
+
+    .. code-block:: python
 
         f1, f2 = clean_container_fixtures(PostgreSQLContainer(), 'postgresql')
 

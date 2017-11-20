@@ -1,3 +1,8 @@
+"""
+Wrappers over Docker resource types to aid in setup/teardown of and interaction
+with Docker resources.
+"""
+
 import functools
 
 from docker import models
@@ -331,7 +336,10 @@ class ContainerDefinition(_DefinitionBase):
     def clean(self):
         """
         This method should "clean" the container so that it is in the same
-        state as it was when it was started.
+        state as it was when it was started. It is up to the implementer of
+        this method to decide how the container should be cleaned. See
+        :func:`~seaworthy.pytest.fixtures.clean_container_fixtures` for how
+        this can be used with pytest fixtures.
         """
         raise NotImplementedError()
 

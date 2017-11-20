@@ -1,6 +1,6 @@
 """
-This module contains some checks and test decorators for skipping tests
-that require Docker to be present.
+Checks and test decorators for skipping tests that require Docker to be
+present.
 """
 
 import unittest
