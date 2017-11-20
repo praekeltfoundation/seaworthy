@@ -1,6 +1,9 @@
 Seaworthy
 =========
 
+.. image:: https://img.shields.io/pypi/v/seaworthy.svg
+    :target: https://pypi.python.org/pypi/seaworthy/
+
 .. image:: https://readthedocs.org/projects/seaworthy/badge/?version=latest
     :target: http://seaworthy.readthedocs.io/en/latest/
 
