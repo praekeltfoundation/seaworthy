@@ -65,8 +65,9 @@ A few things to note here:
   function scope, which means that for each test function the fixture is
   completely reinitialized. Creating and starting up a container can be a
   little slow, so you need to think carefully about what scope to use for your
-  fixtures. See :meth:`~seaworthy.definitions.ContainerDefinition.clean` for a
-  way to avoid container setup/teardown overhead.
+  fixtures. See :meth:`ContainerDefinition.clean
+  <seaworthy.definitions.ContainerDefinition.clean>` for a way to avoid
+  container setup/teardown overhead.
 
 For simple cases, :class:`~seaworthy.definitions.ContainerDefinition` can be
 used directly, without subclassing::
