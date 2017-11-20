@@ -65,8 +65,8 @@ setup(
     },
     classifiers=[
         'Development Status :: 3 - Alpha',
-        'License :: OSI Approved :: BSD License',
         'Framework :: Pytest',
+        'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3 :: Only',
