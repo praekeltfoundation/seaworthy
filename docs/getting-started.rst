@@ -46,7 +46,6 @@ This container can then be used as fixtures for tests in a number of ways, the
 easiest of which is with pytest::
 
     import pytest
-    from seaworthy.pytest.fixtures import resource_fixture
 
     container = CakeContainer('test')
     fixture = container.pytest_fixture('cake_container')

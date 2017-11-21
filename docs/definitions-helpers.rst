@@ -56,9 +56,6 @@ With the ``as_fixture`` decorator::
 
 When using pytest, it's easy to create a fixture::
 
-    from seaworthy.pytest.fixtures import resource_fixture
-
-
     container = ContainerDefinition('nginx', 'nginx:alpine')
     fixture = container.pytest_fixture('nginx_container')
 
