@@ -50,7 +50,7 @@ def image_fetch_fixture(image, name, scope='module'):
     return fixture
 
 
-def resource_fixture(definition, name, scope='function'):
+def resource_fixture(definition, name, scope='function', dependencies=()):
     """
     Create a fixture for a resource.
 
@@ -70,11 +70,18 @@ def resource_fixture(definition, name, scope='function'):
         :mod:`seaworthy.definitions` module.
     :param name: The fixture name.
     :param scope: The scope of the fixture.
+    :param dependencies:
+        A sequence of names of other pytest fixtures that this fixture depends
+        on. These fixtures will be requested from pytest and so will be setup,
+        but nothing is done with the actual fixture values.
 
     :returns: The fixture function.
     """
     @pytest.fixture(name=name, scope=scope)
-    def fixture(docker_helper):
+    def fixture(request, docker_helper):
+        for dependency in dependencies:
+            request.getfixturevalue(dependency)
+
         definition.setup(helper=docker_helper)
         yield definition
         definition.teardown()
@@ -93,7 +100,7 @@ def _clean_container_fixture(name, raw_name):
     return clean_fixture
 
 
-def clean_container_fixtures(container, name, scope='class'):
+def clean_container_fixtures(container, name, scope='class', dependencies=()):
     """
     Creates a fixture for a container that can be "cleaned". When a code block
     is marked with ``@pytest.mark.clean_<fixture name>`` then the ``clean``
@@ -130,12 +137,16 @@ def clean_container_fixtures(container, name, scope='class'):
         The fixture name.
     :param scope:
         The scope of the fixture.
+    :param dependencies:
+        A sequence of names of other pytest fixtures that this fixture depends
+        on. These fixtures will be requested from pytest and so will be setup,
+        but nothing is done with the actual fixture values.
 
     :returns:
         A tuple of two fixture functions.
     """
     raw_name = 'raw_{}'.format(name)
-    return (resource_fixture(container, raw_name, scope),
+    return (resource_fixture(container, raw_name, scope, dependencies),
             _clean_container_fixture(name, raw_name))
 
 
