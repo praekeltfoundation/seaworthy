@@ -49,7 +49,7 @@ easiest of which is with pytest::
     from seaworthy.pytest.fixtures import resource_fixture
 
     container = CakeContainer('test')
-    fixture = resource_fixture(container, 'cake_container')
+    fixture = container.pytest_fixture('cake_container')
 
     def test_type(cake_container):
         output = cake_container.exec_cake('type')
@@ -57,10 +57,10 @@ easiest of which is with pytest::
 
 A few things to note here:
 
-- The :func:`~seaworthy.pytest.fixtures.resource_fixture` function returns a
-  pytest fixture that ensures that the container is created and started before
-  the test begins and that the container is stopped and removed after the test
-  ends.
+- The :func:`~seaworthy.definitions.ContainerDefinition.pytest_fixture` method
+  returns a pytest fixture that ensures that the container is created and
+  started before the test begins and that the container is stopped and removed
+  after the test ends.
 - The scope of the fixture is important. By default, pytest fixtures have
   function scope, which means that for each test function the fixture is
   completely reinitialized. Creating and starting up a container can be a
@@ -74,7 +74,7 @@ used directly, without subclassing::
 
     container = ContainerDefinition(
         'test', 'acme-corp/soda-service:cola', [r'soda \w+ is fizzing'])
-    fixture = resource_fixture(container, 'soda_container')
+    fixture = container.pytest_fixture('soda_container')
 
     def test_refreshment(soda_container):
         assert 'Papor-Colla Corp' in soda_container.get_logs()

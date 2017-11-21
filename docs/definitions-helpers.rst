@@ -60,7 +60,7 @@ When using pytest, it's easy to create a fixture::
 
 
     container = ContainerDefinition('nginx', 'nginx:alpine')
-    fixture = resource_fixture(container, 'nginx_container')
+    fixture = container.pytest_fixture('nginx_container')
 
     def test_nginx(nginx_container):
         assert nginx_container.created
