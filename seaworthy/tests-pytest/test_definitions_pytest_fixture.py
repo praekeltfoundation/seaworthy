@@ -37,7 +37,7 @@ class PytestFixtureMixin:
 
 class TestContainerDefinition(PytestFixtureMixin):
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         with docker_client() as client:
             fetch_image(client, IMG)
 
