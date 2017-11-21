@@ -156,7 +156,7 @@ class PytestFixtureMixin:
         fixture_gen = fixture(request, docker_helper)
         definition = next(fixture_gen)
 
-        # Resrouce has been created
+        # Resource has been created
         assert definition.created
 
         # Test things are torn down
