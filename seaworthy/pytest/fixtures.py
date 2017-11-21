@@ -90,7 +90,7 @@ def resource_fixture(definition, name, scope='function', dependencies=()):
     return fixture
 
 
-def _pytest_fixture(self, name, scope='function', dependencies=()):
+def _definition_fixture(self, name, scope='function', dependencies=()):
     """
     Create a pytest fixture for the resource. See :func:`.resource_fixture`.
 
@@ -110,7 +110,7 @@ def _pytest_fixture(self, name, scope='function', dependencies=()):
     return resource_fixture(self, name, scope, dependencies)
 
 
-_DefinitionBase.pytest_fixture = _pytest_fixture
+_DefinitionBase.pytest_fixture = _definition_fixture
 
 
 def _clean_container_fixture(name, raw_name):
@@ -174,7 +174,7 @@ def clean_container_fixtures(container, name, scope='class', dependencies=()):
             _clean_container_fixture(name, raw_name))
 
 
-def _pytest_clean_fixtures(self, name, scope='function', dependencies=()):
+def _definition_clean_fixtures(self, name, scope='function', dependencies=()):
     """
     Creates a pytest fixture for a container that can be "cleaned". See
     :func:`.clean_container_fixtures`.
@@ -195,7 +195,7 @@ def _pytest_clean_fixtures(self, name, scope='function', dependencies=()):
     return clean_container_fixtures(self, name, scope, dependencies)
 
 
-ContainerDefinition.pytest_clean_fixtures = _pytest_clean_fixtures
+ContainerDefinition.pytest_clean_fixtures = _definition_clean_fixtures
 
 
 __all__ = ['clean_container_fixtures', 'docker_helper',
