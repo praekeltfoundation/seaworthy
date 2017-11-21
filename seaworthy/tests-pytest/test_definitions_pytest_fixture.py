@@ -44,6 +44,28 @@ class TestContainerDefinition(PytestFixtureMixin):
     def make_definition(self, name):
         return ContainerDefinition(name, IMG)
 
+    def test_clean_fixtures(self, request, docker_helper):
+        """
+        The fixture returned by the ``pytest_clean_fixture()`` method should
+        yield a started container, and afterwards stop and remove the
+        container.
+        """
+        raw_fixture, fixture = ContainerDefinition(
+            name='test', image=IMG).pytest_clean_fixtures('test')
+        fixture_gen = raw_fixture(request, docker_helper)
+        # TODO: Assert on cleaning fixture
+        container = next(fixture_gen)
+
+        assert isinstance(container, ContainerDefinition)
+        assert container.inner().status == 'running'
+
+        # Test things are torn down
+        with pytest.raises(StopIteration):
+            next(fixture_gen)
+
+        # Container has been stopped and removed
+        assert not container.created
+
 
 class TestNetworkDefinition(PytestFixtureMixin):
     def make_definition(self, name):

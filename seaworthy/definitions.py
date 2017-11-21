@@ -199,7 +199,7 @@ if _has_pytest:  # pragma: no branch
         Create a pytest fixture for the resource. See
         :func:`seaworthy.pytest.fixtures.resource_fixture`.
 
-        .. note:: This function returns a fixture function. It is important to
+        .. note:: This method returns a fixture function. It is important to
             keep a reference to the returned function within the scope of the
             tests that use the fixture.
 
@@ -462,6 +462,32 @@ class ContainerDefinition(_DefinitionBase):
         client = ContainerHttpClient.for_container(self, container_port=port)
         self._http_clients.append(client)
         return client
+
+
+if _has_pytest:  # pragma: no branch
+    from seaworthy.pytest.fixtures import clean_container_fixtures
+
+    def _pytest_clean_fixtures(self, name, scope='function', dependencies=()):
+        """
+        Creates a pytest fixture for a container that can be "cleaned". See
+        :func:`seaworthy.pytest.fixtures.clean_container_fixtures`.
+
+        .. note:: This method returns two fixture functions. It is important to
+            keep references to the returned functions within the scope of the
+            tests that use the fixtures.
+
+        .. note:: This method is only available if pytest is installed.
+
+        :param name: The fixture name.
+        :param scope: The scope of the fixture.
+        :param dependencies:
+            A sequence of names of other pytest fixtures that this fixture
+            depends on. These fixtures will be requested from pytest and so
+            will be setup, but nothing is done with the actual fixture values.
+        """
+        return clean_container_fixtures(self, name, scope, dependencies)
+
+    ContainerDefinition.pytest_clean_fixtures = _pytest_clean_fixtures
 
 
 class NetworkDefinition(_DefinitionBase):

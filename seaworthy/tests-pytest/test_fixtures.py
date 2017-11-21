@@ -138,5 +138,4 @@ class TestCleanContainerFixturesFunc:
             next(fixture_gen)
 
         # Container has been stopped and removed
-        with pytest.raises(RuntimeError):
-            container.inner()
+        assert not container.created
