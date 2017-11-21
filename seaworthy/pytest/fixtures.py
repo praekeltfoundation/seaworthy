@@ -183,7 +183,7 @@ def _definition_clean_fixtures(self, name, scope='function', dependencies=()):
         keep references to the returned functions within the scope of the
         tests that use the fixtures.
 
-    .. note:: This method is only available if pytest is installed.
+    .. note:: This method is only available if pytest is used.
 
     :param name: The fixture name.
     :param scope: The scope of the fixture.
