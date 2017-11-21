@@ -76,10 +76,9 @@ class TestResourceFixtureFunc:
         """
         testdir.makeconftest("""
             from seaworthy.definitions import ContainerDefinition
-            from seaworthy.pytest.fixtures import resource_fixture
 
-            fixture = resource_fixture(
-                ContainerDefinition(name='test', image='{}'), 'container')
+            fixture = (ContainerDefinition(name='test', image='{}')
+                       .pytest_fixture('container'))
         """.format(IMG))
 
         testdir.makepyfile("""
@@ -98,7 +97,6 @@ class TestResourceFixtureFunc:
         testdir.makeconftest("""
             from seaworthy.definitions import (
                 ContainerDefinition, VolumeDefinition)
-            from seaworthy.pytest.fixtures import resource_fixture
 
             class Container(ContainerDefinition):
                 def __init__(self, volume, *args, **kwargs):
@@ -106,10 +104,10 @@ class TestResourceFixtureFunc:
                     self.volume = volume
 
             volume = VolumeDefinition('foo')
-            volume_fixture = resource_fixture(volume, 'foo_volume')
-            container_fixture = resource_fixture(
-                Container(volume, name='test', image='{}'), 'container',
-                dependencies=('foo_volume',))
+            volume_fixture = volume.pytest_fixture('foo_volume')
+            container_fixture = (
+                Container(volume, name='test', image='{}').pytest_fixture(
+                    'container', dependencies=('foo_volume',)))
         """.format(IMG))
 
         testdir.makepyfile("""
@@ -149,8 +147,7 @@ class TestCleanContainerFixturesFunc:
                     return cleaned
 
 
-            f1, f2 = clean_container_fixtures(
-                CleanableContainer(), 'cleanable')
+            f1, f2 = CleanableContainer().pytest_clean_fixtures('cleanable')
         """.format(IMG))
 
         testdir.makepyfile("""

@@ -11,12 +11,6 @@ from seaworthy.helpers import DockerHelper
 from seaworthy.logs import (
     RegexMatcher, UnorderedLinesMatcher, stream_logs, wait_for_logs_matching)
 
-try:
-    import pytest  # noqa: F401
-    _has_pytest = True
-except ImportError:  # pragma: no cover
-    _has_pytest = False
-
 
 # This is a hack to control our generated documentation. The value of the
 # attribute is ignored, only its presence or absence can be detected by the
@@ -189,32 +183,6 @@ class _DefinitionBase:
         Override this method to merge kwargs differently.
         """
         return deep_merge(self.base_kwargs(), default_kwargs, kwargs)
-
-
-if _has_pytest:  # pragma: no branch
-    from seaworthy.pytest.fixtures import resource_fixture
-
-    def _pytest_fixture(self, name, scope='function', dependencies=()):
-        """
-        Create a pytest fixture for the resource. See
-        :func:`seaworthy.pytest.fixtures.resource_fixture`.
-
-        .. note:: This method returns a fixture function. It is important to
-            keep a reference to the returned function within the scope of the
-            tests that use the fixture.
-
-        .. note:: This method is only available if pytest is installed.
-
-        :param name: The fixture name.
-        :param scope: The scope of the fixture.
-        :param dependencies:
-            A sequence of names of other pytest fixtures that this fixture
-            depends on. These fixtures will be requested from pytest and so
-            will be setup, but nothing is done with the actual fixture values.
-        """
-        return resource_fixture(self, name, scope, dependencies)
-
-    _DefinitionBase.pytest_fixture = _pytest_fixture
 
 
 class ContainerDefinition(_DefinitionBase):
@@ -462,32 +430,6 @@ class ContainerDefinition(_DefinitionBase):
         client = ContainerHttpClient.for_container(self, container_port=port)
         self._http_clients.append(client)
         return client
-
-
-if _has_pytest:  # pragma: no branch
-    from seaworthy.pytest.fixtures import clean_container_fixtures
-
-    def _pytest_clean_fixtures(self, name, scope='function', dependencies=()):
-        """
-        Creates a pytest fixture for a container that can be "cleaned". See
-        :func:`seaworthy.pytest.fixtures.clean_container_fixtures`.
-
-        .. note:: This method returns two fixture functions. It is important to
-            keep references to the returned functions within the scope of the
-            tests that use the fixtures.
-
-        .. note:: This method is only available if pytest is installed.
-
-        :param name: The fixture name.
-        :param scope: The scope of the fixture.
-        :param dependencies:
-            A sequence of names of other pytest fixtures that this fixture
-            depends on. These fixtures will be requested from pytest and so
-            will be setup, but nothing is done with the actual fixture values.
-        """
-        return clean_container_fixtures(self, name, scope, dependencies)
-
-    ContainerDefinition.pytest_clean_fixtures = _pytest_clean_fixtures
 
 
 class NetworkDefinition(_DefinitionBase):
