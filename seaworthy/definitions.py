@@ -241,13 +241,15 @@ class ContainerDefinition(_DefinitionBase):
 
         self._http_clients = []
 
-    def setup(self, helper=None):
+    def setup(self, helper=None, **run_kwargs):
         """
         Creates the container, starts it, and waits for it to completely start.
 
         :param helper:
             The resource helper to use, if one was not provided when this
             container definition was created.
+        :param \**run_kwargs: Keyword arguments passed to :meth:`.run`.
+
         :returns:
             This container definition instance. Useful for creating and setting
             up a container in a single step::
@@ -258,7 +260,7 @@ class ContainerDefinition(_DefinitionBase):
             return
 
         self.set_helper(helper)
-        self.run()
+        self.run(**run_kwargs)
         self.wait_for_start()
         return self
 
@@ -309,6 +311,7 @@ class ContainerDefinition(_DefinitionBase):
             Whether to try pull the image if it's not found. The behaviour here
             is similar to ``docker run`` and this parameter defaults to
             ``True``.
+        :param \**kwargs: Keyword arguments passed to :meth:`.create`.
         """
         self.create(fetch_image=fetch_image, **kwargs)
         self.start()

@@ -328,6 +328,18 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         # No status for container now
         self.assertIs(self.definition.status(), None)
 
+    def test_setup_kwargs(self):
+        """
+        We can pass keyword args to ``setup``.
+        """
+        self.assertFalse(self.definition.created)
+
+        self.definition.setup(environment={'SETUP_KWARGS': 'working'})
+        self.addCleanup(self.definition.teardown)
+        self.assertTrue(self.definition.created)
+        env = self.definition.inner().attrs['Config']['Env']
+        self.assertIn('SETUP_KWARGS=working', env)
+
     def test_context_manager(self):
         """
         We can use a definition object as a context manager (which returns
