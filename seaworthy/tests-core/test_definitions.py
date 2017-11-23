@@ -153,6 +153,18 @@ class DefinitionTestMixin:
         self.definition.teardown()
         self.assertFalse(self.definition.created)
 
+    def test_setup_kwargs(self):
+        """
+        We can pass keyword args to ``setup``.
+        """
+        self.assertFalse(self.definition.created)
+
+        self.definition.setup(labels={'SETUP_KWARGS': 'working'})
+        self.addCleanup(self.definition.teardown)
+        self.assertTrue(self.definition.created)
+        labels = self.definition.inner().attrs['Labels']
+        self.assertEqual(labels, {'SETUP_KWARGS': 'working'})
+
     def test_setup_multiple_calls(self):
         """
         setup() can be called multiple times after it has been called once
@@ -327,6 +339,18 @@ class TestContainerDefinition(unittest.TestCase, DefinitionTestMixin):
         self.assertFalse(self.definition.created)
         # No status for container now
         self.assertIs(self.definition.status(), None)
+
+    def test_setup_kwargs(self):
+        """
+        We can pass keyword args to ``setup``.
+        """
+        self.assertFalse(self.definition.created)
+
+        self.definition.setup(environment={'SETUP_KWARGS': 'working'})
+        self.addCleanup(self.definition.teardown)
+        self.assertTrue(self.definition.created)
+        env = self.definition.inner().attrs['Config']['Env']
+        self.assertIn('SETUP_KWARGS=working', env)
 
     def test_context_manager(self):
         """
