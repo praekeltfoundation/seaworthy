@@ -73,7 +73,7 @@ class _DefinitionBase:
         self.helper.remove(self.inner(), **kwargs)
         self._inner = None
 
-    def setup(self, helper=None):
+    def setup(self, helper=None, **create_kwargs):
         """
         Setup this resource so that is ready to be used in a test. If the
         resource has already been created, this call does nothing.
@@ -83,6 +83,8 @@ class _DefinitionBase:
         :param helper:
             The resource helper to use, if one was not provided when this
             resource definition was created.
+        :param \**create_kwargs: Keyword arguments passed to :meth:`.create`.
+
         :returns:
             This definition instance. Useful for creating and setting up a
             resource in a single step::
@@ -93,7 +95,7 @@ class _DefinitionBase:
             return
 
         self.set_helper(helper)
-        self.create()
+        self.create(**create_kwargs)
         return self
 
     def teardown(self):
