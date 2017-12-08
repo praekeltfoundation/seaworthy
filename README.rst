@@ -44,7 +44,7 @@ Write some tests in a file, for example, ``test_echo_container.py``:
         'echo', 'jmalloc/echo-server',
         wait_patterns=[r'Echo server listening on port 8080'],
         create_kwargs={'ports': {'8080': None}})
-    fixture = resource_fixture(container, 'echo_container')
+    fixture = container.pytest_fixture('echo_container')
 
 
     def test_echo(echo_container):
