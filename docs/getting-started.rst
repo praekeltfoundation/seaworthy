@@ -29,7 +29,7 @@ Containers should be defined using subclasses of
         )
 
         def __init__(self, name):
-            super().__init__(name, IMAGE, WAIT_PATTERNS)
+            super().__init__(name, self.IMAGE, self.WAIT_PATTERNS)
 
         # Utility methods can be added to the class to extend functionality
         def exec_cake(self, *params):
@@ -52,7 +52,7 @@ easiest of which is with pytest::
 
     def test_type(cake_container):
         output = cake_container.exec_cake('type')
-        assert output = ['chocolate']
+        assert output == ['chocolate']
 
 A few things to note here:
 
