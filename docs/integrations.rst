@@ -20,8 +20,16 @@ pytest.
 A fixture for a :class:`~seaworthy.helpers.DockerHelper` instance is defined by
 default. This fixture uses all the ``DockerHelper`` defaults and has
 module-level scope. The behaviour of this fixture can be overridden by defining
-a new ``docker_helper`` fixture using
-:func:`~seaworthy.pytest.fixtures.docker_helper_fixture`.
+a new ``docker_helper`` fixture using the
+:func:`~seaworthy.pytest.fixtures.docker_helper_fixture` fixture factory. For
+example::
+
+  from seaworthy.pytest.fixtures import docker_helper_fixture
+
+  docker_helper = docker_helper_fixture(scope='session', namespace='seaworthy')
+
+...would change the scope of the ``docker_helper`` fixture to the session-level
+and change the namespace of created Docker resources to ``seaworthy``.
 
 ``dockertest`` decorator
 ^^^^^^^^^^^^^^^^^^^^^^^^
