@@ -18,9 +18,15 @@ pytest.
 ``docker_helper`` fixture
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 A fixture for a :class:`~seaworthy.helpers.DockerHelper` instance is defined by
-default. This fixture uses all the ``DockerHelper`` defaults and has
-module-level scope. The behaviour of this fixture can be overridden by defining
-a new ``docker_helper`` fixture using the
+default.
+
+This fixture creates ``DockerHelper`` instances with default parameters and has
+**module-level scope**. Since all other Docker resource fixtures typically
+depend on the ``docker_helper`` fixture, resources must have a scope smaller
+than or equal to the ``docker_helper``'s scope.
+
+The defaults for this fixture can be overridden by defining a new
+``docker_helper`` fixture using the
 :func:`~seaworthy.pytest.fixtures.docker_helper_fixture` fixture factory. For
 example::
 
