@@ -35,6 +35,10 @@ class TestOutputLinesFunc(unittest.TestCase):
         self.assertEqual(output_lines(ExecResult(128, b'foo\r\nbar\r\n')),
                          ['foo', 'bar'])
 
+    def test_custom_encoding(self):
+        """String lines can be parsed using a custom encoding."""
+        self.assertEqual(output_lines(b'\xe1', encoding='latin1'), ['á'])
+
 
 class TestEqualsMatcher(unittest.TestCase):
     def test_matching(self):
