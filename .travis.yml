@@ -1,6 +1,4 @@
-sudo: true
-dist: trusty
-services: docker
+sudo: false
 
 # Only build develop, master, and version tags (which are considered branches
 # by Travis). PRs still get built.
@@ -14,23 +12,6 @@ language: python
 cache:
   - pip
 
-matrix:
-  include:
-    - python: '3.4'
-      env: TOXENV=py34-core,py34-pytest,py34-testtools,py34-full
-    - python: '3.5'
-      env: TOXENV=py35-core,py35-pytest,py35-testtools,py35-full
-    - python: '3.6'
-      env: TOXENV=py36-core,py36-pytest,py36-testtools,py36-full
-    - python: '3.6'
-      sudo: false
-      services: []
-      env: TOXENV=docs
-    - python: '3.6'
-      sudo: false
-      services: []
-      env: TOXENV=pep8
-
 before_install:
   - pip install --upgrade pip
 install:
@@ -42,11 +23,38 @@ script:
 after_success:
   - if [[ $TOXENV == py* ]]; then codecov; fi
 
-deploy:
-  provider: pypi
-  user: praekelt.org
-  password:
-    secure: Ud1nTOTBeFgHeJXig5bC5Bd9irYyvHvCEU2Kwdnn7MS/ta2w3D0Fqi7LZsrCWkP20p6FFG19Qim3dMm5VUCllJk+3uUrR/85WO4Eam6OQg+ZriGX1d76BA8fHj9CEap9IjSHQbeg1QBO0eCbhTpxNWt8Zoa2CDUti3ZRzwXGObLaQhYfUheuXmH0ONSx5LMST7jY00YKzfqosMtaO90qoJQiAg2LWIqBBRMmh5fM2F50DeBFEe1Cx9bAyugDeZgi2rdwKQ7/l3ZYsRS6XUXOWcjKimZ9b7JHZHWLSt3ccNPfpU6SqwuSG6+WIBvHfGNcG+Oj11Rs3xNKyd0KTKyERxrq2Qnwl3OlNTvnyiZydV3JreAKVlSWYwliAOXn37da66as9ENajIcDPKVuFo/2wn16bHmxH81lfdBULQZg3qpmGbyM65/uDiyukuYBiccooGcr5zND5NBFF7DXVV7NuaLBoMz+ehLAnC3frU+5gSp3F4wE6vtKackqbIy/H76BN1SYmkwfMB3SoqWywwueaQjd+a8YbPVpz6AIzEfSzQTgI+eXR7tf9NBxv2ZcaGvRrbkujMBN57GtQh5NcMtipXiGtun5AvivP9XletJnKDJa6iVJkcbm1tYbTnBt+j3Jwx2eKTECdV1+tQbdZKARoBLIbl8kp0GrVnyAHWQR1Ys=
-  distributions: sdist bdist_wheel
-  on:
-    tags: true
+jobs:
+  include:
+    - python: '3.4'
+      env: TOXENV=py34-core,py34-pytest,py34-testtools,py34-full
+      sudo: required
+      services: docker
+
+    - python: '3.5'
+      env: TOXENV=py35-core,py35-pytest,py35-testtools,py35-full
+      sudo: required
+      services: docker
+
+    - python: '3.6'
+      env: TOXENV=py36-core,py36-pytest,py36-testtools,py36-full
+      sudo: required
+      services: docker
+
+    - python: '3.6'
+      env: TOXENV=docs
+
+    - python: '3.6'
+      env: TOXENV=pep8
+
+    - stage: release
+      if: tag IS present
+      python: '3.6'
+      deploy:
+        provider: pypi
+        user: praekelt.org
+        password:
+          secure: Ud1nTOTBeFgHeJXig5bC5Bd9irYyvHvCEU2Kwdnn7MS/ta2w3D0Fqi7LZsrCWkP20p6FFG19Qim3dMm5VUCllJk+3uUrR/85WO4Eam6OQg+ZriGX1d76BA8fHj9CEap9IjSHQbeg1QBO0eCbhTpxNWt8Zoa2CDUti3ZRzwXGObLaQhYfUheuXmH0ONSx5LMST7jY00YKzfqosMtaO90qoJQiAg2LWIqBBRMmh5fM2F50DeBFEe1Cx9bAyugDeZgi2rdwKQ7/l3ZYsRS6XUXOWcjKimZ9b7JHZHWLSt3ccNPfpU6SqwuSG6+WIBvHfGNcG+Oj11Rs3xNKyd0KTKyERxrq2Qnwl3OlNTvnyiZydV3JreAKVlSWYwliAOXn37da66as9ENajIcDPKVuFo/2wn16bHmxH81lfdBULQZg3qpmGbyM65/uDiyukuYBiccooGcr5zND5NBFF7DXVV7NuaLBoMz+ehLAnC3frU+5gSp3F4wE6vtKackqbIy/H76BN1SYmkwfMB3SoqWywwueaQjd+a8YbPVpz6AIzEfSzQTgI+eXR7tf9NBxv2ZcaGvRrbkujMBN57GtQh5NcMtipXiGtun5AvivP9XletJnKDJa6iVJkcbm1tYbTnBt+j3Jwx2eKTECdV1+tQbdZKARoBLIbl8kp0GrVnyAHWQR1Ys=
+        distributions: sdist bdist_wheel
+
+      install: skip
+      script: skip
