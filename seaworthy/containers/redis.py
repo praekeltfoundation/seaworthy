@@ -45,6 +45,7 @@ class RedisContainer(ContainerDefinition):
         :param args: a list of args for the command
         :param db: the db number to query (default ``0``)
         :param redis_cli_opts: a list of extra options to pass to ``redis-cli``
+        :returns: a tuple of the command exit code and output
         """
         cli_opts = ['-n', str(db)] + redis_cli_opts
         cmd = ['redis-cli'] + cli_opts + [command] + [str(a) for a in args]

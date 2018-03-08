@@ -81,6 +81,7 @@ class PostgreSQLContainer(ContainerDefinition):
 
         :param command: the command to run (passed to ``-c``)
         :param psql_opts: a list of extra options to pass to ``psql``
+        :returns: a tuple of the command exit code and output
         """
         cmd = ['psql'] + psql_opts + ['--dbname', self.database, '-c', command]
         return self.inner().exec_run(cmd, user='postgres')

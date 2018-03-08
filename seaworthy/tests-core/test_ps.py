@@ -7,6 +7,8 @@ that isn't already a non-optional dependency of Seaworthy itself.
 
 import unittest
 
+from docker.models.containers import ExecResult
+
 from seaworthy.ps import (
     PsException, PsRow, PsTree, build_process_tree, list_container_processes)
 
@@ -50,7 +52,7 @@ class FakePsContainer:
     def exec_run(self, cmd):
         # We only allow our own ps command to be run.
         assert cmd == ['ps', 'ax', '-o', 'pid,ppid,ruser,args']
-        return b'\n'.join(self.rows)
+        return ExecResult(0, b'\n'.join(self.rows))
 
 
 class TestListContainerProcessesFunc(unittest.TestCase):
