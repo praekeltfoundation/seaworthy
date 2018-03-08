@@ -7,7 +7,7 @@ from docker import models
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.helpers import (
     ContainerHelper, DockerHelper, ImageHelper, NetworkHelper, VolumeHelper,
-    fetch_images)
+    _parse_image_tag, fetch_images)
 
 
 # We use this image to test with because it is a small (~7MB) image from
@@ -24,6 +24,33 @@ def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
 
 def filter_by_name(things, prefix):
     return [t for t in things if t.name.startswith(prefix)]
+
+
+# This is a private function but it's difficult to test indirectly without
+# pulling images.
+class TestParseImageTagFunc(unittest.TestCase):
+    def test_with_tag(self):
+        """An image name with a tag is parsed into a name and tag."""
+        self.assertEqual(('test', 'foo'), _parse_image_tag('test:foo'))
+
+    def test_without_tag(self):
+        """An image name without a tag is parsed into a name and None."""
+        self.assertEqual(('test', None), _parse_image_tag('test'))
+
+    def test_with_tag_and_registry(self):
+        """
+        An image name with a tag and a registry is parsed into a name and tag.
+        """
+        self.assertEqual(('myregistry:5000/test', 'foo'),
+                         _parse_image_tag('myregistry:5000/test:foo'))
+
+    def test_without_tag_with_registry(self):
+        """
+        An image name without a tag but with a registry is parsed into a name
+        and None.
+        """
+        self.assertEqual(('myregistry:5000/test', None),
+                         _parse_image_tag('myregistry:5000/test'))
 
 
 @dockertest()
