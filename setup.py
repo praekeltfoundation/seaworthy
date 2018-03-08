@@ -32,7 +32,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'attrs',
-        'docker >= 2.4.0',
+        'docker>=3,<4',
         'hyperlink',
         'requests',
     ],
@@ -54,7 +54,8 @@ setup(
         'docstest': [
             'doc8',
             'readme_renderer',
-            'sphinx>=1.6.5',
+            # TODO: Update docs/apigen.py to support Sphinx 1.7
+            'Sphinx>=1.6.5,<1.7',
             'sphinx_rtd_theme',
         ],
         'pep8test': [
@@ -64,7 +65,7 @@ setup(
         ],
     },
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Framework :: Pytest',
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',

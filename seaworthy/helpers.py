@@ -27,15 +27,36 @@ def fetch_images(client, images):
 def fetch_image(client, name):
     """
     Fetch an image if it isn't already present.
+
+    This works like ``docker pull`` and will pull the tag ``latest`` if no tag
+    is specified in the image name.
     """
     try:
         image = client.images.get(name)
     except docker.errors.ImageNotFound:
-        log.info("Pulling tag '{}'...".format(name))
-        image = client.images.pull(name)
+        name, tag = _parse_image_tag(name)
+        tag = 'latest' if tag is None else tag
+
+        log.info("Pulling tag '{}' for image '{}'...".format(tag, name))
+        image = client.images.pull(name, tag=tag)
 
     log.debug("Found image '{}' for tag '{}'".format(image.id, name))
     return image
+
+
+def _parse_image_tag(name_tag):
+    # First get the last part of the name after a '/': this removes the
+    # registry which could have a ':' in it
+    last_name_part = name_tag.rsplit('/', 1)[-1]
+
+    # Then get the last part after the ':'
+    last_parts = last_name_part.rsplit(':', 1)
+
+    if len(last_parts) == 2:
+        _, tag = last_parts
+        return name_tag[:-(len(tag) + 1)], tag
+    else:
+        return name_tag, None
 
 
 def _parse_volume_short_form(short_form):

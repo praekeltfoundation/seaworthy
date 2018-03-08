@@ -5,11 +5,13 @@ import unittest
 from collections import namedtuple
 from datetime import datetime
 
+from docker.models.containers import ExecResult
+
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.helpers import DockerHelper, fetch_images
 from seaworthy.logs import (
     EqualsMatcher, OrderedLinesMatcher, RegexMatcher, UnorderedLinesMatcher,
-    stream_logs, wait_for_logs_matching)
+    output_lines, stream_logs, wait_for_logs_matching)
 
 # We use this image to test with because it is a small (~4MB) image from
 # https://github.com/docker-library/official-images that we can run shell
@@ -21,6 +23,21 @@ IMG = 'alpine:latest'
 def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
     with docker_client() as client:
         fetch_images(client, [IMG])
+
+
+class TestOutputLinesFunc(unittest.TestCase):
+    def test_bytes(self):
+        """String lines are parsed from output bytes."""
+        self.assertEqual(output_lines(b'foo\nbar\n'), ['foo', 'bar'])
+
+    def test_exec_result(self):
+        """String lines are parsed from an ExecResult."""
+        self.assertEqual(output_lines(ExecResult(128, b'foo\r\nbar\r\n')),
+                         ['foo', 'bar'])
+
+    def test_custom_encoding(self):
+        """String lines can be parsed using a custom encoding."""
+        self.assertEqual(output_lines(b'\xe1', encoding='latin1'), ['á'])
 
 
 class TestEqualsMatcher(unittest.TestCase):
