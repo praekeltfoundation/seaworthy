@@ -32,7 +32,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'attrs',
-        'docker >= 3, < 4',
+        'docker>=3,<4',
         'hyperlink',
         'requests',
     ],
@@ -55,7 +55,7 @@ setup(
             'doc8',
             'readme_renderer',
             # TODO: Update docs/apigen.py to support Sphinx 1.7
-            'sphinx>=1.6.5,<1.7',
+            'Sphinx>=1.6.5,<1.7',
             'sphinx_rtd_theme',
         ],
         'pep8test': [
