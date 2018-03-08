@@ -83,7 +83,7 @@ class TestImageHelper(unittest.TestCase):
             ih.fetch('busybox:latest')
         self.assertEqual(
             [l.getMessage() for l in cm.records],
-            ["Pulling tag 'busybox:latest'..."])
+            ["Pulling tag 'latest' for image 'busybox'..."])
 
         # Pull the image again, now that we know it's present.
         with self.assertLogs('seaworthy', level='DEBUG') as cm:
