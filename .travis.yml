@@ -6,22 +6,15 @@ branches:
   only:
     - develop
     - master
-    - /\d+\.\d+(\.\d+)?/
+    - /^\d+\.\d+(\.\d+)?$/
 
 language: python
-cache:
-  - pip
+cache: pip
 
-before_install:
-  - pip install --upgrade pip
-install:
-  - pip install tox codecov
+install: pip install tox codecov
+script: tox
 
-script:
-  - tox
-
-after_success:
-  - if [[ $TOXENV == py* ]]; then codecov; fi
+after_success: if [[ $TOXENV == py* ]]; then codecov; fi
 
 jobs:
   include:
