@@ -32,7 +32,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'attrs',
-        'docker >= 2.4.0',
+        'docker >= 3, < 4',
         'hyperlink',
         'requests',
     ],

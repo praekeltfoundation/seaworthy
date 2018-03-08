@@ -82,6 +82,7 @@ class RabbitMQContainer(ContainerDefinition):
         :param args: a list of args for the command
         :param rabbitmqctl_opts:
             a list of extra options to pass to ``rabbitmqctl``
+        :returns: a tuple of the command exit code and output
         """
         cmd = ['rabbitmqctl'] + rabbitmqctl_opts + [command] + args
         return self.inner().exec_run(cmd)

@@ -5,19 +5,27 @@ Tools for waiting on and matching log lines from a container.
 import re
 from abc import ABC, abstractmethod
 
+from docker.models.containers import ExecResult
+
 from ._lowlevel import stream_logs
 
 
 def output_lines(raw_output, encoding='utf-8'):
     """
-    Convert bytestring container output into a sequence of unicode lines.
+    Convert bytestring container output or the result of a container exec
+    command into a sequence of unicode lines.
 
-    :param bytestring raw_output: Container output bytes.
+    :param raw_output:
+        Container output bytes or an
+        :class:`docker.models.containers.ExecResult` instance.
     :param encoding: The encoding to use when converting bytes to unicode
         (default ``utf-8``).
 
     :returns: list[str]
     """
+    if isinstance(raw_output, ExecResult):
+        _, raw_output = raw_output
+
     return raw_output.decode(encoding).splitlines()
 
 
