@@ -498,7 +498,9 @@ class VolumeDefinition(_DefinitionBase):
 
         Document this properly.
 
-    .. _`introductory blog post`: https://medium.com/mobileforgood/patterns-for-continuous-integration-with-docker-on-travis-ci-ba7e3a5ca2aa
-    .. _`demo repository`: https://github.com/JayH5/seaworthy-demo
+    .. _`introductory blog post`:
+        https://medium.com/mobileforgood/patterns-for-continuous-integration-with-docker-on-travis-ci-ba7e3a5ca2aa
+    .. _`demo repository`:
+        https://github.com/JayH5/seaworthy-demo
     """
     __model_type__ = models.volumes.Volume
