@@ -452,8 +452,55 @@ class VolumeDefinition(_DefinitionBase):
     """
     This is the base class for volume definitions.
 
+    The following is an example of how ``VolumeDefinition`` can be used to
+    attach volumes to a container::
+
+        from seaworthy.definitions import ContainerDefinition
+
+        class DjangoContainer(ContainerDefinition):
+            IMAGE = "seaworthy-demo:django"
+            WAIT_PATTERNS = (r"Booting worker",)
+
+            def __init__(self, name, socket_volume, static_volume, db_url):
+                super().__init__(name, self.IMAGE, self.WAIT_PATTERNS)
+                self.socket_volume = socket_volume
+                self.static_volume = static_volume
+                self.db_url = db_url
+
+            def base_kwargs(self):
+                return {
+                    "volumes": {
+                        self.socket_volume.inner(): "/var/run/gunicorn",
+                        self.static_volume.inner(): "/app/static:ro",
+                    },
+                    "environment": {"DATABASE_URL": self.db_url}
+                }
+
+        # Create definition instances
+        socket_volume = VolumeDefinition("socket")
+        static_volume = VolumeDefinition("static")
+        django_container = DjangoContainer(
+            "django", socket_volume, static_volume,
+            postgresql_container.database_url())
+
+        # Create pytest fixtures
+        socket_volume_fixture = socket_volume.pytest_fixture("socket_volume")
+        static_volume_fixture = static_volume.pytest_fixture("static_volume")
+        django_fixture = django_container.pytest_fixture(
+            "django_container",
+            dependencies=[
+                "socket_volume", "static_volume", "postgresql_container"])
+
+    This example is explained in the `introductory blog post`_ and
+    `demo repository`_.
+
     .. todo::
 
         Document this properly.
+
+    .. _`introductory blog post`:
+        https://medium.com/mobileforgood/patterns-for-continuous-integration-with-docker-on-travis-ci-ba7e3a5ca2aa
+    .. _`demo repository`:
+        https://github.com/JayH5/seaworthy-demo
     """
     __model_type__ = models.volumes.Volume
