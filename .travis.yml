@@ -6,7 +6,7 @@ branches:
   only:
     - develop
     - master
-    - /^\d+\.\d+(\.\d+)?$/
+    - /^\d+\.\d+(\.\d+)*$/
 
 language: python
 python: '3.6'
