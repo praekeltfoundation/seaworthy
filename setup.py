@@ -35,9 +35,6 @@ setup(
         'docker>=3,<3.2',
         'hyperlink',
         'requests',
-        # FIXME 2018-06-11: Requests 2.18.4 pins idna to <2.7. Since idna
-        # released version 2.7, things break unless we pin it ourselves too.
-        'idna<2.7',
     ],
     extras_require={
         'pytest': [
