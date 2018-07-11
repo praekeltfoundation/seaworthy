@@ -32,7 +32,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'attrs',
-        'docker>=3.2,<4',
+        # https://github.com/docker/docker-py/issues/2082
+        'docker[tls]>=3.2,<4',
         'hyperlink',
         'requests',
     ],
