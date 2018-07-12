@@ -3,11 +3,10 @@ Tools for waiting on and matching log lines from a container.
 """
 
 import re
+import threading
 from abc import ABC, abstractmethod
 
 from docker.models.containers import ExecResult
-
-from ._lowlevel import stream_logs
 
 
 def output_lines(output, encoding='utf-8'):
@@ -31,6 +30,44 @@ def output_lines(output, encoding='utf-8'):
 
 def _last_few_log_lines(container):
     return container.logs(tail=100).decode('utf-8')
+
+
+def stream_logs(container, timeout=10.0, **logs_kwargs):
+    """
+    Stream logs from a Docker container within a timeout.
+
+    :param ~docker.models.containers.Container container:
+        Container who's log lines to stream.
+    :param timeout:
+        Timeout value in seconds.
+    :param logs_kwargs:
+        Additional keyword arguments to pass to ``container.logs()``. For
+        example, the ``stdout`` and ``stderr`` boolean arguments can be used to
+        determine whether to stream stdout or stderr or both (the default).
+
+    :raises TimeoutError:
+        When the timeout value is reached before the logs have completed.
+    """
+    logs = container.logs(stream=True, **logs_kwargs)
+    timed_out = threading.Event()
+
+    def timeout_func():
+        timed_out.set()
+        logs.close()
+
+    timer = threading.Timer(timeout, timeout_func)
+    try:
+        timer.start()
+        for line in logs:
+            yield line
+
+        # A timeout looks the same as the loop ending. So we need to check a
+        # flag to determine whether a timeout occurred or not.
+        if timed_out.is_set():
+            raise TimeoutError('Timeout waiting for container logs.')
+    finally:
+        timer.cancel()
+        logs.close()
 
 
 def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
@@ -66,8 +103,7 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         ended without error).
     """
     try:
-        for line in stream_logs(
-                container, timeout=timeout, **logs_kwargs):
+        for line in stream_logs(container, timeout=timeout, **logs_kwargs):
             # Drop the trailing newline
             line = line.decode(encoding).rstrip()
             if matcher(line):
