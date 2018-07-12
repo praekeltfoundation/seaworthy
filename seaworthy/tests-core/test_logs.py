@@ -2,9 +2,9 @@ import socket
 import struct
 import threading
 import unittest
-from collections import namedtuple
 from datetime import datetime
 
+from docker.constants import STREAM_HEADER_SIZE_BYTES
 from docker.models.containers import ExecResult
 
 from seaworthy.checks import docker_client, dockertest
@@ -249,30 +249,15 @@ class FakeLogsContainer:
     def __init__(self, log_entries, expected_params=None, close_timeout=2):
         self.log_entries = log_entries
         self._seen_logs = []
-        self._expected_stream_params = {
-            'stdout': True,
-            'stderr': True,
-            'follow': True,
-        }
+        self._expected_stream_params = {}
         if expected_params is not None:
             self._expected_stream_params.update(expected_params)
-        self._feeder = None
-        self._client_sockets = set()
-        self._api = FakeAPIClient()
+        self._feeders = set()
         self._close_timeout = close_timeout
-        self.client = namedtuple('DockerClient', 'api')(self._api)
 
     def cleanup(self):
-        self.cancel_feeder()
-        while self._client_sockets:
-            self._client_sockets.pop().close()
-        assert self._api._multiplexed_response_stream_helper == 'ORIG_MRSH'
-
-    def cancel_feeder(self):
-        feeder = self._feeder
-        if feeder is not None:
-            feeder.finished.set()
-            feeder.join()
+        while self._feeders:
+            self._feeders.pop().cancel()
 
     def logs(self, stream=False, **kw):
         tail = kw.pop('tail', 'all')
@@ -293,40 +278,27 @@ class FakeLogsContainer:
         return self._seen_logs[-tail:]
 
     def _stream_logs(self, tail, kw):
-        # Check that we're properly monkeypatched.
-        assert self._api._multiplexed_response_stream_helper != 'ORIG_MRSH'
-        assert self._feeder is None
         assert kw == self._expected_stream_params
-        server, client = socket.socketpair()
-        self._client_sockets.add(client)
-        self._feeder = LogFeeder(self, server, self._tail_logs(tail))
-        # Add a raw attr for the client to read from.
-        self._feeder.raw = socket.SocketIO(client, 'rb')
-        self._feeder.start()
-        return self._feeder, client
-
-
-class FakeAPIClient:
-    """
-    A fake APIClient so we can make sure our monkeypatch is properly applied
-    and removed.
-    """
-    def __init__(self):
-        self._multiplexed_response_stream_helper = 'ORIG_MRSH'
+        feeder = LogFeeder(self, self._tail_logs(tail))
+        self._feeders.add(feeder)
+        feeder.start()
+        return feeder.client_stream()
 
 
 class LogFeeder(threading.Thread):
-    def __init__(self, container, sock, tail):
+    def __init__(self, container, tail):
         super().__init__()
         self.con = container
-        self.sock = sock
+        self.sock, self.client_sock = socket.socketpair()
         self.tail = tail
         self.finished = threading.Event()
 
-    def close(self):
-        # This is a bit of a hack to avoid having a separate fake request
-        # object for the streaming client to close when it's done.
-        self.con.cleanup()
+    def client_stream(self):
+        return FakeCancellableStream(self, self.client_sock)
+
+    def cancel(self):
+        self.finished.set()
+        self.join()
 
     def send_line(self, line):
         data = b'\x00\x00\x00\x00' + struct.pack('>L', len(line)) + line
@@ -350,7 +322,47 @@ class LogFeeder(threading.Thread):
         # Time to clean up.
         self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
-        self.con._feeder = None
+        self.client_sock.close()
+        self.con._feeders.discard(self)
+
+
+class FakeCancellableStream:
+    """
+    Fake CancellableStream that iterates over the log data.
+    """
+
+    def __init__(self, feeder, client):
+        self._feeder = feeder
+        self.raw = socket.SocketIO(client, 'rb')
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            return self._next()
+        except socket.error:
+            raise StopIteration
+        except ValueError:
+            raise StopIteration
+
+    def _next(self):
+        """
+        Adapted from docker.APIClient._multiplexed_response_stream_helper().
+        """
+        header = self.raw.read(STREAM_HEADER_SIZE_BYTES)
+        if not header:
+            raise StopIteration
+        _, length = struct.unpack('>BxxxL', header)
+        if not length:
+            return self._next()
+        data = self.raw.read(length)
+        if not data:
+            raise StopIteration
+        return data
+
+    def close(self):
+        self._feeder.cancel()
 
 
 class TestFakeLogsContainer(unittest.TestCase):
