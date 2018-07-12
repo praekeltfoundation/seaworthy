@@ -1,10 +1,8 @@
-import socket
-import struct
 import threading
 import unittest
 from datetime import datetime
+from queue import Queue
 
-from docker.constants import STREAM_HEADER_SIZE_BYTES
 from docker.models.containers import ExecResult
 
 from seaworthy.checks import docker_client, dockertest
@@ -289,20 +287,19 @@ class LogFeeder(threading.Thread):
     def __init__(self, container, tail):
         super().__init__()
         self.con = container
-        self.sock, self.client_sock = socket.socketpair()
+        self.q = Queue()
         self.tail = tail
         self.finished = threading.Event()
 
     def client_stream(self):
-        return FakeCancellableStream(self, self.client_sock)
+        return FakeCancellableStream(self, self.q)
 
     def cancel(self):
         self.finished.set()
         self.join()
 
     def send_line(self, line):
-        data = b'\x00\x00\x00\x00' + struct.pack('>L', len(line)) + line
-        self.sock.send(data)
+        self.q.put(line)
 
     def run(self):
         # Emit tailed lines.
@@ -320,10 +317,8 @@ class LogFeeder(threading.Thread):
         # timeout.
         self.finished.wait(self.con._close_timeout)
         # Time to clean up.
-        self.sock.shutdown(socket.SHUT_RDWR)
-        self.sock.close()
-        self.client_sock.close()
-        self.con._feeders.discard(self)
+        self.q.put(None)
+        # self.con._feeders.discard(self)
 
 
 class FakeCancellableStream:
@@ -331,35 +326,21 @@ class FakeCancellableStream:
     Fake CancellableStream that iterates over the log data.
     """
 
-    def __init__(self, feeder, client):
+    def __init__(self, feeder, q):
         self._feeder = feeder
-        self.raw = socket.SocketIO(client, 'rb')
+        self._q = q
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        try:
-            return self._next()
-        except socket.error:
+        # Once the stream is finished, we set the queue to None to avoid
+        # accidentally blocking forever trying to read from it again.
+        line = self._q.get()
+        if line is None:
+            self._q = None
             raise StopIteration
-        except ValueError:
-            raise StopIteration
-
-    def _next(self):
-        """
-        Adapted from docker.APIClient._multiplexed_response_stream_helper().
-        """
-        header = self.raw.read(STREAM_HEADER_SIZE_BYTES)
-        if not header:
-            raise StopIteration
-        _, length = struct.unpack('>BxxxL', header)
-        if not length:
-            return self._next()
-        data = self.raw.read(length)
-        if not data:
-            raise StopIteration
-        return data
+        return line
 
     def close(self):
         self._feeder.cancel()
