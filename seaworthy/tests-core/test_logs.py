@@ -318,7 +318,6 @@ class LogFeeder(threading.Thread):
         self.finished.wait(self.con._close_timeout)
         # Time to clean up.
         self.q.put(None)
-        # self.con._feeders.discard(self)
 
 
 class FakeCancellableStream:
@@ -334,8 +333,7 @@ class FakeCancellableStream:
         return self
 
     def __next__(self):
-        # Once the stream is finished, we set the queue to None to avoid
-        # accidentally blocking forever trying to read from it again.
+        assert self._q is not None, "Stream already closed."
         line = self._q.get()
         if line is None:
             self._q = None
