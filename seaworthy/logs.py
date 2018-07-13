@@ -67,7 +67,10 @@ def stream_logs(container, timeout=10.0, **logs_kwargs):
             raise TimeoutError('Timeout waiting for container logs.')
     finally:
         timer.cancel()
-        logs.close()
+        # Close the log stream's underlying response object (if it has one) to
+        # avoid potential socket leaks.
+        if hasattr(logs, '_response'):
+            logs._response.close()
 
 
 def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
