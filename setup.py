@@ -55,8 +55,7 @@ setup(
         'docstest': [
             'doc8',
             'readme_renderer',
-            # TODO: Update docs/apigen.py to support Sphinx 1.7
-            'Sphinx>=1.6.5,<1.7',
+            'Sphinx>=1.7,<1.8',
             'sphinx_rtd_theme',
         ],
         'pep8test': [
