@@ -14,7 +14,7 @@ class PsException(Exception):
 
 
 @attr.s
-class PsRow(object):
+class PsRow:
     """
     Representation of a process list entry, containing the details of a single
     process.
@@ -67,7 +67,7 @@ def list_container_processes(container):
 
 
 @attr.s
-class PsTree(object):
+class PsTree:
     """
     Node in a process tree, linking a :class:`PsRow` to its child processes.
     """

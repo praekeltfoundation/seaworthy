@@ -42,7 +42,7 @@ class PsTreeMismatch(Mismatch):
         return '\n'.join(descriptions)
 
 
-class MatchesPsTree(object):
+class MatchesPsTree:
     """
     Matches a nested PsTree object in a sensible way.
 
