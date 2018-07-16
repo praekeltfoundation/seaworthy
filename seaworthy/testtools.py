@@ -22,6 +22,9 @@ class PsTreeMismatch(Mismatch):
         self.children_mm = children_mm
 
     def describe(self):
+        """
+        Describe the mismatch.
+        """
         rfs = ['{}={!r}'.format(k, v)
                for k, v in sorted(self.row_fields.items())]
         suffix = '' if self.child_count == 1 else 'ren'
@@ -39,7 +42,7 @@ class PsTreeMismatch(Mismatch):
         return '\n'.join(descriptions)
 
 
-class MatchesPsTree(object):
+class MatchesPsTree:
     """
     Matches a nested PsTree object in a sensible way.
 
@@ -64,6 +67,10 @@ class MatchesPsTree(object):
             self.__class__.__name__, ', '.join(rfs), str(self.children))
 
     def match(self, value):
+        """
+        Return ``None`` if this matcher matches something, a
+        :class:`PsTreeMismatch` otherwise.
+        """
         fields_mm = MatchesStructure.byEquality(**self.row_fields).match(
             value.row)
         children_mm = MatchesSetwise(*self.children).match(value.children)

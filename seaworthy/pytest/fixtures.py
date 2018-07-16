@@ -1,27 +1,29 @@
 """
-Contains a number of pytest fixtures or factories for fixtures.
+A number of pytest fixtures or factories for fixtures.
 """
 
 import os
 
 import pytest
 
+from seaworthy.definitions import ContainerDefinition, _DefinitionBase
 from seaworthy.helpers import DockerHelper
 
 
 def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     """
-    Create a fixture for the ``DockerHelper``.
+    Create a fixture for :class:`~seaworthy.DockerHelper`.
 
     This can be used to create a fixture with a different name to the default.
-    It can also be used to override the scope of the default fixture:::
+    It can also be used to override the scope of the default fixture::
 
         docker_helper = docker_helper_fixture(scope='class')
 
     :param name: The name of the fixture.
     :param scope: The scope of the fixture.
     :param kwargs:
-        Keyword arguments to pass to the ``DockerHelper`` constructor.
+        Keyword arguments to pass to the :class:`~seaworthy.DockerHelper`
+        constructor.
     """
     @pytest.fixture(name=name, scope=scope)
     def fixture():
@@ -35,9 +37,7 @@ def docker_helper_fixture(name='docker_helper', scope='module', **kwargs):
     return fixture
 
 
-"""
-Default fixture for the ``DockerHelper``. Has module scope.
-"""
+#: Default fixture for :class:`~seaworthy.DockerHelper`. Has module scope.
 docker_helper = docker_helper_fixture()
 
 
@@ -51,14 +51,17 @@ def image_fetch_fixture(image, name, scope='module'):
     return fixture
 
 
-def resource_fixture(definition, name, scope='function'):
+def resource_fixture(definition, name, scope='function', dependencies=()):
     """
     Create a fixture for a resource.
 
-    Note that it is important to keep a reference to the fixture function
-    returned by this function::
+    .. note:: This function returns a fixture function. It is important to keep
+        a reference to the returned function within the scope of the tests that
+        use the fixture.
 
-        fixture = container_fixture(PostgreSQLContainer(), 'postgresql')
+    .. code-block:: python
+
+        fixture = resource_fixture(PostgreSQLContainer(), 'postgresql')
 
         def test_container(postgresql):
             \"""Test something about the PostgreSQL container...\"""
@@ -68,16 +71,46 @@ def resource_fixture(definition, name, scope='function'):
         :mod:`seaworthy.definitions` module.
     :param name: The fixture name.
     :param scope: The scope of the fixture.
+    :param dependencies:
+        A sequence of names of other pytest fixtures that this fixture depends
+        on. These fixtures will be requested from pytest and so will be setup,
+        but nothing is done with the actual fixture values.
 
     :returns: The fixture function.
     """
     @pytest.fixture(name=name, scope=scope)
-    def fixture(docker_helper):
+    def fixture(request, docker_helper):
+        for dependency in dependencies:
+            request.getfixturevalue(dependency)
+
         definition.setup(helper=docker_helper)
         yield definition
         definition.teardown()
 
     return fixture
+
+
+def _definition_fixture(self, name, scope='function', dependencies=()):
+    """
+    Create a pytest fixture for the resource. See :func:`.resource_fixture`.
+
+    .. note:: This method returns a fixture function. It is important to
+        keep a reference to the returned function within the scope of the
+        tests that use the fixture.
+
+    .. note:: This method is only available if pytest is used.
+
+    :param name: The fixture name.
+    :param scope: The scope of the fixture.
+    :param dependencies:
+        A sequence of names of other pytest fixtures that this fixture
+        depends on. These fixtures will be requested from pytest and so
+        will be setup, but nothing is done with the actual fixture values.
+    """
+    return resource_fixture(self, name, scope, dependencies)
+
+
+_DefinitionBase.pytest_fixture = _definition_fixture
 
 
 def _clean_container_fixture(name, raw_name):
@@ -91,15 +124,18 @@ def _clean_container_fixture(name, raw_name):
     return clean_fixture
 
 
-def clean_container_fixtures(container, name, scope='class'):
+def clean_container_fixtures(container, name, scope='class', dependencies=()):
     """
     Creates a fixture for a container that can be "cleaned". When a code block
     is marked with ``@pytest.mark.clean_<fixture name>`` then the ``clean``
     method will be called on the container object before it is passed as an
     argument to the test function.
 
-    Note that this function returns two fixture functions and references must
-    be kept to both in the correct scope.::
+    .. note:: This function returns two fixture functions. It is important to
+        keep references to the returned functions within the scope of the tests
+        that use the fixtures.
+
+    .. code-block:: python
 
         f1, f2 = clean_container_fixtures(PostgreSQLContainer(), 'postgresql')
 
@@ -120,18 +156,46 @@ def clean_container_fixtures(container, name, scope='class'):
 
     :param container:
         A "container" object that is a subclass of
-        :class:`~seaworthy.definitions.ContainerDefinition`.
+        :class:`.ContainerDefinition`.
     :param name:
         The fixture name.
     :param scope:
         The scope of the fixture.
+    :param dependencies:
+        A sequence of names of other pytest fixtures that this fixture depends
+        on. These fixtures will be requested from pytest and so will be setup,
+        but nothing is done with the actual fixture values.
 
     :returns:
         A tuple of two fixture functions.
     """
     raw_name = 'raw_{}'.format(name)
-    return (resource_fixture(container, raw_name, scope),
+    return (resource_fixture(container, raw_name, scope, dependencies),
             _clean_container_fixture(name, raw_name))
+
+
+def _definition_clean_fixtures(self, name, scope='function', dependencies=()):
+    """
+    Creates a pytest fixture for a container that can be "cleaned". See
+    :func:`.clean_container_fixtures`.
+
+    .. note:: This method returns two fixture functions. It is important to
+        keep references to the returned functions within the scope of the
+        tests that use the fixtures.
+
+    .. note:: This method is only available if pytest is used.
+
+    :param name: The fixture name.
+    :param scope: The scope of the fixture.
+    :param dependencies:
+        A sequence of names of other pytest fixtures that this fixture
+        depends on. These fixtures will be requested from pytest and so
+        will be setup, but nothing is done with the actual fixture values.
+    """
+    return clean_container_fixtures(self, name, scope, dependencies)
+
+
+ContainerDefinition.pytest_clean_fixtures = _definition_clean_fixtures
 
 
 __all__ = ['clean_container_fixtures', 'docker_helper',

@@ -1,3 +1,7 @@
+"""
+A requests-based HTTP client for interacting with containers that have
+forwarded ports.
+"""
 import time
 
 import hyperlink
@@ -14,6 +18,14 @@ def _path_segments(url, path_str):
 
 
 class ContainerHttpClient:
+    """
+    HTTP client for a specific container.
+
+    In most cases, these should be obtained from
+    :meth:`.ContainerDefinition.http_client` instead of being instantiated
+    directly.
+    """
+
     URL_DEFAULTS = {'scheme': 'http'}
 
     def __init__(self, host, port, url_defaults=None, session=None):

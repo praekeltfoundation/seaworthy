@@ -3,17 +3,74 @@ Tools for waiting on and matching log lines from a container.
 """
 
 import re
+import threading
 from abc import ABC, abstractmethod
 
-from ._lowlevel import stream_logs
+from docker.models.containers import ExecResult
 
 
-def output_lines(raw_output, encoding='utf-8'):
-    return raw_output.decode(encoding).splitlines()
+def output_lines(output, encoding='utf-8'):
+    """
+    Convert bytestring container output or the result of a container exec
+    command into a sequence of unicode lines.
+
+    :param output:
+        Container output bytes or an
+        :class:`docker.models.containers.ExecResult` instance.
+    :param encoding: The encoding to use when converting bytes to unicode
+        (default ``utf-8``).
+
+    :returns: list[str]
+    """
+    if isinstance(output, ExecResult):
+        _, output = output
+
+    return output.decode(encoding).splitlines()
 
 
 def _last_few_log_lines(container):
     return container.logs(tail=100).decode('utf-8')
+
+
+def stream_logs(container, timeout=10.0, **logs_kwargs):
+    """
+    Stream logs from a Docker container within a timeout.
+
+    :param ~docker.models.containers.Container container:
+        Container who's log lines to stream.
+    :param timeout:
+        Timeout value in seconds.
+    :param logs_kwargs:
+        Additional keyword arguments to pass to ``container.logs()``. For
+        example, the ``stdout`` and ``stderr`` boolean arguments can be used to
+        determine whether to stream stdout or stderr or both (the default).
+
+    :raises TimeoutError:
+        When the timeout value is reached before the logs have completed.
+    """
+    logs = container.logs(stream=True, **logs_kwargs)
+    timed_out = threading.Event()
+
+    def timeout_func():
+        timed_out.set()
+        logs.close()
+
+    timer = threading.Timer(timeout, timeout_func)
+    try:
+        timer.start()
+        for line in logs:
+            yield line
+
+        # A timeout looks the same as the loop ending. So we need to check a
+        # flag to determine whether a timeout occurred or not.
+        if timed_out.is_set():
+            raise TimeoutError('Timeout waiting for container logs.')
+    finally:
+        timer.cancel()
+        # Close the log stream's underlying response object (if it has one) to
+        # avoid potential socket leaks.
+        if hasattr(logs, '_response'):
+            logs._response.close()
 
 
 def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
@@ -49,8 +106,7 @@ def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
         ended without error).
     """
     try:
-        for line in stream_logs(
-                container, timeout=timeout, **logs_kwargs):
+        for line in stream_logs(container, timeout=timeout, **logs_kwargs):
             # Drop the trailing newline
             line = line.decode(encoding).rstrip()
             if matcher(line):
@@ -98,6 +154,15 @@ class LogMatcher(ABC):
 
 
 def to_matcher(matcher_factory, obj):
+    """
+    Turn an object into a :class:`LogMatcher` unless it already is one.
+
+    :param matcher_factory: A callable capable of turning `obj` into a
+        :class:`LogMatcher`.
+    :param obj: A :class:`LogMatcher` or an object to turn into one.
+
+    :returns: :class:`LogMatcher`
+    """
     return obj if isinstance(obj, LogMatcher) else matcher_factory(obj)
 
 
@@ -138,6 +203,10 @@ class OrderedLinesMatcher(CombinationLogMatcher):
         self._position = 0
 
     def match(self, log_line):
+        """
+        Return ``True`` if the expected matchers are matched in the expected
+        order, otherwise ``False``.
+        """
         if self._position == len(self._matchers):
             raise RuntimeError('Matcher exhausted, no more matchers to use')
 
@@ -152,6 +221,9 @@ class OrderedLinesMatcher(CombinationLogMatcher):
         return False
 
     def args_str(self):
+        """
+        Return an args string for the repr.
+        """
         matched = [str(m) for m in self._matchers[:self._position]]
         unmatched = [str(m) for m in self._matchers[self._position:]]
         return 'matched=[{}], unmatched=[{}]'.format(
@@ -165,8 +237,10 @@ class UnorderedLinesMatcher(CombinationLogMatcher):
     unmatched matchers are checked. Returns True ("matches") on the final
     match.
 
-    **Note:** This is a *stateful* matcher. Once it has done its matching,
-    you'll need to create a new instance.
+    .. note::
+
+        This is a *stateful* matcher. Once it has done its matching,
+        you'll need to create a new instance.
     """
     def __init__(self, *matchers):
         super().__init__(*matchers)
@@ -177,6 +251,10 @@ class UnorderedLinesMatcher(CombinationLogMatcher):
         return [m for m in self._matchers if m not in self._used_matchers]
 
     def match(self, log_line):
+        """
+        Return ``True`` if the expected matchers are matched in any order,
+        otherwise ``False``.
+        """
         if not self._unused_matchers:
             raise RuntimeError('Matcher exhausted, no more matchers to use')
 
@@ -192,6 +270,9 @@ class UnorderedLinesMatcher(CombinationLogMatcher):
         return False
 
     def args_str(self):
+        """
+        Return an args string for the repr.
+        """
         matched = [str(m) for m in self._used_matchers]
         unmatched = [str(m) for m in self._unused_matchers]
         return 'matched=[{}], unmatched=[{}]'.format(
@@ -206,9 +287,16 @@ class EqualsMatcher(LogMatcher):
         self._expected_line = expected_line
 
     def match(self, log_line):
+        """
+        Return ``True`` if the log line matches the expected value exactly,
+        otherwise ``False``.
+        """
         return log_line == self._expected_line
 
     def args_str(self):
+        """
+        Return an args string for the repr.
+        """
         return repr(self._expected_line)
 
 
@@ -220,11 +308,32 @@ class RegexMatcher(LogMatcher):
         self._regex = re.compile(pattern)
 
     def match(self, log_line):
+        """
+        Return ``True`` if the log line matches the expected regex, otherwise
+        ``False``.
+        """
         return self._regex.search(log_line) is not None
 
     def args_str(self):
+        """
+        Return an args string for the repr.
+        """
         return repr(self._regex.pattern)
 
 
-__all__ = ['EqualsMatcher', 'RegexMatcher', 'OrderedLinesMatcher',
-           'UnorderedLinesMatcher', 'output_lines', 'wait_for_logs_matching']
+# Members of this module are documented in the order they appear here.
+__all__ = [
+    # Matchers
+    'LogMatcher',
+
+    'CombinationLogMatcher',
+    'EqualsMatcher',
+    'RegexMatcher',
+    'OrderedLinesMatcher',
+    'UnorderedLinesMatcher',
+
+    # Functions
+    'output_lines',
+    'to_matcher',
+    'wait_for_logs_matching',
+]

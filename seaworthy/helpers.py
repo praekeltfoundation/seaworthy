@@ -1,12 +1,16 @@
+"""
+Classes that track resource creation and removal to ensure that all resources
+are namespaced and cleaned up after use.
+"""
+
 import logging
 
 import docker
 from docker import models
 
-# These are a hack to control our generated documentation. The values of the
-# attributes are ignored, only their presence or absence can be detected by the
+# This is a hack to control our generated documentation. The value of the
+# attribute is ignored, only its presence or absence can be detected by the
 # apigen machinery.
-__apigen_undoc_members__ = None
 __apigen_inherited_members__ = None
 
 
@@ -23,15 +27,36 @@ def fetch_images(client, images):
 def fetch_image(client, name):
     """
     Fetch an image if it isn't already present.
+
+    This works like ``docker pull`` and will pull the tag ``latest`` if no tag
+    is specified in the image name.
     """
     try:
         image = client.images.get(name)
     except docker.errors.ImageNotFound:
-        log.info("Pulling tag '{}'...".format(name))
-        image = client.images.pull(name)
+        name, tag = _parse_image_tag(name)
+        tag = 'latest' if tag is None else tag
+
+        log.info("Pulling tag '{}' for image '{}'...".format(tag, name))
+        image = client.images.pull(name, tag=tag)
 
     log.debug("Found image '{}' for tag '{}'".format(image.id, name))
     return image
+
+
+def _parse_image_tag(name_tag):
+    # First get the last part of the name after a '/': this removes the
+    # registry which could have a ':' in it
+    last_name_part = name_tag.rsplit('/', 1)[-1]
+
+    # Then get the last part after the ':'
+    last_parts = last_name_part.rsplit(':', 1)
+
+    if len(last_parts) == 2:
+        _, tag = last_parts
+        return name_tag[:-(len(tag) + 1)], tag
+    else:
+        return name_tag, None
 
 
 def _parse_volume_short_form(short_form):
@@ -57,6 +82,7 @@ class _HelperBase:
     def _get_id_and_model(self, id_or_model):
         """
         Get both the model and ID of an object that could be an ID or a model.
+
         :param id_or_model:
             The object that could be an ID string or a model object.
         :param model_collection:
@@ -74,6 +100,9 @@ class _HelperBase:
         return model.id, model
 
     def create(self, name, *args, **kwargs):
+        """
+        Create an instance of this resource type.
+        """
         resource_name = self._resource_name(name)
         log.info(
             "Creating {} '{}'...".format(self._model_name, resource_name))
@@ -82,6 +111,9 @@ class _HelperBase:
         return resource
 
     def remove(self, resource, **kwargs):
+        """
+        Remove an instance of this resource type.
+        """
         log.info(
             "Removing {} '{}'...".format(self._model_name, resource.name))
         resource.remove(**kwargs)
@@ -106,6 +138,11 @@ class _HelperBase:
 
 
 class ContainerHelper(_HelperBase):
+    """
+    .. todo::
+
+        Document this properly.
+    """
     __collection_type__ = models.containers.ContainerCollection
 
     def __init__(self, client, namespace, image_helper, network_helper,
@@ -250,14 +287,27 @@ class ContainerHelper(_HelperBase):
 
 
 class ImageHelper:
+    """
+    .. todo::
+
+        Document this properly.
+    """
     def __init__(self, client):
         self.collection = client.images
 
     def fetch(self, tag):
+        """
+        Fetch this image if it isn't already present.
+        """
         return fetch_image(self.collection.client, tag)
 
 
 class NetworkHelper(_HelperBase):
+    """
+    .. todo::
+
+        Document this properly.
+    """
     __collection_type__ = models.networks.NetworkCollection
 
     def __init__(self, client, namespace):
@@ -307,6 +357,11 @@ class NetworkHelper(_HelperBase):
 
 
 class VolumeHelper(_HelperBase):
+    """
+    .. todo::
+
+        Document this properly.
+    """
     __collection_type__ = models.volumes.VolumeCollection
 
     def create(self, name, **kwargs):
@@ -322,6 +377,12 @@ class VolumeHelper(_HelperBase):
 
 
 class DockerHelper:
+    """
+    .. todo::
+
+        Document this properly.
+    """
+
     def __init__(self, namespace='test', client=None):
         self._namespace = namespace
         if client is None:
@@ -351,6 +412,9 @@ class DockerHelper:
         raise ValueError('Unknown model type {}'.format(model_type))
 
     def teardown(self):
+        """
+        Clean up all resources when we're done with them.
+        """
         self.containers._teardown()
         self.networks._teardown()
         self.volumes._teardown()

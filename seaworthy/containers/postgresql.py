@@ -1,8 +1,19 @@
+"""
+PostgreSQL container definition.
+"""
+
 from seaworthy.definitions import ContainerDefinition
 from seaworthy.logs import output_lines
 
 
 class PostgreSQLContainer(ContainerDefinition):
+    """
+    PostgreSQL container definition.
+
+    .. todo::
+       Write more docs.
+    """
+
     DEFAULT_NAME = 'postgresql'
     DEFAULT_IMAGE = 'postgres:alpine'
     # The postgres image starts up PostgreSQL twice--the first time to set up
@@ -35,6 +46,11 @@ class PostgreSQLContainer(ContainerDefinition):
         self.password = password
 
     def base_kwargs(self):
+        """
+        Add a ``tmpfs`` entry for ``/var/lib/postgresql/data`` to avoid
+        unnecessary disk I/O and ``environment`` entries for the configured db
+        and user creds.
+        """
         return {
             'environment': {
                 'POSTGRES_DB': self.database,
@@ -45,6 +61,14 @@ class PostgreSQLContainer(ContainerDefinition):
         }
 
     def clean(self):
+        """
+        Remove all data by dropping and recreating the configured database.
+
+        .. note::
+
+            Only the configured database is removed. Any other databases
+            remain untouched.
+        """
         container = self.inner()
         container.exec_run(['dropdb', self.database], user='postgres')
         container.exec_run(
@@ -57,6 +81,7 @@ class PostgreSQLContainer(ContainerDefinition):
 
         :param command: the command to run (passed to ``-c``)
         :param psql_opts: a list of extra options to pass to ``psql``
+        :returns: a tuple of the command exit code and output
         """
         cmd = ['psql'] + psql_opts + ['--dbname', self.database, '-c', command]
         return self.inner().exec_run(cmd, user='postgres')

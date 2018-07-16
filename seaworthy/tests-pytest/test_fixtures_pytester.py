@@ -76,15 +76,44 @@ class TestResourceFixtureFunc:
         """
         testdir.makeconftest("""
             from seaworthy.definitions import ContainerDefinition
-            from seaworthy.pytest.fixtures import resource_fixture
 
-            fixture = resource_fixture(
-                ContainerDefinition(name='test', image='{}'), 'container')
+            fixture = (ContainerDefinition(name='test', image='{}')
+                       .pytest_fixture('container'))
         """.format(IMG))
 
         testdir.makepyfile("""
             def test_create_container(container):
                 assert container.inner().status == 'running'
+        """)
+
+        result = testdir.runpytest()
+        result.assert_outcomes(passed=1)
+
+    def test_dependencies(self, testdir):
+        """
+        When the fixture is used in a test, and the fixture has a dependent
+        fixture, the dependent fixture should be setup.
+        """
+        testdir.makeconftest("""
+            from seaworthy.definitions import (
+                ContainerDefinition, VolumeDefinition)
+
+            class Container(ContainerDefinition):
+                def __init__(self, volume, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.volume = volume
+
+            volume = VolumeDefinition('foo')
+            volume_fixture = volume.pytest_fixture('foo_volume')
+            container_fixture = (
+                Container(volume, name='test', image='{}').pytest_fixture(
+                    'container', dependencies=('foo_volume',)))
+        """.format(IMG))
+
+        testdir.makepyfile("""
+            def test_create_container(container):
+                assert container.inner().status == 'running'
+                assert container.volume.created
         """)
 
         result = testdir.runpytest()
@@ -118,8 +147,7 @@ class TestCleanContainerFixturesFunc:
                     return cleaned
 
 
-            f1, f2 = clean_container_fixtures(
-                CleanableContainer(), 'cleanable')
+            f1, f2 = CleanableContainer().pytest_clean_fixtures('cleanable')
         """.format(IMG))
 
         testdir.makepyfile("""

@@ -1,3 +1,8 @@
+"""
+Wrappers over Docker resource types to aid in setup/teardown of and interaction
+with Docker resources.
+"""
+
 import functools
 
 from docker import models
@@ -7,14 +12,16 @@ from seaworthy.logs import (
     RegexMatcher, UnorderedLinesMatcher, stream_logs, wait_for_logs_matching)
 
 
-# These are a hack to control our generated documentation. The values of the
-# attributes are ignored, only their presence or absence can be detected by the
+# This is a hack to control our generated documentation. The value of the
+# attribute is ignored, only its presence or absence can be detected by the
 # apigen machinery.
-__apigen_undoc_members__ = None
 __apigen_inherited_members__ = None
 
 
 def deep_merge(*dicts):
+    """
+    Recursively merge all input dicts into a single dict.
+    """
     result = {}
     for d in dicts:
         if not isinstance(d, dict):
@@ -45,6 +52,11 @@ class _DefinitionBase:
         self._inner = None
 
     def create(self, **kwargs):
+        """
+        Create an instance of this resource definition.
+
+        Only one instance may exist at any given time.
+        """
         if self.created:
             raise RuntimeError(
                 '{} already created.'.format(self.__model_type__.__name__))
@@ -55,10 +67,13 @@ class _DefinitionBase:
             self.name, *self._create_args, **kwargs)
 
     def remove(self, **kwargs):
+        """
+        Remove an instance of this resource definition.
+        """
         self.helper.remove(self.inner(), **kwargs)
         self._inner = None
 
-    def setup(self, helper=None):
+    def setup(self, helper=None, **create_kwargs):
         """
         Setup this resource so that is ready to be used in a test. If the
         resource has already been created, this call does nothing.
@@ -68,6 +83,8 @@ class _DefinitionBase:
         :param helper:
             The resource helper to use, if one was not provided when this
             resource definition was created.
+        :param \**create_kwargs: Keyword arguments passed to :meth:`.create`.
+
         :returns:
             This definition instance. Useful for creating and setting up a
             resource in a single step::
@@ -78,7 +95,7 @@ class _DefinitionBase:
             return
 
         self.set_helper(helper)
-        self.create()
+        self.create(**create_kwargs)
         return self
 
     def teardown(self):
@@ -106,6 +123,11 @@ class _DefinitionBase:
         return self._helper
 
     def set_helper(self, helper):
+        """
+        .. todo::
+
+            Document this.
+        """
         # We don't want to "unset" in this method.
         if helper is None:
             return
@@ -171,7 +193,9 @@ class ContainerDefinition(_DefinitionBase):
     of subclasses) are intended to be used both as test fixtures and as
     convenient objects for operating on containers being tested.
 
-    TODO: Document this properly.
+    .. todo::
+
+        Document this properly.
 
     A container object may be used as a context manager to ensure proper setup
     and teardown of the container around the code that uses it::
@@ -219,13 +243,15 @@ class ContainerDefinition(_DefinitionBase):
 
         self._http_clients = []
 
-    def setup(self, helper=None):
+    def setup(self, helper=None, **run_kwargs):
         """
         Creates the container, starts it, and waits for it to completely start.
 
         :param helper:
             The resource helper to use, if one was not provided when this
             container definition was created.
+        :param \**run_kwargs: Keyword arguments passed to :meth:`.run`.
+
         :returns:
             This container definition instance. Useful for creating and setting
             up a container in a single step::
@@ -236,7 +262,7 @@ class ContainerDefinition(_DefinitionBase):
             return
 
         self.set_helper(helper)
-        self.run()
+        self.run(**run_kwargs)
         self.wait_for_start()
         return self
 
@@ -251,7 +277,7 @@ class ContainerDefinition(_DefinitionBase):
 
     def status(self):
         """
-        Get the container's current status from docker.
+        Get the container's current status from Docker.
 
         If the container does not exist (before creation and after removal),
         the status is ``None``.
@@ -287,6 +313,7 @@ class ContainerDefinition(_DefinitionBase):
             Whether to try pull the image if it's not found. The behaviour here
             is similar to ``docker run`` and this parameter defaults to
             ``True``.
+        :param \**kwargs: Keyword arguments passed to :meth:`.create`.
         """
         self.create(fetch_image=fetch_image, **kwargs)
         self.start()
@@ -314,7 +341,10 @@ class ContainerDefinition(_DefinitionBase):
     def clean(self):
         """
         This method should "clean" the container so that it is in the same
-        state as it was when it was started.
+        state as it was when it was started. It is up to the implementer of
+        this method to decide how the container should be cleaned. See
+        :func:`~seaworthy.pytest.fixtures.clean_container_fixtures` for how
+        this can be used with pytest fixtures.
         """
         raise NotImplementedError()
 
@@ -408,8 +438,69 @@ class ContainerDefinition(_DefinitionBase):
 
 
 class NetworkDefinition(_DefinitionBase):
+    """
+    This is the base class for network definitions.
+
+    .. todo::
+
+        Document this properly.
+    """
     __model_type__ = models.networks.Network
 
 
 class VolumeDefinition(_DefinitionBase):
+    """
+    This is the base class for volume definitions.
+
+    The following is an example of how ``VolumeDefinition`` can be used to
+    attach volumes to a container::
+
+        from seaworthy.definitions import ContainerDefinition
+
+        class DjangoContainer(ContainerDefinition):
+            IMAGE = "seaworthy-demo:django"
+            WAIT_PATTERNS = (r"Booting worker",)
+
+            def __init__(self, name, socket_volume, static_volume, db_url):
+                super().__init__(name, self.IMAGE, self.WAIT_PATTERNS)
+                self.socket_volume = socket_volume
+                self.static_volume = static_volume
+                self.db_url = db_url
+
+            def base_kwargs(self):
+                return {
+                    "volumes": {
+                        self.socket_volume.inner(): "/var/run/gunicorn",
+                        self.static_volume.inner(): "/app/static:ro",
+                    },
+                    "environment": {"DATABASE_URL": self.db_url}
+                }
+
+        # Create definition instances
+        socket_volume = VolumeDefinition("socket")
+        static_volume = VolumeDefinition("static")
+        django_container = DjangoContainer(
+            "django", socket_volume, static_volume,
+            postgresql_container.database_url())
+
+        # Create pytest fixtures
+        socket_volume_fixture = socket_volume.pytest_fixture("socket_volume")
+        static_volume_fixture = static_volume.pytest_fixture("static_volume")
+        django_fixture = django_container.pytest_fixture(
+            "django_container",
+            dependencies=[
+                "socket_volume", "static_volume", "postgresql_container"])
+
+    This example is explained in the `introductory blog post`_ and
+    `demo repository`_.
+
+    .. todo::
+
+        Document this properly.
+
+    .. _`introductory blog post`:
+        https://medium.com/mobileforgood/patterns-for-continuous-integration-with-docker-on-travis-ci-ba7e3a5ca2aa
+    .. _`demo repository`:
+        https://github.com/JayH5/seaworthy-demo
+    """
     __model_type__ = models.volumes.Volume

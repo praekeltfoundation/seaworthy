@@ -32,7 +32,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'attrs',
-        'docker >= 2.4.0',
+        # https://github.com/docker/docker-py/issues/2082
+        'docker[tls]>=3.2,<4',
         'hyperlink',
         'requests',
     ],
@@ -54,7 +55,7 @@ setup(
         'docstest': [
             'doc8',
             'readme_renderer',
-            'sphinx>=1.6.5',
+            'Sphinx>=1.7,<1.8',
             'sphinx_rtd_theme',
         ],
         'pep8test': [
@@ -64,14 +65,16 @@ setup(
         ],
     },
     classifiers=[
-        'Development Status :: 3 - Alpha',
-        'License :: OSI Approved :: BSD License',
+        'Development Status :: 4 - Beta',
         'Framework :: Pytest',
+        'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Software Development :: Testing',

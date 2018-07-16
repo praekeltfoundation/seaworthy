@@ -1,14 +1,25 @@
+"""
+Tools for asserting on processes running in containers using ``ps``.
+"""
+
 import attr
 
 from .logs import output_lines
 
 
 class PsException(Exception):
-    pass
+    """
+    Exception indicating problems operating on process lists and trees.
+    """
 
 
 @attr.s
-class PsRow(object):
+class PsRow:
+    """
+    Representation of a process list entry, containing the details of a single
+    process.
+    """
+
     pid = attr.ib(convert=int)
     ppid = attr.ib(convert=int)
     ruser = attr.ib()
@@ -16,6 +27,9 @@ class PsRow(object):
 
     @classmethod
     def columns(cls):
+        """
+        List the columns required to construct a suitable ``ps`` command.
+        """
         return [a.name for a in attr.fields(cls)]
 
 
@@ -53,11 +67,17 @@ def list_container_processes(container):
 
 
 @attr.s
-class PsTree(object):
+class PsTree:
+    """
+    Node in a process tree, linking a :class:`PsRow` to its child processes.
+    """
     row = attr.ib()
     children = attr.ib(default=attr.Factory(list))
 
     def count(self):
+        """
+        Return the number of processes in this subtree.
+        """
         return 1 + sum(row.count() for row in self.children)
 
 
@@ -93,4 +113,7 @@ def build_process_tree(ps_rows):
     return ps_tree
 
 
-__all__ = ['build_process_tree', 'list_container_processes', 'PsRow', 'PsTree']
+__all__ = [
+    'build_process_tree', 'list_container_processes',
+    'PsException', 'PsRow', 'PsTree',
+]
