@@ -20,8 +20,8 @@ class PsRow:
     process.
     """
 
-    pid = attr.ib(convert=int)
-    ppid = attr.ib(convert=int)
+    pid = attr.ib(converter=int)
+    ppid = attr.ib(converter=int)
     ruser = attr.ib()
     args = attr.ib()
 
