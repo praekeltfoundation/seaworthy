@@ -50,8 +50,10 @@ class TestPostgreSQLContainer:
         """
         assert 'database' in [d[0] for d in postgresql.list_databases()]
         assert postgresql.list_tables() == []
-        assert ([r for r in postgresql.list_users() if r[0] == 'user'] ==
-                [['user', 'Superuser', '{}']])
+        user_list = postgresql.list_users()
+        [[_, attrs, roles]] = [r for r in user_list if r[0] == 'user']
+        assert 'Superuser' in attrs
+        assert roles == '{}'
 
     def test_list_tables(self, postgresql):
         """
