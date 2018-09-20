@@ -60,7 +60,7 @@ class TestPostgreSQLContainer:
         assert postgresql.list_tables() == []
         postgresql.exec_psql('CREATE TABLE mytable(name varchar(40))')
         assert postgresql.list_tables() == [
-            ['public', 'mytable', 'table', 'postgres'],
+            ['public', 'mytable', 'table', postgresql.user],
         ]
 
     def test_database_url(self):
@@ -86,7 +86,7 @@ class TestPostgreSQLContainer:
         """
         postgresql.exec_psql('CREATE TABLE mytable(name varchar(40))')
         assert postgresql.list_tables() == [
-            ['public', 'mytable', 'table', 'postgres'],
+            ['public', 'mytable', 'table', postgresql.user],
         ]
         postgresql.clean()
         assert postgresql.list_tables() == []
