@@ -60,6 +60,15 @@ class PostgreSQLContainer(ContainerDefinition):
             'tmpfs': {'/var/lib/postgresql/data': 'uid=70,gid=70'},
         }
 
+    def exec_pg_success(self, cmd):
+        """
+        Execute a command inside a running container as the postgres user,
+        asserting success.
+        """
+        result = self.inner().exec_run(cmd, user='postgres')
+        assert result.exit_code == 0, result.output.decode('utf-8')
+        return result
+
     def clean(self):
         """
         Remove all data by dropping and recreating the configured database.
@@ -69,10 +78,8 @@ class PostgreSQLContainer(ContainerDefinition):
             Only the configured database is removed. Any other databases
             remain untouched.
         """
-        container = self.inner()
-        container.exec_run(['dropdb', self.database], user='postgres')
-        container.exec_run(
-            ['createdb', '-O', self.user, self.database], user='postgres')
+        self.exec_pg_success(['dropdb', '-U', self.user, self.database])
+        self.exec_pg_success(['createdb', '-U', self.user, self.database])
 
     def exec_psql(self, command, psql_opts=['-qtA']):
         """
