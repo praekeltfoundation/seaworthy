@@ -83,7 +83,7 @@ class _DefinitionBase:
         :param helper:
             The resource helper to use, if one was not provided when this
             resource definition was created.
-        :param \**create_kwargs: Keyword arguments passed to :meth:`.create`.
+        :param **create_kwargs: Keyword arguments passed to :meth:`.create`.
 
         :returns:
             This definition instance. Useful for creating and setting up a
@@ -250,7 +250,7 @@ class ContainerDefinition(_DefinitionBase):
         :param helper:
             The resource helper to use, if one was not provided when this
             container definition was created.
-        :param \**run_kwargs: Keyword arguments passed to :meth:`.run`.
+        :param **run_kwargs: Keyword arguments passed to :meth:`.run`.
 
         :returns:
             This container definition instance. Useful for creating and setting
@@ -313,7 +313,7 @@ class ContainerDefinition(_DefinitionBase):
             Whether to try pull the image if it's not found. The behaviour here
             is similar to ``docker run`` and this parameter defaults to
             ``True``.
-        :param \**kwargs: Keyword arguments passed to :meth:`.create`.
+        :param **kwargs: Keyword arguments passed to :meth:`.create`.
         """
         self.create(fetch_image=fetch_image, **kwargs)
         self.start()
