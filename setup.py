@@ -31,7 +31,7 @@ setup(
     long_description=read('README.rst'),
     packages=find_packages(),
     install_requires=[
-        'attrs',
+        'attrs>=17.4.0',
         # https://github.com/docker/docker-py/issues/2082
         'docker[tls]>=3.2,<4',
         'hyperlink',
