@@ -12,4 +12,4 @@ from .logs import output_lines, wait_for_logs_matching
 
 __all__ = ['DockerHelper', 'output_lines', 'wait_for_logs_matching']
 
-__version__ = '0.3.1'
+__version__ = '0.3.2.dev0'
