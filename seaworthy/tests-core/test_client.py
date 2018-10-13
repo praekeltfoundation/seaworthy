@@ -285,6 +285,7 @@ class TestWaitForResponseFunc(unittest.TestCase):
         client = ContainerHttpClient('127.0.0.1', '12345')
         responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
         # A failure here will raise an exception.
+        # 100ms is long enough for a first-time success.
         wait_for_response(client, 0.1)
 
     @responses.activate
@@ -298,6 +299,8 @@ class TestWaitForResponseFunc(unittest.TestCase):
             responses.GET, 'http://127.0.0.1:12345/', body=Exception('KABOOM'))
         responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
         # A failure here will raise an exception.
+        # Because responses is fast 110ms gives us time to fail, wait 100ms,
+        # then succeed.
         wait_for_response(client, 0.11)
 
     @responses.activate
@@ -310,6 +313,8 @@ class TestWaitForResponseFunc(unittest.TestCase):
         responses.add(
             responses.GET, 'http://127.0.0.1:12345/', body=Exception('KABOOM'))
         with self.assertRaises(TimeoutError) as cm:
+            # 190ms is enough time to fail, wait 100ms, fail again, wait 100ms,
+            # then time out.
             wait_for_response(client, 0.19)
         self.assertEqual(
             str(cm.exception), 'Timeout waiting for HTTP response.')
@@ -329,6 +334,8 @@ class TestWaitForResponseFunc(unittest.TestCase):
             responses.GET, 'http://127.0.0.1:12345/',
             body=requests.exceptions.Timeout())
         with self.assertRaises(TimeoutError) as cm:
+            # The timeout doesn't actually matter here because we raise the
+            # exception ourselves.
             wait_for_response(client, 0.1)
         self.assertEqual(
             str(cm.exception), 'Timeout waiting for HTTP response.')
