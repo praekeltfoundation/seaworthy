@@ -1,5 +1,6 @@
-import time
 import unittest
+
+import requests.exceptions
 
 import responses
 
@@ -316,13 +317,17 @@ class TestWaitForResponseFunc(unittest.TestCase):
     @responses.activate
     def test_timeout(self):
         """
-        When exceptions are raised without a successful request before the
-        timeout, we time out.
+        When we don't get a response before the timeout, we time out.
+
+        FIXME: Because responses doesn't do timeouts, we fake it by manually
+        raising the exception we expect. We really should use requests itself
+        for this.
         """
         client = ContainerHttpClient('127.0.0.1', '12345')
-        responses.add_callback(
+
+        responses.add(
             responses.GET, 'http://127.0.0.1:12345/',
-            callback=lambda _r: time.sleep(0.15))
+            body=requests.exceptions.Timeout())
         with self.assertRaises(TimeoutError) as cm:
             wait_for_response(client, 0.1)
         self.assertEqual(
