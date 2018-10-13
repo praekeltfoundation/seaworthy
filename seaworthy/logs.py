@@ -3,10 +3,11 @@ Tools for waiting on and matching log lines from a container.
 """
 
 import re
-import threading
 from abc import ABC, abstractmethod
 
 from docker.models.containers import ExecResult
+
+from seaworthy._streams import stream_timeout
 
 
 def output_lines(output, encoding='utf-8'):
@@ -48,29 +49,13 @@ def stream_logs(container, timeout=10.0, **logs_kwargs):
     :raises TimeoutError:
         When the timeout value is reached before the logs have completed.
     """
-    logs = container.logs(stream=True, **logs_kwargs)
-    timed_out = threading.Event()
-
-    def timeout_func():
-        timed_out.set()
-        logs.close()
-
-    timer = threading.Timer(timeout, timeout_func)
+    stream = container.logs(stream=True, **logs_kwargs)
+    generator = stream_timeout(stream, timeout)
     try:
-        timer.start()
-        for line in logs:
+        for line in generator:
             yield line
-
-        # A timeout looks the same as the loop ending. So we need to check a
-        # flag to determine whether a timeout occurred or not.
-        if timed_out.is_set():
-            raise TimeoutError('Timeout waiting for container logs.')
-    finally:
-        timer.cancel()
-        # Close the log stream's underlying response object (if it has one) to
-        # avoid potential socket leaks.
-        if hasattr(logs, '_response'):
-            logs._response.close()
+    except TimeoutError:
+        raise TimeoutError('Timeout waiting for container logs.')
 
 
 def wait_for_logs_matching(container, matcher, timeout=10, encoding='utf-8',
