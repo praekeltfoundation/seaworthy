@@ -1,9 +1,10 @@
+import time
 import unittest
 
 import responses
 
 from seaworthy.checks import docker_client, dockertest
-from seaworthy.client import ContainerHttpClient
+from seaworthy.client import ContainerHttpClient, wait_for_response
 from seaworthy.definitions import ContainerDefinition
 from seaworthy.helpers import DockerHelper, fetch_images
 
@@ -274,7 +275,55 @@ class TestContainerHttpClient(unittest.TestCase):
         self.assertIn('Host: {}:{}'.format(addr, port), response_lines)
 
 
-class TestWaitForResponseFunc:
-    """
-    Big TODO
-    """
+class TestWaitForResponseFunc(unittest.TestCase):
+    @responses.activate
+    def test_success(self):
+        """
+        When a request succeeds before the timeout, all is happy.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+        responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
+        # A failure here will raise an exception.
+        wait_for_response(client, 0.1)
+
+    @responses.activate
+    def test_error_then_success(self):
+        """
+        When an exception is raised before the timeout, we retry and are happy
+        with any successful request before the timeout.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/', body=Exception('KABOOM'))
+        responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
+        # A failure here will raise an exception.
+        wait_for_response(client, 0.11)
+
+    @responses.activate
+    def test_error_timeout(self):
+        """
+        When exceptions are raised without a successful request before the
+        timeout, we time out.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/', body=Exception('KABOOM'))
+        with self.assertRaises(TimeoutError) as cm:
+            wait_for_response(client, 0.19)
+        self.assertEqual(
+            str(cm.exception), 'Timeout waiting for HTTP response.')
+
+    @responses.activate
+    def test_timeout(self):
+        """
+        When exceptions are raised without a successful request before the
+        timeout, we time out.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+        responses.add_callback(
+            responses.GET, 'http://127.0.0.1:12345/',
+            callback=lambda _r: time.sleep(0.15))
+        with self.assertRaises(TimeoutError) as cm:
+            wait_for_response(client, 0.1)
+        self.assertEqual(
+            str(cm.exception), 'Timeout waiting for HTTP response.')
