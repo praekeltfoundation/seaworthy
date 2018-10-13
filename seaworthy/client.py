@@ -111,7 +111,7 @@ class ContainerHttpClient:
             The HTTP path (either absolute or relative).
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
-        :param \*\*kwargs:
+        :param **kwargs:
             Optional arguments that ``request`` takes.
         :return: response object
         """
@@ -125,7 +125,7 @@ class ContainerHttpClient:
             The HTTP path (either absolute or relative).
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
-        :param \*\*kwargs:
+        :param **kwargs:
             Optional arguments that ``request`` takes.
         :return: response object
         """
@@ -139,7 +139,7 @@ class ContainerHttpClient:
             The HTTP path (either absolute or relative).
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
-        :param \*\*kwargs:
+        :param **kwargs:
             Optional arguments that ``request`` takes.
         :return: response object
         """
@@ -153,7 +153,7 @@ class ContainerHttpClient:
             The HTTP path (either absolute or relative).
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
-        :param \*\*kwargs:
+        :param **kwargs:
             Optional arguments that ``request`` takes.
         :return: response object
         """
@@ -167,7 +167,7 @@ class ContainerHttpClient:
             The HTTP path (either absolute or relative).
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
-        :param \*\*kwargs:
+        :param **kwargs:
             Optional arguments that ``request`` takes.
         :return: response object
         """
@@ -181,7 +181,7 @@ class ContainerHttpClient:
             The HTTP path (either absolute or relative).
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
-        :param \*\*kwargs:
+        :param **kwargs:
             Optional arguments that ``request`` takes.
         :return: response object
         """
@@ -195,7 +195,7 @@ class ContainerHttpClient:
             The HTTP path (either absolute or relative).
         :param url_kwargs:
             Parameters to override in the generated URL. See `~hyperlink.URL`.
-        :param \*\*kwargs:
+        :param **kwargs:
             Optional arguments that ``request`` takes.
         :return: response object
         """
