@@ -3,7 +3,7 @@ Redis container definition.
 """
 
 from seaworthy.definitions import ContainerDefinition
-from seaworthy.logs import output_lines
+from seaworthy.utils import output_lines
 
 
 class RedisContainer(ContainerDefinition):

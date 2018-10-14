@@ -8,8 +8,8 @@ import functools
 from docker import models
 
 from seaworthy.helpers import DockerHelper
-from seaworthy.logs import (
-    RegexMatcher, UnorderedLinesMatcher, stream_logs, wait_for_logs_matching)
+from seaworthy.stream.matchers import RegexMatcher, UnorderedMatcher
+from seaworthy.stream.logs import stream_logs, wait_for_logs_matching
 
 
 # This is a hack to control our generated documentation. The value of the
@@ -324,11 +324,11 @@ class ContainerDefinition(_DefinitionBase):
 
         By default this will wait for the log lines matching the patterns
         passed in the ``wait_patterns`` parameter of the constructor using an
-        UnorderedLinesMatcher. For more advanced checks for container startup,
-        this method should be overridden.
+        UnorderedMatcher. For more advanced checks for container startup, this
+        method should be overridden.
         """
         if self.wait_matchers:
-            matcher = UnorderedLinesMatcher(*self.wait_matchers)
+            matcher = UnorderedMatcher(*self.wait_matchers)
             self.wait_for_logs_matching(matcher, timeout=self.wait_timeout)
 
     def halt(self, stop_timeout=5):

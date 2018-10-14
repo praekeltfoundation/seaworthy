@@ -6,7 +6,7 @@ from seaworthy.checks import docker_client, dockertest
 from seaworthy.definitions import (
     ContainerDefinition, NetworkDefinition, VolumeDefinition)
 from seaworthy.helpers import DockerHelper, fetch_images
-from seaworthy.logs import EqualsMatcher
+from seaworthy.stream.matchers import EqualsMatcher
 
 IMG_SCRIPT = 'alpine:latest'
 IMG_WAIT = 'nginx:alpine'
