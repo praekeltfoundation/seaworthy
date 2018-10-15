@@ -26,6 +26,9 @@ A `demo repository`_ is available with a set of Seaworthy tests for a
 simple Django application. Seaworthy is also introduced in our `blog post`_ on
 continuous integration with Docker on Travis CI.
 
+For more background on the design and purpose of Seaworthy, see `this talk`_
+(`slides`_) from PyConZA 2018.
+
 
 Quick demo
 ----------
@@ -73,5 +76,7 @@ there.
 .. _`documentation`: http://seaworthy.readthedocs.io/en/latest/
 .. _`demo repository`: https://github.com/JayH5/seaworthy-demo
 .. _`blog post`: https://medium.com/mobileforgood/patterns-for-continuous-integration-with-docker-on-travis-ci-ba7e3a5ca2aa
+.. _`this talk`: https://www.youtube.com/watch?v=NY---NXXHjQ
+.. _`slides`: https://speakerdeck.com/jayh5/test-your-docker-images-with-python
 .. _`project issues`: https://github.com/praekeltfoundation/seaworthy/issues
 .. _`docker-django-bootstrap`: https://github.com/praekeltfoundation/docker-django-bootstrap
