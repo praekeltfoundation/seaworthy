@@ -9,6 +9,7 @@ from seaworthy.checks import docker_client, dockertest
 from seaworthy.helpers import DockerHelper, fetch_images
 from seaworthy.stream.logs import stream_logs, wait_for_logs_matching
 from seaworthy.stream.matchers import EqualsMatcher
+from .fake_stream import FakeStreamSource
 
 # We use this image to test with because it is a small (~4MB) image from
 # https://github.com/docker-library/official-images that we can run shell
@@ -22,7 +23,7 @@ def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
         fetch_images(client, [IMG])
 
 
-class FakeLogsContainer:
+class FakeLogsContainer(FakeStreamSource):
     """
     A container object stub that emits canned logs.
 
@@ -32,104 +33,12 @@ class FakeLogsContainer:
     streamed are tailed.
     """
 
-    def __init__(self, log_entries, expected_params=None, close_timeout=2):
-        self.log_entries = log_entries
-        self._seen_logs = []
-        self._expected_stream_params = {}
-        if expected_params is not None:
-            self._expected_stream_params.update(expected_params)
-        self._feeders = set()
-        self._close_timeout = close_timeout
-
-    def cleanup(self):
-        while self._feeders:
-            self._feeders.pop().cancel()
-
     def logs(self, stream=False, **kw):
         tail = kw.pop('tail', 'all')
         if stream:
-            return self._stream_logs(tail, kw)
+            return self.stream_items(tail, kw)
         else:
-            return b''.join(self._tail_logs(tail))
-
-    def _tail_logs(self, tail):
-        if tail == 0:
-            # Nothing to tail.
-            return []
-        if tail == 'all':
-            # ALL THE LOGS!
-            return self._seen_logs
-        # Just some of the logs.
-        assert tail > 0
-        return self._seen_logs[-tail:]
-
-    def _stream_logs(self, tail, kw):
-        assert kw == self._expected_stream_params
-        feeder = LogFeeder(self, self._tail_logs(tail))
-        self._feeders.add(feeder)
-        feeder.start()
-        return feeder.client_stream()
-
-
-class LogFeeder(threading.Thread):
-    def __init__(self, container, tail):
-        super().__init__()
-        self.con = container
-        self.q = Queue()
-        self.tail = tail
-        self.finished = threading.Event()
-
-    def client_stream(self):
-        return FakeCancellableStream(self, self.q)
-
-    def cancel(self):
-        self.finished.set()
-        self.join()
-
-    def send_line(self, line):
-        self.q.put(line)
-
-    def run(self):
-        # Emit tailed lines.
-        for line in self.tail:
-            self.send_line(line)
-        # Emit previously unstreamed lines at designated intervals.
-        for delay, line in self.con.log_entries[len(self.con._seen_logs):]:
-            # Wait for either cancelation (break) or timeout (no break).
-            if self.finished.wait(delay):
-                break
-            self.con._seen_logs.append(line)
-            self.send_line(line)
-        # Wait until we're done, which we may already be. Since some of the
-        # tests don't do client-side timeouts, we use a fake-specific "server"
-        # timeout.
-        self.finished.wait(self.con._close_timeout)
-        # Time to clean up.
-        self.q.put(None)
-
-
-class FakeCancellableStream:
-    """
-    Fake CancellableStream that iterates over the log data.
-    """
-
-    def __init__(self, feeder, q):
-        self._feeder = feeder
-        self._q = q
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        assert self._q is not None, "Stream already closed."
-        line = self._q.get()
-        if line is None:
-            self._q = None
-            raise StopIteration
-        return line
-
-    def close(self):
-        self._feeder.cancel()
+            return b''.join(self.tail_items(tail))
 
 
 class TestFakeLogsContainer(unittest.TestCase):
