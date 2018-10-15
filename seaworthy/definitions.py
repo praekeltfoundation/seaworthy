@@ -8,8 +8,8 @@ import functools
 from docker import models
 
 from seaworthy.helpers import DockerHelper
-from seaworthy.stream.matchers import RegexMatcher, UnorderedMatcher
 from seaworthy.stream.logs import stream_logs, wait_for_logs_matching
+from seaworthy.stream.matchers import RegexMatcher, UnorderedMatcher
 
 
 # This is a hack to control our generated documentation. The value of the

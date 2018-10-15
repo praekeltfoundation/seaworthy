@@ -65,6 +65,7 @@ class CombinationMatcher(StreamMatcher):
         """
         return cls(*(to_matcher(RegexMatcher, p) for p in patterns))
 
+
 class OrderedMatcher(CombinationMatcher):
     """
     Matcher that takes a list of matchers, and uses one after the next after

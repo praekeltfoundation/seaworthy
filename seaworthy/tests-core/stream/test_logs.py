@@ -1,14 +1,11 @@
-import threading
 import unittest
 from datetime import datetime
-from queue import Queue
-
-from docker.models.containers import ExecResult
 
 from seaworthy.checks import docker_client, dockertest
 from seaworthy.helpers import DockerHelper, fetch_images
 from seaworthy.stream.logs import stream_logs, wait_for_logs_matching
 from seaworthy.stream.matchers import EqualsMatcher
+
 from .fake_stream import FakeStreamSource
 
 # We use this image to test with because it is a small (~4MB) image from

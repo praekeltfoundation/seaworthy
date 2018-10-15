@@ -1,7 +1,7 @@
 import unittest
 
 from seaworthy.stream.matchers import (
-    EqualsMatcher, RegexMatcher, OrderedMatcher, UnorderedMatcher)
+    EqualsMatcher, OrderedMatcher, RegexMatcher, UnorderedMatcher)
 
 
 class TestEqualsMatcher(unittest.TestCase):
