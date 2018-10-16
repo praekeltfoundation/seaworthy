@@ -4,7 +4,7 @@ Tools for asserting on processes running in containers using ``ps``.
 
 import attr
 
-from .logs import output_lines
+from .utils import output_lines
 
 
 class PsException(Exception):

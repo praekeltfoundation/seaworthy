@@ -5,8 +5,8 @@ import time
 import pytest
 
 from seaworthy.containers.nginx import NginxContainer
-from seaworthy.logs import output_lines
 from seaworthy.pytest import dockertest
+from seaworthy.utils import output_lines
 
 
 @pytest.fixture(scope='module')
