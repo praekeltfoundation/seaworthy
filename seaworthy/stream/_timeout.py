@@ -33,5 +33,9 @@ def stream_timeout(stream, timeout, timeout_msg=None):
         timer.cancel()
         # Close the stream's underlying response object (if it has one) to
         # avoid potential socket leaks.
+        # This method seems to have more success at preventing ResourceWarnings
+        # than just stream.close() (should this be improved upstream?)
+        # FIXME: Potential race condition if Timer thread closes the stream at
+        # the same time we do here, but hopefully not with serious side effects
         if hasattr(stream, '_response'):
             stream._response.close()
