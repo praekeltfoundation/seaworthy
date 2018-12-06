@@ -3,7 +3,7 @@ PostgreSQL container definition.
 """
 
 from seaworthy.definitions import ContainerDefinition
-from seaworthy.logs import output_lines
+from seaworthy.utils import output_lines
 
 
 class PostgreSQLContainer(ContainerDefinition):
@@ -99,26 +99,26 @@ class PostgreSQLContainer(ContainerDefinition):
 
     def list_databases(self):
         """
-        Runs the ``\list`` command and returns a list of column values with
+        Runs the ``\\list`` command and returns a list of column values with
         information about all databases.
         """
-        lines = output_lines(self.exec_psql('\list'))
+        lines = output_lines(self.exec_psql('\\list'))
         return [line.split('|') for line in lines]
 
     def list_tables(self):
         """
-        Runs the ``\dt`` command and returns a list of column values with
+        Runs the ``\\dt`` command and returns a list of column values with
         information about all tables in the database.
         """
-        lines = output_lines(self.exec_psql('\dt'))
+        lines = output_lines(self.exec_psql('\\dt'))
         return [line.split('|') for line in lines]
 
     def list_users(self):
         """
-        Runs the ``\du`` command and returns a list of column values with
+        Runs the ``\\du`` command and returns a list of column values with
         information about all user roles.
         """
-        lines = output_lines(self.exec_psql('\du'))
+        lines = output_lines(self.exec_psql('\\du'))
         return [line.split('|') for line in lines]
 
     def database_url(self):

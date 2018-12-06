@@ -3,7 +3,7 @@ RabbitMQ container definition.
 """
 
 from seaworthy.definitions import ContainerDefinition
-from seaworthy.logs import output_lines
+from seaworthy.utils import output_lines
 
 
 def _parse_rabbitmq_user(user_line):
