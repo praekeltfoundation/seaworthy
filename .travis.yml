@@ -15,7 +15,7 @@ cache: pip
 install: pip install tox codecov
 script: tox
 
-after_success: if [[ $TOXENV =~ py..-full ]]; then codecov; fi
+after_success: if [[ $TOXENV =~ py..-(full|pytest3) ]]; then codecov; fi
 
 jobs:
   include:
