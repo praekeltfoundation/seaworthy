@@ -12,6 +12,11 @@ from seaworthy.pytest.fixtures import (
     resource_fixture)
 
 
+# FIXME 2018-12-06: https://github.com/praekeltfoundation/seaworthy/issues/84
+pytestmark = pytest.mark.skipif(int(pytest.__version__.split('.')[0]) >= 4,
+                                reason='tests incompatible with pytest 4')
+
+
 IMG = 'nginx:alpine'
 
 
