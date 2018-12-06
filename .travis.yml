@@ -15,7 +15,7 @@ cache: pip
 install: pip install tox codecov
 script: tox
 
-after_success: if [[ $TOXENV == py* ]]; then codecov; fi
+after_success: if [[ $TOXENV =~ py..-full ]]; then codecov; fi
 
 jobs:
   include:
@@ -35,6 +35,15 @@ jobs:
       services: docker
 
     - env: TOXENV=py37-core,py37-pytest,py37-testtools,py37-full
+      python: '3.7'
+      dist: xenial
+      sudo: required
+      services: docker
+
+    # FIXME 2018-12-06: Some of our tests are not compatible with pytest 4. Run
+    # a special build job just for them until we find a good alternative.
+    # https://github.com/praekeltfoundation/seaworthy/issues/84
+    - env: TOXENV=py37-pytest3
       python: '3.7'
       dist: xenial
       sudo: required
