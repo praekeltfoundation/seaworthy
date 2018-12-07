@@ -289,6 +289,18 @@ class TestWaitForResponseFunc(unittest.TestCase):
         wait_for_response(client, 0.1)
 
     @responses.activate
+    def test_success_with_status_code(self):
+        """
+        When a request succeeds before the timeout and has the expected status
+        code, all is happy.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+        responses.add(responses.GET, 'http://127.0.0.1:12345/', status=200)
+        # A failure here will raise an exception.
+        # 100ms is long enough for a first-time success.
+        wait_for_response(client, 0.1, expected_status_code=200)
+
+    @responses.activate
     def test_error_then_success(self):
         """
         When an exception is raised before the timeout, we retry and are happy
@@ -316,6 +328,22 @@ class TestWaitForResponseFunc(unittest.TestCase):
             # 190ms is enough time to fail, wait 100ms, fail again, wait 100ms,
             # then time out.
             wait_for_response(client, 0.19)
+        self.assertEqual(
+            str(cm.exception), 'Timeout waiting for HTTP response.')
+
+    @responses.activate
+    def test_unexpected_status_code_timeout(self):
+        """
+        When requests are received without the correct status code before the
+        timeout, we time out.
+        """
+        client = ContainerHttpClient('127.0.0.1', '12345')
+        responses.add(
+            responses.GET, 'http://127.0.0.1:12345/', status=503)
+        with self.assertRaises(TimeoutError) as cm:
+            # 190ms is enough time to fail, wait 100ms, fail again, wait 100ms,
+            # then time out.
+            wait_for_response(client, 0.19, expected_status_code=200)
         self.assertEqual(
             str(cm.exception), 'Timeout waiting for HTTP response.')
 

@@ -202,11 +202,20 @@ class ContainerHttpClient:
         return self._session.delete(self._url(path, url_kwargs), **kwargs)
 
 
-def wait_for_response(client, timeout, path='/'):
+def wait_for_response(client, timeout, path='/', expected_status_code=None):
     """
     Try make a GET request with an HTTP client against a certain path and
     return once any response has been received, ignoring any errors.
 
+    :param ContainerHttpClient client:
+        The HTTP client to use to connect to the container.
+    :param timeout:
+        Timeout value in seconds.
+    :param path:
+        HTTP path to request.
+    :param int expected_status_code:
+        If set, wait until a response with this status code is received. If not
+        set, the status code will not be checked.
     :raises TimeoutError:
         If a request fails to be made within the timeout period.
     """
@@ -219,15 +228,21 @@ def wait_for_response(client, timeout, path='/'):
         try:
             # Don't care what the response is, as long as we get one
             time_left = deadline - get_time()
-            client.get(
+            response = client.get(
                 path, timeout=max(time_left, 0.001), allow_redirects=False)
-            return
+
+            if (expected_status_code is None
+                    or response.status_code == expected_status_code):
+                return
         except requests.exceptions.Timeout:
             # Requests timed out, our time must be up
             break
         except Exception:
-            if get_time() >= deadline:
-                break
-            time.sleep(0.1)
+            # Ignore other exceptions
+            pass
+
+        if get_time() >= deadline:
+            break
+        time.sleep(0.1)
 
     raise TimeoutError('Timeout waiting for HTTP response.')
