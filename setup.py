@@ -58,7 +58,7 @@ setup(
             'sphinx_rtd_theme',
         ],
         'pep8test': [
-            'flake8',
+            'flake8>=3.7.0',
             'flake8-import-order',
             'pep8-naming',
         ],
