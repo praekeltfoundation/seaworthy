@@ -21,11 +21,16 @@ import shutil
 import sys
 from fnmatch import fnmatch
 from os import path
+from typing import Dict
 
 from sphinx import __display_version__
+from sphinx.application import Sphinx
 from sphinx.cmd.quickstart import EXTENSIONS
 from sphinx.util import logging
 from sphinx.util.osutil import FileAvoidWrite, walk
+
+if sys.version_info[0] >= 3:
+    unicode = str
 
 if False:
     # For type annotation
