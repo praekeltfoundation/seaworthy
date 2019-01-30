@@ -87,11 +87,25 @@ class RabbitMQContainer(ContainerDefinition):
         cmd = ['rabbitmqctl'] + rabbitmqctl_opts + [command] + args
         return self.inner().exec_run(cmd)
 
+    def exec_rabbitmqctl_list(self, resources, args=[],
+                              rabbitmq_opts=['-q', '--no-table-headers']):
+        """
+        Execute a ``rabbitmqctl`` command to list the given resources.
+
+        :param resources: the resources to list, e.g. ``'vhosts'``
+        :param args: a list of args for the command
+        :param rabbitmqctl_opts:
+            a list of extra options to pass to ``rabbitmqctl``
+        :returns: a tuple of the command exit code and output
+        """
+        command = 'list_{}'.format(resources)
+        return self.exec_rabbitmqctl(command, args, rabbitmq_opts)
+
     def list_vhosts(self):
         """
         Run the ``list_vhosts`` command and return a list of vhost names.
         """
-        return output_lines(self.exec_rabbitmqctl('list_vhosts'))
+        return output_lines(self.exec_rabbitmqctl_list('vhosts'))
 
     def list_queues(self):
         """
@@ -103,7 +117,7 @@ class RabbitMQContainer(ContainerDefinition):
             the second is the current queue size.
         """
         lines = output_lines(
-            self.exec_rabbitmqctl('list_queues', ['-p', self.vhost]))
+            self.exec_rabbitmqctl_list('queues', ['-p', self.vhost]))
         return [tuple(line.split(None, 1)) for line in lines]
 
     def list_users(self):
@@ -115,7 +129,7 @@ class RabbitMQContainer(ContainerDefinition):
             A list of 2-element tuples. The first element is the username, the
             second a list of tags for the user.
         """
-        lines = output_lines(self.exec_rabbitmqctl('list_users'))
+        lines = output_lines(self.exec_rabbitmqctl_list('users'))
         return [_parse_rabbitmq_user(line) for line in lines]
 
     def broker_url(self):
