@@ -33,7 +33,7 @@ Containers should be defined using subclasses of
 
         # Utility methods can be added to the class to extend functionality
         def exec_cake(self, *params):
-            return output_lines(self.inner().exec_run(['cake'] + params))
+            return output_lines(self.inner().exec_run(('cake',) + params))
 
 
 ``WAIT_PATTERNS`` is a list of regex patterns. Once these patterns have been
