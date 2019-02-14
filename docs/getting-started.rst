@@ -18,7 +18,7 @@ Containers should be defined using subclasses of
 :class:`~seaworthy.definitions.ContainerDefinition`. For example::
 
     from seaworthy.definitions import ContainerDefinition
-    from seaworthy.logs import output_lines
+    from seaworthy.utils import output_lines
 
 
     class CakeContainer(ContainerDefinition):
