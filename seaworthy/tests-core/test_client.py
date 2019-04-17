@@ -20,6 +20,11 @@ def setUpModule():  # noqa: N802 (The camelCase is mandated by unittest.)
         fetch_images(client, [IMG])
 
 
+def echo_container(name, **kw):
+    kw.setdefault('wait_patterns', ('Echo server listening on port 8080.',))
+    return ContainerDefinition(name, IMG, **kw)
+
+
 class DummySession:
     def __init__(self):
         self.requests = []
@@ -228,7 +233,7 @@ class TestContainerHttpClient(unittest.TestCase):
         specified.
         """
         ch = self.make_helper()
-        container = ContainerDefinition('first_port', IMG, create_kwargs={
+        container = echo_container('first_port', create_kwargs={
             'ports': {'8080/tcp': ('127.0.0.1', None)}
         }, helper=ch)
         container.setup()
@@ -253,7 +258,7 @@ class TestContainerHttpClient(unittest.TestCase):
         connects to the container port specified.
         """
         ch = self.make_helper()
-        container = ContainerDefinition('first_port', IMG, create_kwargs={
+        container = echo_container('first_port', create_kwargs={
             'ports': {
                 '8080/tcp': ('127.0.0.1', None),
                 '5353/udp': ('127.0.0.1', None),
