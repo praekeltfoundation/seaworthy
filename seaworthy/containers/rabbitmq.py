@@ -20,9 +20,11 @@ class RabbitMQContainer(ContainerDefinition):
        Write more docs.
     """
 
-    # For some reason this container is slower to start through seaworthy than
-    # with a plain `docker run`, so give it a bit more time to get going. :-(
-    WAIT_TIMEOUT = 20.0
+    # There seems to be a weird interaction between the erlang runtime and
+    # something in docker which results in annoyingly long startup times in
+    # some environments. The best we can do to deal with that is to give it a
+    # bit more time to get going. :-(
+    WAIT_TIMEOUT = 30.0
 
     DEFAULT_NAME = 'rabbitmq'
     DEFAULT_IMAGE = 'rabbitmq:alpine'
@@ -50,6 +52,14 @@ class RabbitMQContainer(ContainerDefinition):
         self.vhost = vhost
         self.user = user
         self.password = password
+
+    def wait_for_start(self):
+        """
+        Wait for the RabbitMQ process to be come up.
+        """
+        er = self.exec_rabbitmqctl(
+            'wait', ['--pid', '1', '--timeout', str(int(self.wait_timeout))])
+        output_lines(er, error_exc=TimeoutError)
 
     def base_kwargs(self):
         """
