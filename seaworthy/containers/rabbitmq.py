@@ -57,10 +57,9 @@ class RabbitMQContainer(ContainerDefinition):
         """
         Wait for the RabbitMQ process to be come up.
         """
-        (code, output) = self.exec_rabbitmqctl(
+        er = self.exec_rabbitmqctl(
             'wait', ['--pid', '1', '--timeout', str(int(self.wait_timeout))])
-        if code != 0:
-            raise TimeoutError(output.decode('utf-8'))
+        output_lines(er, error_exc=TimeoutError)
 
     def base_kwargs(self):
         """
