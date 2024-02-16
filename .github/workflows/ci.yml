@@ -1,0 +1,65 @@
+name: Seaworthy CI
+
+on: [push, pull_request]
+
+jobs:
+  basic:
+
+    runs-on: ubuntu-latest
+
+    name: CI testsuite - Python ${{ matrix.python-version }}
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10','3.11']
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install tox codecov
+    - name: Run Tests usin tox
+      run: |
+        TOXENV=${TOXPY}-core,${TOXPY}-pytest,${TOXPY}=testtools,${TOXPY}-full
+        tox
+        codecov
+
+  doctests:
+    runs-on: ubuntu-latest
+    name: Doctests
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.7'
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install tox
+    - name: Run tests
+      run: |
+        TOXENV=docs
+        tox
+
+  pep8:
+    runs-on: ubuntu-latest
+    name: PEP8 checks
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.7'
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install tox
+    - name: Run tests
+      run: |
+        TOXENV=pep8
+        tox
