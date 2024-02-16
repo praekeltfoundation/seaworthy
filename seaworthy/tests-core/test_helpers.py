@@ -82,13 +82,13 @@ class TestImageHelper(unittest.TestCase):
         with self.assertLogs('seaworthy', level='INFO') as cm:
             ih.fetch('busybox:latest')
         self.assertEqual(
-            [l.getMessage() for l in cm.records],
+            [k.getMessage() for k in cm.records],
             ["Pulling tag 'latest' for image 'busybox'..."])
 
         # Pull the image again, now that we know it's present.
         with self.assertLogs('seaworthy', level='DEBUG') as cm:
             ih.fetch('busybox:latest')
-        logs = [l.getMessage() for l in cm.records]
+        logs = [k.getMessage() for k in cm.records]
         self.assertEqual(len(logs), 1)
         self.assertRegex(
             logs[0],
@@ -176,7 +176,7 @@ class TestNetworkHelper(unittest.TestCase):
 
         with self.assertLogs('seaworthy', level='WARNING') as cm:
             nh._teardown()
-        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
+        self.assertEqual(sorted(k.getMessage() for k in cm.records), [
             "Network 'test_bridge1' still existed during teardown",
             "Network 'test_bridge2' still existed during teardown",
         ])
@@ -272,7 +272,7 @@ class TestVolumeHelper(unittest.TestCase):
 
         with self.assertLogs('seaworthy', level='WARNING') as cm:
             vh._teardown()
-        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
+        self.assertEqual(sorted(k.getMessage() for k in cm.records), [
             "Volume 'test_local1' still existed during teardown",
             "Volume 'test_local2' still existed during teardown",
         ])
@@ -385,7 +385,7 @@ class TestContainerHelper(unittest.TestCase):
 
         with self.assertLogs('seaworthy', level='WARNING') as cm:
             ch._teardown()
-        self.assertEqual(sorted(l.getMessage() for l in cm.records), [
+        self.assertEqual(sorted(k.getMessage() for k in cm.records), [
             "Container 'test_created' still existed during teardown",
             "Container 'test_running' still existed during teardown",
             "Container 'test_stopped' still existed during teardown",
