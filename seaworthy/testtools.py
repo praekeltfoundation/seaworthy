@@ -32,12 +32,12 @@ class PsTreeMismatch(Mismatch):
             ', '.join(rfs), self.child_count, suffix)]
         if self.fields_mm is not None:
             for m in self.fields_mm.mismatches:
-                for l in m.describe().splitlines():
-                    descriptions.append('  ' + l.rstrip('\n'))
+                for k in m.describe().splitlines():
+                    descriptions.append('  ' + k.rstrip('\n'))
         if self.children_mm is not None:
             descriptions.append('  mismatches in children:')
-            for l in self.children_mm.describe().splitlines():
-                descriptions.append('    ' + l.rstrip('\n'))
+            for k in self.children_mm.describe().splitlines():
+                descriptions.append('    ' + k.rstrip('\n'))
         descriptions.append(']')
         return '\n'.join(descriptions)
 

@@ -59,7 +59,7 @@ class TestImageFetchFixtureFunc:
             from seaworthy.pytest.fixtures import image_fetch_fixture
 
             fixture = image_fetch_fixture('busybox', name='image')
-        """.format(IMG))
+        """)
 
         testdir.makepyfile("""
             def test_image_fetch(image):
